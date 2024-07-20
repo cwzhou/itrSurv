@@ -6,7 +6,7 @@ Currently, itrSurv is only applicable to competing risks with a priority cause o
 This is the doctoral dissertation thesis work of Christina W Zhou under the mentorship of Michael R Kosorok at UNC-CH Department of Biostatistics.
 
 
-
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Updated July 2024:
 Now incorporating a second endpoint, recurrent event.
