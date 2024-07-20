@@ -1,0 +1,522 @@
+# Class for storing primary results from survival analysis
+#
+# Class is not exported and is for internal convenience only
+#
+#  @slot txName A character object. The name of the treatment variable
+#
+#  @slot txLevels A vector. The treatment options available
+#
+#  @slot model A formula object. The model for extracting the covariates to be
+#    considered for splitting
+#
+#  @slot survRF A SurvRF object. The primary results of the tree building
+#    algorithm
+#
+#  @slot eligibility A logical vector object. TRUE indicates that the case was
+#    eligible to be included in analysis
+#
+#  @slot valueAllTx A list object. The value of the tree for each tx level.
+#
+#  @slot optimal An Optimal object. The estimated optimal tx and optimal value.
+
+# Methods
+#
+# Functions
+#
+#' @include class_Optimal.R class_SurvRF.R
+#' @include class_Parameters.R
+
+# Define new class "ITRSurvStep"
+# Slots (Attributes):
+# 1. txName (Slot Type: character): Stores the name of the treatment variable.
+# 2. txLevels (Slot Type: vector): Holds a vector containing the treatment options available.
+# 3. model (Slot Type: formula): Store a formula object representing the model for extracting the covariates to be considered for splitting in the analysis.
+# 4. survRF (Slot Type: ANY): This slot is of type "ANY," which means it can store objects of any class. SurvRF object (primary results of the tree building algorithm).
+# 5. eligibility (Slot Type: logical): Stores a logical vector that indicates whether each case was eligible to be included in the analysis.
+# 6. valueAllTx (Slot Type: list): A list that stores values related to all treatment options.
+# 7. optimal (Slot Type: Optimal): Stores an object of class "Optimal," from class_Optimal.R
+
+setClass(Class = "ITRSurvStep",
+         slots = c("txName" = "character",
+                   "txLevels" = "vector",
+                   "model" = "formula",
+                   "survRF" = "ANY",
+                   "eligibility" = "logical",
+                   "valueAllTx" = "list",
+                   "optimal" = "Optimal"))
+
+#-------------------------------------------------------------------------------
+# function to return key stage results as a list
+#-------------------------------------------------------------------------------
+# function is not exported
+#-------------------------------------------------------------------------------
+# .stage <- function(object, ...) {
+#   result <- list()
+#
+#   result[[ "txName" ]] <- object@txName
+#   result[[ "txLevels" ]] <- object@txLevels
+#   result[[ "sampleSize" ]] <- sum(object@eligibility)
+#   result[[ "valueAllTx" ]] <- object@valueAllTx
+#   result[[ "optimal" ]] <- .OptimalAsList(object = object)
+#   result[[ "stages" ]] <- .stageSurvRF(object = object@survRF)
+#
+#   return( result )
+# }
+
+
+.meanValue <- function(object,Phase,endPoint = NULL, ...) {
+  res <- list()
+  # message("OK1")
+
+  object_surv <<- object[[1]]
+  object_ep <<- object[[2]]
+  # message("OK2")
+
+  if (grepl("surv", Phase, ignore.case = TRUE)){
+    # object = object_surv
+    optfunc = max
+
+    AU_name = "AUS"
+    mean_name = "Et_surv"
+    prob_name = "St"
+
+    area_dat = cbind(object_surv@valueAllTx$AUS[[1]],
+                     object_surv@valueAllTx$AUS[[2]])
+    mean_dat = cbind(object_surv@valueAllTx$mean[[1]],
+                     object_surv@valueAllTx$mean[[2]])
+    mdat1 <<- mean_dat
+    # message("OK3")
+
+    if (!is.null(object_surv@valueAllTx$Prob[[1]])) {
+      message("Calculate mean Survival probability curve")
+      # View(object_surv@valueAllTx$Prob)
+      prob_dat0 <<- object_surv@valueAllTx$Prob[[1]]
+      prob_dat1 <<- object_surv@valueAllTx$Prob[[2]]
+      prob_dat <<- cbind(prob_dat0, prob_dat1)
+      res[[ prob_name ]] <-  mean(x = apply(X = prob_dat,
+                                            MARGIN = 1L,
+                                            FUN = optfunc))
+    }
+  }
+  # print(endPoint)
+
+  if (!is.null(endPoint)){
+    if (endPoint == "CR" & Phase == "CR"){
+      object = object_ep
+      optfunc = min
+
+      AU_name = "AUC"
+      mean_name = "Et_cif"
+      prob_name = "CIFt"
+      # message("OK4")
+
+      indicator_vector <- object_surv@optimal@Ratio_Stopping_Ind
+      dat_mean <- cbind(object_ep@valueAllTx$mean[[1]],
+                        object_ep@valueAllTx$mean[[2]])
+      dat_area <- cbind(object_ep@valueAllTx$AUS[[1]],
+                        object_ep@valueAllTx$AUS[[2]])
+      # message("Obtain mean CIF times for those who continued to Phase 2 with mean critical values.")
+      mean_dat <- dat_mean[indicator_vector == 0,]
+      mdat2 <<- mean_dat
+      # message("Obtain mean area under CIF curve for those who continued to Phase 2 with area critical values.")
+      area_dat <- dat_area[indicator_vector == 0,]
+      # message("OK5")
+
+      if (!is.null(object_ep@valueAllTx$Prob[[1]])) {
+        # message("Obtain mean CIF curve for those who continued to Phase 2 with prob critical values.")
+        dat_prob0 <- object_ep@valueAllTx$Prob[[1]]
+        dat_prob1 <- object_ep@valueAllTx$Prob[[2]]
+        prob_dat <- cbind(dat_prob0, dat_prob1)[indicator_vector == 0,]
+        # print(typeof(prob_dat))
+        # print(prob_dat)
+        res[[ prob_name ]] <-  mean(x = apply(X = prob_dat,
+                                              MARGIN = 1L,
+                                              FUN = optfunc))
+      }
+    }
+  }
+  # message("OK6")
+  # print(optfunc)
+  mdat3 <<- mean_dat
+  # returns the mean of the expected times
+  res[[ mean_name ]] <-  mean(x = apply(X = mean_dat,
+                                   MARGIN = 1L,
+                                   FUN = optfunc))
+  res[[ AU_name ]] <-  mean(x = apply(X = area_dat,
+                                   MARGIN = 1L,
+                                   FUN = optfunc))
+  # message("OK7")
+  return( res )
+}
+
+# generic defined in class_Optimal.R
+setMethod(f = ".OptimalAsList",
+          signature = c(object = "ITRSurvStep"),
+          definition = function(object, ...) {
+                return( .OptimalAsList(object = object@optimal) )
+              })
+
+#-------------------------------------------------------------------------------
+# method to retrieve predicted values
+#-------------------------------------------------------------------------------
+# if findOptimal is TRUE, method stops with error
+# if findOptimal is FALSE, method returns a Value object
+#-------------------------------------------------------------------------------
+setMethod(f = ".Predict",
+          signature = c(object = "ITRSurvStep",
+                        newdata = NULL),
+          definition = function(object, newdata, ...) {
+            print(".Predict from class_ITRSurvStep.R when newdata = NULL: LINE 165")
+
+              return( .Predict(object = object@survRF, newdata = NULL, ...) )
+
+            })
+
+#-------------------------------------------------------------------------------
+# method to predict value for new data
+#-------------------------------------------------------------------------------
+# if findOptimal is TRUE, method returns a list containing a Value object and
+#   an Optimal object
+# if findOptimal is FALSE, method returns a Value object
+#-------------------------------------------------------------------------------
+#' @include class_Optimal.R
+#' @importFrom stats model.frame
+#'
+setMethod(f = ".Predict",
+          signature = c(object = "ITRSurvStep",
+                        newdata = "data.frame"),
+          definition = function(object,
+                                newdata,
+                                Phase,
+                                eps0,
+                                ...,
+                                params,
+                                findOptimal) {
+            # message("class_ITRSurvStep.R: LINE 179")
+            # print(".Predict from class_ITRSurvStep.R when when newdata = dataframe")
+            # print(sprintf("Phase: %s", Phase))
+            # View(object)
+            # print(eps0)
+
+              # update model to remove response
+              mod <- update(object@model, NULL ~ .)
+
+              # ensure data contains all model covariates
+              x <- tryCatch(expr = stats::model.frame(formula = mod,
+                                                      data = newdata),
+                            error = function(e) {
+                                      stop("variables in the training data missing in newdata",
+                                           call. = FALSE)
+                                     })
+
+              # remove response from x
+              # this should no longer happen, but keeping anyway
+              if (attr(x = terms(x = mod), which = "response") == 1L) {
+                x <- x[,-1L,drop = FALSE]
+              }
+
+              if (findOptimal) {
+                # print("finding optimal. returning .PredictAll()")
+                # if optimal is requested, make predictions for all possible
+                # treatment options
+                # print(3)
+                # print(eps0)
+                if (is.language(eps0)){
+                  eps0 = c(eps0[[2]],eps0[[3]])
+                }
+                # View(eps0)
+                resV <- .PredictAll(Phase = Phase,
+                                    eps0 = eps0,
+                                    object = object@survRF,
+                                    newdata = newdata,
+                                    params = params,
+                                    model = mod,
+                                    txName = object@txName,
+                                    txLevels = object@txLevels)
+                # print(4)
+                if (Phase == 1){
+                  resV_surv <<- resV
+                  # message("resV_surv saved")
+                } else if (Phase == 2){
+                  # message("resV_ep saved")
+                  resV_ep <<- resV
+                }
+                # message("class_ITRSurvStep.R: LINE 237: resV_surv and resV_ep saved.")
+                return(list("value" = resV$predicted, "optimal" = resV$optimal) )
+
+              } else {
+                print('not finding optimal. returning .Predict() instead of .PredictAll()')
+                return( .Predict(object = object@survRF,
+                                 newdata = x,
+                                 params = params, ...) )
+              }
+          })
+
+
+# Internal function to create random forest
+#
+# Function is not exported
+#
+# @param model A survival formula object, the rhs of which specifies the
+#   covariates to be considered in the splitting algorithm
+#
+# @params data A data.frame object containing covariate and treatment histories
+#
+# @params params A Parameters object.
+#
+# @params txName A character object or a character vector object. The names
+#   of the treatment variables in data
+#
+# @params mTry An integer object or NULL. If integer, the maximum number of
+#    covariates to consider for each split. If NULL, mTry is sqrt(np)
+#
+# @params sampleSize An integer object. The number of samples to draw for each
+#    tree
+#
+#' @importFrom stats na.pass
+#' @importFrom stats update
+#' @importFrom stats terms
+#' @importFrom stats complete.cases
+#' @importFrom stats model.frame
+#' @importFrom stats model.response
+#' @include shiftMat.R survRF.R
+.itrSurvStep <- function(...,
+                         Phase,
+                         eps0 = NULL,
+                         model,
+                         model_cause,
+                         endPoint,
+                         data,
+                         params,
+                         txName,
+                         mTry,
+                         sampleSize) {
+  # print("---STARTING ITRSURVSTEP---")
+
+  if (endPoint == "CR" & Phase == toString(endPoint)){
+    # stop("EndPoint is CR and the model_cause is specified")
+    # message("EndPoint is CR and Phase is CR")
+    if (!is.null(model_cause)){
+      mod <- model_cause
+    } else{
+      stop("Please identify priority cause of interest.")
+    }
+    # identify order 1 terms in formula
+    order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+    if (any(order1)) {
+      stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+    } else {
+      stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+    }
+
+    # warn about order > 1
+    orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+    if (any(orderHigh)) message("interaction terms are ignored")
+
+    # extract model frame
+    x_cause <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
+    message("model_cause ", appendLF = FALSE)
+    tm <- as.character(mod)
+    message(tm[2], " ~ ", tm[3])
+
+    # identify individuals with complete data
+    elig <- stats::complete.cases(x_cause)
+
+    # extract response and delta from model frame
+    response0 <- stats::model.response(data = x_cause)
+    delta_cause <- response0[,2L]
+    response <- response0[,1L]
+    x <- stats::model.frame(formula = model, data = data, na.action = na.pass)
+    response00 <- stats::model.response(data = x)
+    delta <- response00[,2L]
+    # print("delta")
+    # print(delta)
+    # print("delta_cause")
+    # print(delta_cause)
+    }
+  else {
+    # message("Either NOT CR endpoint or, CR endpoint but survival stage")
+    mod <- model
+    # print(mod)
+
+    # identify order 1 terms in formula
+    order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+    if (any(order1)) {
+      stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+    } else {
+      stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+    }
+
+    # warn about order > 1
+    orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+    if (any(orderHigh)) message("interaction terms are ignored")
+
+    # extract model frame
+    x <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
+    message("model ", appendLF = FALSE)
+    tm <- as.character(mod)
+    message(tm[2], " ~ ", tm[3])
+
+    # identify individuals with complete data
+    elig <- stats::complete.cases(x)
+
+    # extract response and delta from model frame
+    response <- stats::model.response(data = x)
+    delta <- response[,2L]
+    response <- response[,1L]
+    # print('setting delta_cause = delta but we wont use it for survival part Phase1')
+    delta_cause = delta
+  }
+  # print('response')
+  # print(response)
+  # print('delta')
+  # print(delta)
+
+  # remove response from x
+  if (attr(x = terms(x = mod), which = "response") == 1L) {
+    x <- x[,-1L,drop = FALSE]
+  }
+  # message('remove response from x')
+  # print(x)
+
+  # responses that are zero indicate censored at a previous stage
+  zeroed <- abs(x = response) < 1e-8
+  # print("zeroed")
+  # print(zeroed)
+
+  elig <- elig & !zeroed
+  # print("elig")
+  # print(elig)
+
+  if (sum(elig) == 0L) stop("no cases have complete data", call. = FALSE)
+
+  # message("cases in stage: ", sum(elig))
+
+  # maximum number of covariates to try
+  if (is.null(x = mTry)) {
+    mTry <- as.integer(x = ceiling(x = sqrt(x = ncol(x = x))))
+    # message("maximum # of covariates considered for splitting set to ", mTry)
+  } else if (mTry > ncol(x = x)) {
+    # message("mTry reset as it is larger than the # of available covariates")
+    mTry <- as.integer(x = ceiling(x = sqrt(x = ncol(x = x))))
+    # message("maximum # of covariates considered for splitting set to ", mTry)
+  } else {
+    mTry <- as.integer(x = mTry)
+  }
+  # message('mTry: ', mTry)
+
+  ### Transform the time variable to a probability mass vector ###
+  # identify time points <= response
+  tSurv <- sapply(X = response[elig],
+                  FUN = function(s, tp) { as.integer(x = {s < tp}) },
+                  tp = .TimePoints(object = params))
+
+  # time point nearest the response without going over
+  # {nTimes x nElig}
+  pr <- {rbind(tSurv[-1L,],1)-tSurv}
+  # message('pr: nTimes x nElig')
+  #print(pr)
+  #print(dim(pr))
+
+  if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
+                               call. = FALSE)
+
+  if (any(pr > 1.0) || any(pr < 0.0)) {
+    stop("pr must obey 0 <= pr <= 1 -- contact maintainer", call. = FALSE)
+  }
+
+  # identify tx levels in limited data
+  if (is.factor(x = data[,txName])) {
+    txLevels <- levels(x = factor(x = data[elig,txName]))
+  } else {
+    txLevels <- sort(x = unique(x = data[elig, txName]))
+  }
+  # print("txLevels")
+  # print(txLevels)
+
+  if (length(x = txLevels) == 1L) {
+    message("***only one treatment level in data***")
+  }
+
+  if (.Pooled(object = params)) {
+      message("pooled analysis; treatments ", paste(txLevels,collapse=" "))
+      # this will be a SurvRF object
+      result <- .survRF(Phase = Phase,
+                        eps0 = eps0,
+                        x = x[elig,,drop=FALSE],
+                        y = response[elig],
+                        pr = pr,
+                        delta = delta[elig],
+                        delta_cause = delta_cause[elig],
+                        params = params,
+                        mTry = mTry,
+                        txLevels = txLevels,
+                        model = mod,
+                        sampleSize = sampleSize)
+
+  } else {
+    message("stratified analysis")
+    # result will be a list of SurvRF objects
+    result <- list()
+    # message("number of txLevels:", length(txLevels))
+    # print(txLevels)
+    for (i in 1L:length(x = txLevels)) {
+      # message("-----------")
+      # message("  treatment level ", txLevels[i])
+      nms <- as.character(x = txLevels[i])
+      # Creates a logical vector di that checks if the treatment level in the data dataframe matches the current treatment level.
+      # This is used for subsetting the data.
+      di <- {data[elig,txName] == txLevels[i]}
+      # Creates another logical vector use that combines eligibility (elig) with the condition that the treatment variable (txName)
+      # matches the current treatment level.
+      # This is used to subset the data for the current treatment level.
+      use <- elig & {data[,txName] == txLevels[i]}
+      # print("starting .SurvRF")
+      result[[ nms ]] <- .survRF(Phase = Phase,
+                                 eps0 = eps0,
+                                 x = x[use,,drop=FALSE], # subset of data for the current treatment level
+                                 y = response[use],
+                                 pr = pr[,di],
+                                 delta = delta[use],
+                                 delta_cause = delta_cause[use],
+                                 params = params,
+                                 mTry = mTry,
+                                 txLevels = txLevels[i],
+                                 model = mod,
+                                 sampleSize = sampleSize)
+    }
+    # print(0)
+    result <- new(Class = "SurvRFStratified", "strat" = result)
+  }
+
+  # message('mod')
+  # print(mod)
+  # calculate the estimated values for all treatment levels
+  # .PredictAll() is a method; called here for objects of class SurvRF, which
+  # is defined in file class_SurvRF.R
+  # print("WHAT2")
+  resV <- .PredictAll(Phase = Phase,
+                      eps0 =eps0,
+                      object = result,
+                      newdata = data[elig,],
+                      params = params,
+                      model = mod,
+                      txName = txName,
+                      txLevels = txLevels)
+  # print("WHAT3")
+  # message("View(resV)")
+  # View(resV)
+  # print(resV[["predicted"]][["Func"]][[1]])
+
+  result <- new(Class = "ITRSurvStep",
+                "txName" = txName,
+                "txLevels" = txLevels,
+                "model" = mod,
+                "survRF" = result,
+                "eligibility" = elig,
+                "valueAllTx" = resV$predicted,
+                "optimal" = resV$optimal)
+  # print("WHAT4")
+  return( result )
+
+}

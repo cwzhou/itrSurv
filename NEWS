@@ -1,0 +1,8 @@
+itrSurv v1 (Release date: YYYY-MM-DD)
+==============
+
+Changes:
+
+* change CC and CCX and FLIBS in /Library/Frameworks/R.framework/Resources/etc/Makeconf to the right gcc directory (gcc13)
+https://medium.com/biosyntax/following-up-library-dependency-when-compiling-r-packages-89f191b9f227
+https://stackoverflow.com/questions/61829237/r-package-installation-ld-warning-directory-not-found-for-option-l-usr-loca
