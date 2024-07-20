@@ -1,8 +1,9 @@
-#' Dynamic Treatment Regime for Survival Analysis
+#' Individualized Treatment Regime for Survival Analysis
 #'
-#' Provides methods for estimating single stage optimal dynamic treatment
-#'   regimes for survival outcomes with dependent censoring.
-#'
+#' Provides methods for estimating single stage optimal individualized treatment
+#'   regimes for survival outcomes with multiple endpoints. Currently only applicable to single stage diseases.
+#'   1) Competing risk with priority cause.
+#'   2) Recurrent events.
 #'
 #' @param ... Ignored. Present only to require named inputs.
 #'
@@ -16,21 +17,14 @@
 #'   each decision point. Each element corresponds to the respective decision
 #'   point (element 1 = 1st decision; element 2 = 2nd decision, etc.).
 #'
-#' @param models A list object or a single formula. The models for each
-#'   decision point. For list objects, each
-#'   element corresponds to the respective decision point.
-#'   Each element contains a formula defining the
-#'   response as a Surv() object and the covariate structure of the model.
-#'   Note that this model should not include any terms of order > 1. If
-#'   using a single formula and the number of decision points is > 1, it is
-#'   assumed that 'models' is a common formula to be used across all decision
-#'   points. See details for further discussion.
+#' @param models A single formula defining the response as a Surv() object
+#'   and the covariate structure of the model.
+#'   Note that this model should not include any terms of order > 1.
 #'
 #' @param endPoint A character object. Must be one of
-#'   \{"CR", "RE", "MC"\}. The label for the ultimate end point type. For "CR":
-#'   competing risks data that is interested in cumulative incidence function; for
-#'   "RE": recurrent events data that is interested in mean frequency function;
-#'   for "MC: data involving medical costs that is interested in costs.
+#'   \{"CR", "RE"\}. The label for the ultimate end point type.
+#'   For "CR": competing risks data to examine cumulative incidence function;
+#'   For "RE": recurrent events data to examine mean frequency function
 #'
 #' @param timePoints A character object or a numeric vector object. If a character
 #'   object, must be one of \{"quad", "uni", "exp"\} indicating the distribution
@@ -53,6 +47,7 @@
 #'   for "mean.prob.combo": first the mean survival/cif probability is used, if ties
 #'   exist across treatments, the mean survival/cif time is used to identify the
 #'   optimal. Typically, the same criticalValue should be used for Phase 1 and Phase 2.
+#'   For "RE" endpoint, only "mean" is valid as the others are not yet coded.
 #'
 #' @param criticalValue2 A character object. Must be one of
 #'   \{"mean", "prob", "mean.prob.combo"\}. The estimator for the value
@@ -149,9 +144,15 @@
 #'    character used to separate the covariate from the decision point label.
 #'    See details.
 #'
-#' @references Cho, H., Holloway, S.T., and Kosorok, M.R.
-#'   Multi-stage optimal dynamic treatment regimes for survival outcomes
-#'   with dependent censoring. Submitted.
+#' @references Zhou, C.W. and Kosorok, M.R.
+#'   Estimating optimal individualized treatment regimes for survival data with competing risks.
+#'   In prepraration.
+#'
+#'   Zhou, C.W. and Kosorok, M.R.
+#'   Estimating optimal individualized treatment regimes for recurrent events and terminal event in survival data.
+#'   In preparation.
+#'
+#'
 #'
 #' @include VerifyData.R VerifyTxName.R VerifyModels.R VerifySampleSize.R
 #' @include VerifyEndPoint.R VerifyUsePrevTime.R class_Parameters.R
