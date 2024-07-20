@@ -1,0 +1,4 @@
+Notes to Self:
+
+Location in longleaf: /nas/longleaf/home/cwzhou/Dissertation/itrSurv
+Location local: /Users/zhou/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv
