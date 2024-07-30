@@ -6,7 +6,7 @@
 #   .ParametersAsList(object, ...) {new; defined}
 #
 # Functions
-# .parameters(endPoint, timePoints, nTimes, response, nTree, ERT, uniformSplit,
+# .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, response, nTree, ERT, uniformSplit,
 #                      randomSplit, splitRule, replace, nodeSize,
 #                      minEvent, tieMethod, criticalValue,
 #                      survivalTime, nSamples, pooled, stratifiedSplit)

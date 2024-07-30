@@ -120,6 +120,9 @@ setMethod(f = ".TimeInfoAsList",
 #-------------------------------------------------------------------------------
 # Function returns a TimeInfo object
 #-------------------------------------------------------------------------------
+
+# recurrent events:
+
 #' @include VerifyTimePoints.R
 .timeInfo <- function(timePoints, nTimes, tau, response) {
 

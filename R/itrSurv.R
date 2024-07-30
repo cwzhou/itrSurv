@@ -7,9 +7,12 @@
 #'
 #' @param ... Ignored. Present only to require named inputs.
 #'
-#' @param data A data.frame object. The full dataset including treatments
-#'   received, all stage covariates, observed times, and censoring
-#'   indicators.
+#' @param data A data.frame object.
+#'   For CR endpoint: The full dataset including treatments received, all covariates,
+#'   observed times, overall failure indicator, and cause 1 failure indicator.
+#'   For RE endpoint: The first column must be Individual ID. The full dataset including
+#'   ID, treatment, covariates, start times, stop times,
+#'   recurrent event indicator, death indicator.
 #'   Can be provided as a matrix object if column headers are included.
 #'   Can contain missing data coded as NA, but cannot contain NaN.
 #'
@@ -26,12 +29,32 @@
 #'   For "CR": competing risks data to examine cumulative incidence function;
 #'   For "RE": recurrent events data to examine mean frequency function
 #'
-#' @param timePoints A character object or a numeric vector object. If a character
+#' @param timePointsSurvival A numeric vector object of the time points to be used.
+#'   This should be the unique observed failure times sorted in ascending order.
+#'   If 0 is not the first value, it will be concatenated by the software.
+#'   If endPoint is "CR" then timePointsEndpoint is the same as timePointsSurvival.
+#'
+#' @param timePointsEndpoint A numeric vector object of the time points to be used.
+#'   If endPoint is "CR" then timePointsEndpoint is the same as timePointsSurvival.
+#'   If endPoint is "RE" then timePointsEndpoint is a vector of the unique recurrent event times.
+#'   If 0 is not the first value, it will be concatenated by the software.
+#'
+#' @param timePoints We recommend using the timePointsSurvival and timePointsEndpoint parameters.
+#'   If both those and these are used, then those will overrule timePoints and nTimes parameters.
+#'   A character object or a numeric vector object. If a character
 #'   object, must be one of \{"quad", "uni", "exp"\} indicating the distribution
 #'   from which the time points are to be calculated. For character input,
 #'   input 'nTimes' must also be provided. If a numeric vector, the
 #'   time points to be used. If 0 is not the first value, it will be
 #'   concatenated by the software.
+#'   We strongly recommend using the same number of decimal points between
+#'   your failure times and the time points derived.
+#'   For example, if T = 2.1, 2.2, 2.4, 5.1, then the time points here should
+#'   also be to 1 decimal point.
+#'   The largest time point should be the maximum of the observed failure time
+#'   of your dataset.
+#'   If you are using years and you have 2.1 total years, then you should use
+#'   0.01 increments until you reach the maximum years (2.1).
 #'
 #' @param nTimes An integer object. The total number of time points to be
 #'   generated and considered. Used in conjunction with input 'timePoints'
@@ -75,15 +98,20 @@
 #'   If NULL, 'criticalValue' must be \{"mean"\}.
 #'
 #' @param splitRule A character object OR NULL.
-#'   Must be one of \{"logrank", "mean", "logrankcr", "meancr"\}
+#'   Must be one of \{"logrank", "mean", "logrankcr", "meancr", "logrankre", "meanre"\}
 #'   indicating the test used to determine an optimal split. If NULL and
 #'   'criticalValue' = 'mean', takes value 'mean'. If NULL and
 #'   'criticalValue' = 'prob' or 'mean.prob.combo', takes value 'logrank'.
 #'   If NULL and endPoint = 'CR', takes value 'logrankCR'.
+#'   If NULL and endPoint = 'RE', takes value 'logrankRE'.
+#'   ## survival endpoint ##
 #'   logrank = 1
 #'   mean = 2
+#'   ## other endpoints (CR, RE) ##
 #'   logrankcr = 3
 #'   meancr = 4 but this is same as mean (=2) which we change later in fortran
+#'   logrankre = 5
+#'   meanre = 6
 #'   if splitRule <=2 then Phase 1 survival
 #'   if splitRule >=3 then Phase 2 endpoint (CR)
 #'
@@ -235,6 +263,8 @@ itrSurv <- function(data,
                     models,
                     endPoint = "CR",
                     ...,
+                    timePointsSurvival,
+                    timePointsEndpoint, # for CR, this is the same as timePointsSurvival
                     timePoints = "quad",
                     nTimes = 100L,
                     tau = NULL,
@@ -275,8 +305,21 @@ itrSurv <- function(data,
   # object
   data <- .VerifyData(data = data, endPoint = endPoint)
 
+  if (endPoint == "RE"){
+    message("First, we identify failure dataset")
+    data_surv = data
+    message("Next, we identify recurrent event dataset")
+    data_ep = data
+  }
+
   # total number of individuals in dataset
-  nSamples <- nrow(x = data)
+  if (endPoint == "CR"){
+    nSamples <- nrow(x = data)
+  } else if (endPoint == "RE"){
+    message("IMPORTANT: dataset must be inputted with first column as the individual ID variable")
+    nSamples <- nrow(unique(x = data[1])) # unique because multiple rows per patient
+    message("Dataset sample size: N = ", nSamples)
+  }
 
   # ensure that 'txName' is provided as a character or character vector and
   # that the provided names are present in 'data'. This input defines the
@@ -284,18 +327,16 @@ itrSurv <- function(data,
   # the object returned is the original input without modification.
   txName <- .VerifyTxName(txName = txName, data = data)
 
-  # # # number of decision points in the analysis
-  nDP <- length(x = txName)
+  # ignore nDP - leftover from multi-stage part that we DON'T do.
+  nDP <- 1 #length(x = txName) # number of decision points in the analysis
   if (endPoint == "CR"){
     # print(models)
-    nCauses = 2 #TO DO: make this general later!!
-    # print("nCauses")
-    # print(nCauses)
+    nCauses = 2 #there are always 2 causes because one is the priorty cause, and everything else is lumped into cause 2.
   } else{
     nCauses = 1
   }
 
-  # ensure endPoint is one of {'CR', 'RE', 'MC'}.
+  # ensure endPoint is one of {'CR', 'RE'}.
   # Methods return the original character possibly modified to be upper case.
   endPoint <- .VerifyEndPoint(endPoint = endPoint)
 
@@ -345,7 +386,10 @@ itrSurv <- function(data,
       #   assign(m1name, m1)
       # }
     }
+  } else if (endPoint == "RE"){
+
   } else{
+    message("ERROR: endPoint is NEITHER CR NOR RE --- ")
     response <- models0$response
     del <- models0$delta
     models <- models0$models
@@ -355,6 +399,8 @@ itrSurv <- function(data,
   # function returns a Parameters object
   print(criticalValue1)
   params <- .parameters(endPoint = endPoint,
+                        timePointsSurvival = timePointsSurvival,
+                        timePointsEndpoint = timePointsEndpoint,
                         timePoints = timePoints,
                         tau = tau,
                         nTimes = nTimes,
@@ -435,7 +481,8 @@ itrSurv <- function(data,
   # it is assumed to be used for all decision points
   sampleSize1 <- .VerifySampleSize(sampleSize = sampleSize,
                                   ERT = params1@ERT,
-                                  nDP = nDP)
+                                  nDP = nDP
+                                  )
   # message("sample size1: ", sampleSize1)
 
   # ensure that mTry is provided as a vector. At this point, there is
@@ -473,7 +520,7 @@ itrSurv <- function(data,
                                 data = data,
                                 priorStep = NULL,
                                 params = params1,
-                                txName = txName[nDP],
+                                txName = txName[1], #[nDP],
                                 mTry = mTry[nDP],
                                 sampleSize = sampleSize1[nDP])
   # message("...end of .itrSurvStep...")

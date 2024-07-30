@@ -836,6 +836,42 @@ END DO
 END SUBROUTINE kaplan
 ! =================================================================================
 
+SUBROUTINE nelsonAalenRecurrent(ns, nj, oj, h)
+  IMPLICIT NONE
+
+  INTEGER, INTENT(IN) :: ns
+  ! Number of distinct event times
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: nj
+  ! nj(i): Number of subjects at risk just before time t_i, including those who have had previous events and are still under observation
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: oj
+  ! oj(i): Number of events at time t_i, including recurrent events from the same subjects
+  REAL(dp), DIMENSION(1:ns), INTENT(OUT) :: h
+  ! h(i): Nelson-Aalen cumulative hazard estimator at time t_i
+
+  INTEGER :: i
+
+  ! Initialize the cumulative hazard estimator
+  h(1) = oj(1) / nj(1)
+  ! The initial cumulative hazard is the hazard at the first time point
+
+  IF (ns .LT. 2) RETURN
+  ! If there is only one time point, the initial value is the result
+
+  ! Calculate the Nelson-Aalen estimator for recurrent events
+  DO i = 2, ns
+    IF (nj(i) > 1d-8) THEN
+      h(i) = h(i-1) + oj(i) / nj(i)
+      ! Add the hazard contribution at time t_i to the cumulative hazard from the previous time points
+    ELSE
+      h(i) = h(i-1)
+      ! If nj(i) is very small, carry forward the previous cumulative hazard
+    END IF
+  END DO
+
+END SUBROUTINE nelsonAalenRecurrent
+! =================================================================================
+
+
 ! Truncated Mean test
 ! N1j: real(:), at risk in group 1
 ! N2j: real(:), at risk in group 2
