@@ -13,7 +13,7 @@
 #  @slot uniformSplit A logical object; TRUE indicates that cutoffs are to
 #    be selected based on a uniformed random number
 #
-#  @slot splitRule A character object; must be one of {'logrank', 'mean', 'logrankcr'}
+#  @slot splitRule A character object; must be one of {'logrank', 'mean', 'logrankcr', 'logrankre'}
 #
 #  @slot tieMethod A character object; must be one of {'first', 'random', 'NA'}
 #

@@ -1,45 +1,291 @@
-# Verify inputs 'timePointsSurvival', 'timePointsEndpoint',
-# 'timePoints', 'tau', and 'nTimes'
+# Verify inputs 'timePointsPhase','timePoints', 'tau', and 'nTimes'
 #
 # methods are not exported and are for internal convenience only
 #
-# ensures that 'timePointsSurvival' and 'timePointsEndpoint' are numeric,
+# ensures that 'timePointsPhase' is numeric,
 # ensures that 'timePoints' is numeric or character, generates time points if appropriate,
 # ensures that 'nTimes' is appropriate.
 #
-# if both 'timePointsSurvival'/'timePointsEndpoint' and 'timePoints'/'nTimes' are provided,
-# only 'timePointsSurvival'/'timePointsEndpoint' are used
+# if both 'timePointsPhase' and 'timePoints'/'nTimes' are provided, then only 'timePointsPhase' is used
 #
 # successful methods return a vector of unique time points that are sorted in
 #   ascending order and the maximum time point, tau
 #
+#
 setGeneric(name = ".VerifyTimePoints",
-           def = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ...) {
+           def = function(timePointsPhase, timePoints, nTimes, ...) {
+
                    standardGeneric(".VerifyTimePoints")
                  })
 
 # the default method generates an error
 setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "ANY",
-                        timePointsEndpoint = "ANY",
+          signature = c(timePointsPhase = "ANY",
+                        # timePointsSurvival = "ANY",
+                        # timePointsEndpoint = "ANY",
                         timePoints = "ANY",
                         nTimes = "ANY"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ...) {
-              stop("timePointsSurvival must be a numeric vector",
-                   "timePointsEndpoint must be a numeric vector",
-                   "timePoints input must be one of {'quad', 'uni', 'exp'} ",
-                   "or a numeric vector", call. = FALSE)
+          definition = function(timePointsPhase, timePoints, nTimes, ...) {
+            stop("timePointsPhase must be a numeric vector",
+                   # "timePointsEndpoint must be a numeric vector",
+                   "if provided, timePoints input must be one of {'quad', 'uni', 'exp'} ",
+                   "or a numeric vector but we strongly recommend using timePointsPhase",
+                   call. = FALSE)
             })
 
+# extends above for when timepointsphase is numeric
+setMethod(f = ".VerifyTimePoints",
+          signature = c(timePointsPhase = "numeric",
+                        # timePointsSurvival = "numeric",
+                        # timePointsEndpoint = "numeric",
+                        timePoints = "ANY",
+                        nTimes = "ANY"),
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau) {
+                                # response
+
+            # if (length(x = timePointsSurvival) == 0L) {
+            #   stop("timePointsSurvival is of zero length", call. = FALSE)
+            # }
+            # if (length(x = timePointsEndpoint) == 0L) {
+            #   stop("timePointsEndpoint is of zero length", call. = FALSE)
+            # }
+            # if timePoints provided, sort them and ensure uniqueness of values
+            # timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
+            # timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
+            # ensures generated time points include 0 and maximum tau
+            # if (min(timePointsSurvival) > 1e-8) {
+              # timePointsSurvival <- c(0.0, timePointsSurvival)
+            # }
+            # if (min(timePointsEndpoint) > 1e-8) {
+            #   timePointsEndpoint <- c(0.0, timePointsEndpoint)
+            # }
+            # if (is.null(tau)) {
+            #   stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            # } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
+            #   if (tau > max(timePointsSurvival)){
+            #     timePointsPhase <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau > max(timePointsEndpoint)){
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
+            #            (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
+            #   if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
+            #     timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
+            #     timePointsSurvival <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
+            #     timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if (tau < min(timePointsSurvival)){
+            #   stop("tau cannot be less than all survival failure times", call. = FALSE)
+            # } else if (tau < min(timePointsEndpoint)) {
+            #   stop("tau cannot be less than all endpoint times", call. = FALSE)
+            # }
+
+            if (length(x = timePointsPhase) == 0L) {
+              stop("timePointsPhase is of zero length", call. = FALSE)
+            }
+
+            # if timePointsPhase provided, sort them and ensure uniqueness of values
+            timePointsPhase <- sort(x = unique(x = timePointsPhase))
+
+            # ensures generated time points include 0 and maximum tau
+            if (min(timePointsPhase) > 1e-8) {
+              timePointsPhase <- c(0.0, timePointsPhase)
+            }
+
+            if (is.null(x = tau)) {
+              stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            } else if (tau > max(timePointsPhase)) {
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < max(timePointsPhase) && tau > min(timePointsPhase)) {
+              timePointsPhase <- timePointsPhase[timePointsPhase < tau]
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < min(timePointsPhase)) {
+              stop("tau cannot be < all time points", call. = FALSE)
+            }
+            # message('assigning tau: ', tau)
+
+            return( list("timePoints" = timePointsPhase,
+                         # "timePointsSurvival" = timePointsSurvival,
+                         # "timePointsEndpoint" = timePointsEndpoint,
+                         "tau" = tau) )
+          })
+
+# extends above to prioritize timepointsurvival and timepointendpoint
+setMethod(f = ".VerifyTimePoints",
+          signature = c(timePointsPhase = "numeric",
+                        # timePointsSurvival = "numeric",
+                        # timePointsEndpoint = "numeric",
+                        timePoints = "character",
+                        nTimes = "numeric"),
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau, response) {
+
+            # if (length(x = timePointsSurvival) == 0L) {
+            #   stop("timePointsSurvival is of zero length", call. = FALSE)
+            # }
+            # if (length(x = timePointsEndpoint) == 0L) {
+            #   stop("timePointsEndpoint is of zero length", call. = FALSE)
+            # }
+            #
+            # # if timePoints provided, sort them and ensure uniqueness of values
+            # timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
+            # timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
+            #
+            # # ensures generated time points include 0 and maximum tau
+            # if (min(timePointsSurvival) > 1e-8) {
+            #   timePointsSurvival <- c(0.0, timePointsSurvival)
+            # }
+            # if (min(timePointsEndpoint) > 1e-8) {
+            #   timePointsEndpoint <- c(0.0, timePointsEndpoint)
+            # }
+            #
+            # if (is.null(tau)) {
+            #   stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            # } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
+            #   if (tau > max(timePointsSurvival)){
+            #     timePointsSurvival <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau > max(timePointsEndpoint)){
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
+            #            (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
+            #   if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
+            #     timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
+            #     timePointsSurvival <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
+            #     timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if (tau < min(timePointsSurvival)){
+            #   stop("tau cannot be less than all survival failure times", call. = FALSE)
+            # } else if (tau < min(timePointsEndpoint)) {
+            #   stop("tau cannot be less than all endpoint times", call. = FALSE)
+            # }
+
+            if (length(x = timePointsPhase) == 0L) {
+              stop("timePointsPhase is of zero length", call. = FALSE)
+            }
+
+            # if timePointsPhase provided, sort them and ensure uniqueness of values
+            timePointsPhase <- sort(x = unique(x = timePointsPhase))
+
+            # ensures generated time points include 0 and maximum tau
+            if (min(timePointsPhase) > 1e-8) {
+              timePointsPhase <- c(0.0, timePointsPhase)
+            }
+
+            if (is.null(x = tau)) {
+              stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            } else if (tau > max(timePointsPhase)) {
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < max(timePointsPhase) && tau > min(timePointsPhase)) {
+              timePointsPhase <- timePointsPhase[timePointsPhase < tau]
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < min(timePointsPhase)) {
+              stop("tau cannot be < all time points", call. = FALSE)
+            }
+
+            return( list("timePoints" = timePointsPhase,
+                         # "timePointsEndpoint" = timePointsEndpoint,
+                         "tau" = tau) )
+          })
+
+# extends above to prioritize timepointsurvival and timepointendpoint
+setMethod(f = ".VerifyTimePoints",
+          signature = c(timePointsPhase = "numeric",
+                        # timePointsSurvival = "numeric",
+                        # timePointsEndpoint = "numeric",
+                        timePoints = "numeric",
+                        nTimes = "ANY"),
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau, response) {
+
+            # if (length(x = timePointsSurvival) == 0L) {
+            #   stop("timePointsSurvival is of zero length", call. = FALSE)
+            # }
+            # if (length(x = timePointsEndpoint) == 0L) {
+            #   stop("timePointsEndpoint is of zero length", call. = FALSE)
+            # }
+            #
+            # # if timePoints provided, sort them and ensure uniqueness of values
+            # timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
+            # timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
+            #
+            # # ensures generated time points include 0 and maximum tau
+            # if (min(timePointsSurvival) > 1e-8) {
+            #   timePointsSurvival <- c(0.0, timePointsSurvival)
+            # }
+            # if (min(timePointsEndpoint) > 1e-8) {
+            #   timePointsEndpoint <- c(0.0, timePointsEndpoint)
+            # }
+            #
+            # if (is.null(tau)) {
+            #   stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            # } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
+            #   if (tau > max(timePointsSurvival)){
+            #     timePointsSurvival <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau > max(timePointsEndpoint)){
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
+            #            (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
+            #   if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
+            #     timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
+            #     timePointsSurvival <- c(timePointsSurvival, tau)
+            #   }
+            #   if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
+            #     timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
+            #     timePointsEndpoint <- c(timePointsEndpoint, tau)
+            #   }
+            # } else if (tau < min(timePointsSurvival)){
+            #   stop("tau cannot be less than all survival failure times", call. = FALSE)
+            # } else if (tau < min(timePointsEndpoint)) {
+            #   stop("tau cannot be less than all endpoint times", call. = FALSE)
+            # }
+
+            if (length(x = timePointsPhase) == 0L) {
+              stop("timePointsPhase is of zero length", call. = FALSE)
+            }
+
+            # if timePointsPhase provided, sort them and ensure uniqueness of values
+            timePointsPhase <- sort(x = unique(x = timePointsPhase))
+
+            # ensures generated time points include 0 and maximum tau
+            if (min(timePointsPhase) > 1e-8) {
+              timePointsPhase <- c(0.0, timePointsPhase)
+            }
+
+            if (is.null(x = tau)) {
+              stop("tau should not be NULL. You can set it to the maximum of observed data for CR, or maximum of STOP column for RE.")
+            } else if (tau > max(timePointsPhase)) {
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < max(timePointsPhase) && tau > min(timePointsPhase)) {
+              timePointsPhase <- timePointsPhase[timePointsPhase < tau]
+              timePointsPhase <- c(timePointsPhase, tau)
+            } else if (tau < min(timePointsPhase)) {
+              stop("tau cannot be < all time points", call. = FALSE)
+            }
+            # message('assigning tau: ', tau)
+
+            return( list("timePoints" = timePointsPhase,
+                         # "timePointsEndpoint" = timePointsEndpoint,
+                         "tau" = tau) )
+          })
 
 
 # time points is character and the time points are then generated from the distribution used to obtain time points from response data
 setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "ANY",
-                        timePointsEndpoint = "ANY",
+          signature = c(timePointsPhase = "ANY",
+                        # timePointsSurvival = "ANY",
+                        # timePointsEndpoint = "ANY",
                         timePoints = "character",
                         nTimes = "numeric"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ..., tau, response) {
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau, response) {
 
               # if timePoints is provided as a character, the character indicates
               # which distribution should be used to obtain the time points from
@@ -132,17 +378,20 @@ setMethod(f = ".VerifyTimePoints",
               message('assigning tau: ', tau)
 
               # returns list containing generated time points and maximum time point "tau"
-              return( list("timePoints" = timePoints, "tau" = tau) )
+              return( list("timePoints" = timePoints,
+                           # "timePointsEndpoint" = timePoints,
+                           "tau" = tau) )
 
             })
 
 # extends above for when time points is numeric
 setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "ANY",
-                        timePointsEndpoint = "ANY",
+          signature = c(timePointsPhase = "ANY",
+                        # timePointsSurvival = "ANY",
+                        # timePointsEndpoint = "ANY",
                         timePoints = "numeric",
                         nTimes = "ANY"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ..., tau, response) {
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau, response) {
 
               if (length(x = timePoints) == 0L) {
                 stop("timePoints is of zero length", call. = FALSE)
@@ -168,183 +417,9 @@ setMethod(f = ".VerifyTimePoints",
               }
               # message('assigning tau: ', tau)
 
-              return( list("timePoints" = timePoints, "tau" = tau) )
+              return( list("timePoints" = timePoints,
+                           # "timePointsEndpoint" = timePoints,
+                           "tau" = tau) )
             })
 
 
-# extends above for when timepointsurvival and timepointendpoint are numeric
-setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "numeric",
-                        timePointsEndpoint = "numeric",
-                        timePoints = "ANY",
-                        nTimes = "ANY"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ..., tau, response) {
-
-            if (length(x = timePointsSurvival) == 0L) {
-              stop("timePointsSurvival is of zero length", call. = FALSE)
-            }
-            if (length(x = timePointsEndpoint) == 0L) {
-              stop("timePointsEndpoint is of zero length", call. = FALSE)
-            }
-
-            # if timePoints provided, sort them and ensure uniqueness of values
-            timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
-            timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
-
-            # ensures generated time points include 0 and maximum tau
-            if (min(timePointsSurvival) > 1e-8) {
-              timePointsSurvival <- c(0.0, timePointsSurvival)
-            }
-            if (min(timePointsEndpoint) > 1e-8) {
-              timePointsEndpoint <- c(0.0, timePointsEndpoint)
-            }
-
-            if (is.null(tau)) {
-              stop("tau should not be NULL. It should be the max of the stop column in the data.")
-            } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
-              if (tau > max(timePointsSurvival)){
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau > max(timePointsEndpoint)){
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
-                       (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
-              if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
-                timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
-                timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if (tau < min(timePointsSurvival)){
-              stop("tau cannot be less than all survival failure times", call. = FALSE)
-            } else if (tau < min(timePointsEndpoint)) {
-              stop("tau cannot be less than all endpoint times", call. = FALSE)
-            }
-
-            # message('assigning tau: ', tau)
-
-            return( list("timePointsSurvival" = timePointsSurvival,
-                         "timePointsEndpoint" = timePointsEndpoint,
-                         "tau" = tau) )
-          })
-
-# extends above to prioritize timepointsurvival and timepointendpoint
-setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "numeric",
-                        timePointsEndpoint = "numeric",
-                        timePoints = "character",
-                        nTimes = "numeric"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ..., tau, response) {
-
-            if (length(x = timePointsSurvival) == 0L) {
-              stop("timePointsSurvival is of zero length", call. = FALSE)
-            }
-            if (length(x = timePointsEndpoint) == 0L) {
-              stop("timePointsEndpoint is of zero length", call. = FALSE)
-            }
-
-            # if timePoints provided, sort them and ensure uniqueness of values
-            timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
-            timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
-
-            # ensures generated time points include 0 and maximum tau
-            if (min(timePointsSurvival) > 1e-8) {
-              timePointsSurvival <- c(0.0, timePointsSurvival)
-            }
-            if (min(timePointsEndpoint) > 1e-8) {
-              timePointsEndpoint <- c(0.0, timePointsEndpoint)
-            }
-
-            if (is.null(tau)) {
-              stop("tau should not be NULL. It should be the max of the stop column in the data.")
-            } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
-              if (tau > max(timePointsSurvival)){
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau > max(timePointsEndpoint)){
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
-                       (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
-              if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
-                timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
-                timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if (tau < min(timePointsSurvival)){
-              stop("tau cannot be less than all survival failure times", call. = FALSE)
-            } else if (tau < min(timePointsEndpoint)) {
-              stop("tau cannot be less than all endpoint times", call. = FALSE)
-            }
-
-            # message('assigning tau: ', tau)
-
-            return( list("timePointsSurvival" = timePointsSurvival,
-                         "timePointsEndpoint" = timePointsEndpoint,
-                         "tau" = tau) )
-          })
-
-# extends above to prioritize timepointsurvival and timepointendpoint
-setMethod(f = ".VerifyTimePoints",
-          signature = c(timePointsSurvival = "numeric",
-                        timePointsEndpoint = "numeric",
-                        timePoints = "numeric",
-                        nTimes = "ANY"),
-          definition = function(timePointsSurvival, timePointsEndpoint, timePoints, nTimes, ..., tau, response) {
-
-            if (length(x = timePointsSurvival) == 0L) {
-              stop("timePointsSurvival is of zero length", call. = FALSE)
-            }
-            if (length(x = timePointsEndpoint) == 0L) {
-              stop("timePointsEndpoint is of zero length", call. = FALSE)
-            }
-
-            # if timePoints provided, sort them and ensure uniqueness of values
-            timePointsSurvival <- sort(x = unique(x = timePointsSurvival))
-            timePointsEndpoint <- sort(x = unique(x = timePointsEndpoint))
-
-            # ensures generated time points include 0 and maximum tau
-            if (min(timePointsSurvival) > 1e-8) {
-              timePointsSurvival <- c(0.0, timePointsSurvival)
-            }
-            if (min(timePointsEndpoint) > 1e-8) {
-              timePointsEndpoint <- c(0.0, timePointsEndpoint)
-            }
-
-            if (is.null(tau)) {
-              stop("tau should not be NULL. It should be the max of the stop column in the data.")
-            } else if (tau > max(timePointsSurvival) | tau > max(timePointsEndpoint)) {
-              if (tau > max(timePointsSurvival)){
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau > max(timePointsEndpoint)){
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if ((tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) |
-                       (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint))) {
-              if (tau < max(timePointsSurvival) & tau > min(timePointsSurvival)) {
-                timePointsSurvival <- timePointsSurvival[timePointsSurvival < tau]
-                timePointsSurvival <- c(timePointsSurvival, tau)
-              }
-              if (tau < max(timePointsEndpoint) & tau > min(timePointsEndpoint)) {
-                timePointsEndpoint <- timePointsEndpoint[timePointsEndpoint < tau]
-                timePointsEndpoint <- c(timePointsEndpoint, tau)
-              }
-            } else if (tau < min(timePointsSurvival)){
-              stop("tau cannot be less than all survival failure times", call. = FALSE)
-            } else if (tau < min(timePointsEndpoint)) {
-              stop("tau cannot be less than all endpoint times", call. = FALSE)
-            }
-
-            # message('assigning tau: ', tau)
-
-            return( list("timePointsSurvival" = timePointsSurvival,
-                         "timePointsEndpoint" = timePointsEndpoint,
-                         "tau" = tau) )
-          })

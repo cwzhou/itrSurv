@@ -257,10 +257,15 @@ setMethod(f = ".Predict",
 #
 # Function is not exported
 #
-# @param model A survival formula object, the rhs of which specifies the
+# @param model A survival formula object for Phase 1, the rhs of which specifies the
+#   covariates to be considered in the splitting algorithm
+
+# @param model A survival formula object for Phase 2, the rhs of which specifies the
 #   covariates to be considered in the splitting algorithm
 #
-# @params data A data.frame object containing covariate and treatment histories
+# @params data A list for Phase 1 and Phase 2 data.frame objects containing covariate and treatment histories
+#   For CR endpoint: they are the same.
+#   For RE endpoint: they are different (one is for failure and one is for recurrent events)
 #
 # @params params A Parameters object.
 #
@@ -283,8 +288,9 @@ setMethod(f = ".Predict",
 .itrSurvStep <- function(...,
                          Phase,
                          eps0 = NULL,
-                         model,
-                         model_cause,
+                         model_surv,
+                         model_ep,
+                         # model_cause,
                          endPoint,
                          data,
                          params,
@@ -293,14 +299,16 @@ setMethod(f = ".Predict",
                          sampleSize) {
   # print("---STARTING ITRSURVSTEP---")
 
-  if (endPoint == "CR" & Phase == toString(endPoint)){
-    # stop("EndPoint is CR and the model_cause is specified")
-    # message("EndPoint is CR and Phase is CR")
-    if (!is.null(model_cause)){
-      mod <- model_cause
-    } else{
-      stop("Please identify priority cause of interest.")
-    }
+  ###########################################################################
+  ############################ PHASE 1: SURVIVAL ############################
+  ###########################################################################
+
+  if (Phase != toString(endPoint)){
+
+    dataset = data[[1]]
+    # this is Phase 1: Survival
+
+    mod <- model_surv$models
     # identify order 1 terms in formula
     order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
     if (any(order1)) {
@@ -314,45 +322,9 @@ setMethod(f = ".Predict",
     if (any(orderHigh)) message("interaction terms are ignored")
 
     # extract model frame
-    x_cause <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
-    message("model_cause ", appendLF = FALSE)
-    tm <- as.character(mod)
-    message(tm[2], " ~ ", tm[3])
-
-    # identify individuals with complete data
-    elig <- stats::complete.cases(x_cause)
-
-    # extract response and delta from model frame
-    response0 <- stats::model.response(data = x_cause)
-    delta_cause <- response0[,2L]
-    response <- response0[,1L]
-    x <- stats::model.frame(formula = model, data = data, na.action = na.pass)
-    response00 <- stats::model.response(data = x)
-    delta <- response00[,2L]
-    # print("delta")
-    # print(delta)
-    # print("delta_cause")
-    # print(delta_cause)
-    }
-  else {
-    # message("Either NOT CR endpoint or, CR endpoint but survival stage")
-    mod <- model
-    # print(mod)
-
-    # identify order 1 terms in formula
-    order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
-    if (any(order1)) {
-      stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
-    } else {
-      stop("problem in identifying covariates, verify formula\n", call. = FALSE)
-    }
-
-    # warn about order > 1
-    orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
-    if (any(orderHigh)) message("interaction terms are ignored")
-
-    # extract model frame
-    x <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
+    x <- stats::model.frame(formula = mod,
+                            data = dataset, # dataset for survival
+                            na.action = na.pass)
     message("model ", appendLF = FALSE)
     tm <- as.character(mod)
     message(tm[2], " ~ ", tm[3])
@@ -361,35 +333,234 @@ setMethod(f = ".Predict",
     elig <- stats::complete.cases(x)
 
     # extract response and delta from model frame
-    response <- stats::model.response(data = x)
-    delta <- response[,2L]
-    response <- response[,1L]
-    # print('setting delta_cause = delta but we wont use it for survival part Phase1')
-    delta_cause = delta
-  }
-  # print('response')
-  # print(response)
-  # print('delta')
-  # print(delta)
+    response0 <- stats::model.response(data = x)
+    delta <- response0[,2L] # survival delta
+    response_surv <- response0[,1L]
 
-  # remove response from x
+    if (endPoint == "CR"){
+      # print('setting delta_cause = delta but we wont use it for survival part Phase1')
+      delta_endpoint = delta # CR delta which is delta in Phase 1
+    }
+    if (endPoint == "RE"){
+      # make sure this works with existing code...
+      delta_endpoint = delta # dont need this variable for Phase 1 for RE
+    }
+    response = response_surv
+
+  } else{ # endpoint Phase 2
+    dataset = data[[2]]
+
+    mod <- model_ep$models # for endpoint model
+    mod_surv <- model_surv$models
+
+    # identify order 1 terms in formula
+    order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+    if (any(order1)) {
+      stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+    } else {
+      stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+    }
+
+    # warn about order > 1
+    orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+    if (any(orderHigh)) message("interaction terms are ignored")
+
+    # extract model frame
+    x_endpoint <- stats::model.frame(formula = mod,
+                                     data = dataset, # data_ep (endpoint dataset)
+                                     na.action = na.pass)
+    message("model_endpoint ", appendLF = FALSE)
+    tm <- as.character(mod)
+    message(tm[2], " ~ ", tm[3])
+
+    # identify individuals with complete data
+    elig <- stats::complete.cases(x_endpoint)
+
+    # extract response and delta from model frame
+    response_tmp <- stats::model.response(data = x_endpoint)
+    delta_endpoint <- response_tmp[,2L] # endpoint delta
+    response_endpoint <- response_tmp[,1L]
+    x_surv <- stats::model.frame(formula = mod_surv,
+                            data = data[[1]], # we want to Phase 1 Dataset
+                            na.action = na.pass)
+    response_surv <- stats::model.response(data = x_surv)
+    delta <- response_surv[,2L] # survival delta
+    x = x_endpoint
+    response = response_endpoint
+  }
+
+
+  # #########################################################################
+  # ############################## PHASE 2: RE ##############################
+  # #########################################################################
+  #
+  # if (endPoint == "RE" & Phase == toString(endPoint)){
+  #   # this is RE Phase 2
+  #   mod <- model_ep$models # for RE (endpoint model)
+  #   mod_surv <- model_surv$models
+  #
+  #   # identify order 1 terms in formula
+  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+  #   if (any(order1)) {
+  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+  #   } else {
+  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+  #   }
+  #
+  #   # warn about order > 1
+  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+  #   if (any(orderHigh)) message("interaction terms are ignored")
+  #
+  #   # extract model frame
+  #   x_endpoint <- stats::model.frame(formula = mod,
+  #                                 data = data[[2]], # same dataset as Phase 1 so doesn't matter here
+  #                                 na.action = na.pass)
+  #   message("model_endpoint ", appendLF = FALSE)
+  #   tm <- as.character(mod)
+  #   message(tm[2], " ~ ", tm[3])
+  #
+  #   # identify individuals with complete data
+  #   elig <- stats::complete.cases(x_endpoint)
+  #
+  #   # extract response and delta from model frame
+  #   response_tmp <- stats::model.response(data = x_endpoint)
+  #   delta_endpoint <- response_tmp[,2L] # competing risk delta
+  #   response_endpoint <- response_tmp[,1L]
+  #   x <- stats::model.frame(formula = mod_surv,
+  #                           data = data[[1]], # we want to Phase 1 Dataset
+  #                           na.action = na.pass)
+  #   response_surv <- stats::model.response(data = x)
+  #   delta <- response_surv[,2L] # survival delta
+  # }
+  #
+  # #########################################################################
+  # ############################## PHASE 2: CR ##############################
+  # #########################################################################
+  #
+  # if (endPoint == "CR" & Phase == toString(endPoint)){
+  #   # this is CR Phase 2
+  #   mod <- model_ep$models # for CR (endpoint model)
+  #   mod_surv <- model_surv$models
+  #
+  #   # identify order 1 terms in formula
+  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+  #   if (any(order1)) {
+  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+  #   } else {
+  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+  #   }
+  #
+  #   # warn about order > 1
+  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+  #   if (any(orderHigh)) message("interaction terms are ignored")
+  #
+  #   # extract model frame
+  #   x_cause <- stats::model.frame(formula = mod,
+  #                                 data = data[[1]], # same dataset as Phase 1 so doesn't matter here
+  #                                 na.action = na.pass)
+  #   message("model_cause ", appendLF = FALSE)
+  #   tm <- as.character(mod)
+  #   message(tm[2], " ~ ", tm[3])
+  #
+  #   # identify individuals with complete data
+  #   elig <- stats::complete.cases(x_cause)
+  #
+  #   # extract response and delta from model frame
+  #   response_tmp <- stats::model.response(data = x_cause)
+  #   delta_cause <- response_tmp[,2L] # competing risk delta
+  #   response <- response_tmp[,1L]
+  #   x <- stats::model.frame(formula = mod_surv,
+  #                           data = data[[1]], # we want to Phase 1 Dataset
+  #                           na.action = na.pass)
+  #   response_surv <- stats::model.response(data = x)
+  #   delta <- response_surv[,2L] # survival delta
+  # }
+
+# BELOW IS OLD STUFF FROM BEFORE ADDING RE
+  # if (endPoint == "CR" & Phase == toString(endPoint)){
+  #   # stop("EndPoint is CR and the model_cause is specified")
+  #   # message("EndPoint is CR and Phase is CR")
+  #   if (!is.null(model_cause)){
+  #     mod <- model_cause
+  #   } else{
+  #     stop("Please identify priority cause of interest.")
+  #   }
+  #   # identify order 1 terms in formula
+  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+  #   if (any(order1)) {
+  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+  #   } else {
+  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+  #   }
+  #
+  #   # warn about order > 1
+  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+  #   if (any(orderHigh)) message("interaction terms are ignored")
+  #
+  #   # extract model frame
+  #   x_cause <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
+  #   message("model_cause ", appendLF = FALSE)
+  #   tm <- as.character(mod)
+  #   message(tm[2], " ~ ", tm[3])
+  #
+  #   # identify individuals with complete data
+  #   elig <- stats::complete.cases(x_cause)
+  #
+  #   # extract response and delta from model frame
+  #   response_tmp <- stats::model.response(data = x_cause)
+  #   delta_cause <- response_tmp[,2L]
+  #   response <- response_tmp[,1L]
+  #   x <- stats::model.frame(formula = model, data = data, na.action = na.pass)
+  #   response00 <- stats::model.response(data = x)
+  #   delta <- response00[,2L]
+  #   }
+  # else {
+  #   # message("Either NOT CR endpoint or, CR endpoint but survival stage")
+  #   mod <- model
+  #   # print(mod)
+  #
+  #   # identify order 1 terms in formula
+  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
+  #   if (any(order1)) {
+  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
+  #   } else {
+  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
+  #   }
+  #
+  #   # warn about order > 1
+  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
+  #   if (any(orderHigh)) message("interaction terms are ignored")
+  #
+  #   # extract model frame
+  #   x <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
+  #   message("model ", appendLF = FALSE)
+  #   tm <- as.character(mod)
+  #   message(tm[2], " ~ ", tm[3])
+  #
+  #   # identify individuals with complete data
+  #   elig <- stats::complete.cases(x)
+  #
+  #   # extract response and delta from model frame
+  #   response <- stats::model.response(data = x)
+  #   delta <- response[,2L]
+  #   response <- response[,1L]
+  #   # print('setting delta_cause = delta but we wont use it for survival part Phase1')
+  #   delta_cause = delta
+  # }
+
+
+
+  # remove response from x TO JSUT GET COVARIATES
   if (attr(x = terms(x = mod), which = "response") == 1L) {
     x <- x[,-1L,drop = FALSE]
   }
-  # message('remove response from x')
-  # print(x)
 
   # responses that are zero indicate censored at a previous stage
   zeroed <- abs(x = response) < 1e-8
-  # print("zeroed")
-  # print(zeroed)
 
   elig <- elig & !zeroed
-  # print("elig")
-  # print(elig)
 
   if (sum(elig) == 0L) stop("no cases have complete data", call. = FALSE)
-
   # message("cases in stage: ", sum(elig))
 
   # maximum number of covariates to try
@@ -426,16 +597,16 @@ setMethod(f = ".Predict",
   }
 
   # identify tx levels in limited data
-  if (is.factor(x = data[,txName])) {
-    txLevels <- levels(x = factor(x = data[elig,txName]))
+  if (is.factor(x = dataset[,txName])) {
+    txLevels <- levels(x = factor(x = dataset[elig,txName]))
   } else {
-    txLevels <- sort(x = unique(x = data[elig, txName]))
+    txLevels <- sort(x = unique(x = dataset[elig, txName]))
   }
   # print("txLevels")
   # print(txLevels)
 
   if (length(x = txLevels) == 1L) {
-    message("***only one treatment level in data***")
+    message("***only one treatment level in dataset***")
   }
 
   if (.Pooled(object = params)) {
@@ -447,7 +618,7 @@ setMethod(f = ".Predict",
                         y = response[elig],
                         pr = pr,
                         delta = delta[elig],
-                        delta_cause = delta_cause[elig],
+                        delta_endpoint = delta_endpoint[elig],
                         params = params,
                         mTry = mTry,
                         txLevels = txLevels,
@@ -464,21 +635,21 @@ setMethod(f = ".Predict",
       # message("-----------")
       # message("  treatment level ", txLevels[i])
       nms <- as.character(x = txLevels[i])
-      # Creates a logical vector di that checks if the treatment level in the data dataframe matches the current treatment level.
-      # This is used for subsetting the data.
-      di <- {data[elig,txName] == txLevels[i]}
+      # Creates a logical vector di that checks if the treatment level in the dataset dataframe matches the current treatment level.
+      # This is used for subsetting the dataset.
+      di <- {dataset[elig,txName] == txLevels[i]}
       # Creates another logical vector use that combines eligibility (elig) with the condition that the treatment variable (txName)
       # matches the current treatment level.
-      # This is used to subset the data for the current treatment level.
-      use <- elig & {data[,txName] == txLevels[i]}
+      # This is used to subset the dataset for the current treatment level.
+      use <- elig & {dataset[,txName] == txLevels[i]}
       # print("starting .SurvRF")
       result[[ nms ]] <- .survRF(Phase = Phase,
                                  eps0 = eps0,
-                                 x = x[use,,drop=FALSE], # subset of data for the current treatment level
+                                 x = x[use,,drop=FALSE], # subset of dataset for the current treatment level
                                  y = response[use],
                                  pr = pr[,di],
                                  delta = delta[use],
-                                 delta_cause = delta_cause[use],
+                                 delta_endpoint = delta_endpoint[use],
                                  params = params,
                                  mTry = mTry,
                                  txLevels = txLevels[i],
@@ -496,9 +667,9 @@ setMethod(f = ".Predict",
   # is defined in file class_SurvRF.R
   # print("WHAT2")
   resV <- .PredictAll(Phase = Phase,
-                      eps0 =eps0,
+                      eps0 = eps0,
                       object = result,
-                      newdata = data[elig,],
+                      newdata = dataset[elig,],
                       params = params,
                       model = mod,
                       txName = txName,

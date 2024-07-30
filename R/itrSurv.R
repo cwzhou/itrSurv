@@ -16,13 +16,29 @@
 #'   Can be provided as a matrix object if column headers are included.
 #'   Can contain missing data coded as NA, but cannot contain NaN.
 #'
-#' @param txName A character vector object. The treatment variable name for
-#'   each decision point. Each element corresponds to the respective decision
-#'   point (element 1 = 1st decision; element 2 = 2nd decision, etc.).
+#' @param txName A character vector object. The treatment variable name.
 #'
-#' @param models A single formula defining the response as a Surv() object
+#' @param epName A character vector object. The endpoint indicator variable name.
+#'   Primarily for "RE" endpoint. Refers to indicator if row is recurrent event (1) or not (0).
+#'   Later used to subset Phase 1 survival dataset (one row per subject).
+#'   For CR endpoint, this variable does not matter and can be left blank.
+#'
+#' @param models A list containing formulas defining the response as a Surv() object
 #'   and the covariate structure of the model.
 #'   Note that this model should not include any terms of order > 1.
+#'    For CR endpoint: this should be a list where the first is formula for
+#'    overall survival and the second is a formula for priority cause.
+#'    For RE endpoint: the first list should be a formula for terminal (i.e death) events
+#'    and the second should be a formula for recurrent events.
+#'    Example: CR:
+#'                 [[1]] Surv(obs_time, D.0) ~ Z1
+#'                 [[2]] Surv(obs_time, D.1) ~ Z1
+#'    Example: RE:
+#'                 [[1]] Surv(obs_time, D.0) ~ Z1
+#'                 [[2]] Surv(obs_time, D.1) ~ Z1
+#'    For RE, obs_time is STOP time, and D.0 represents death indicator for survival dataset
+#'    D.1 represents recurrent event indicator for RE dataset (full dataset)
+#'    The inputted dataset must reflect these variable names.
 #'
 #' @param endPoint A character object. Must be one of
 #'   \{"CR", "RE"\}. The label for the ultimate end point type.
@@ -30,13 +46,14 @@
 #'   For "RE": recurrent events data to examine mean frequency function
 #'
 #' @param timePointsSurvival A numeric vector object of the time points to be used.
-#'   This should be the unique observed failure times sorted in ascending order.
+#'   This should be the unique observed failure times.
 #'   If 0 is not the first value, it will be concatenated by the software.
 #'   If endPoint is "CR" then timePointsEndpoint is the same as timePointsSurvival.
 #'
 #' @param timePointsEndpoint A numeric vector object of the time points to be used.
-#'   If endPoint is "CR" then timePointsEndpoint is the same as timePointsSurvival.
+#'   This should be the unique observed endpoint times.
 #'   If endPoint is "RE" then timePointsEndpoint is a vector of the unique recurrent event times.
+#'   If endPoint is "CR" then timePointsEndpoint can be the same as timePointsSurvival (since it is subset).
 #'   If 0 is not the first value, it will be concatenated by the software.
 #'
 #' @param timePoints We recommend using the timePointsSurvival and timePointsEndpoint parameters.
@@ -55,13 +72,17 @@
 #'   of your dataset.
 #'   If you are using years and you have 2.1 total years, then you should use
 #'   0.01 increments until you reach the maximum years (2.1).
+#'   Default is NULL because we suggest inputting 'timePointsSurvival' and 'timePointsEndpoint'.
 #'
 #' @param nTimes An integer object. The total number of time points to be
 #'   generated and considered. Used in conjunction with input 'timePoints'
 #'   when 'timePoints' is a character; ignored otherwise.
+#'   If inputting 'timePointsSurvival' and 'timePointsEndpoint' then leave 'nTimes' blank.
+#'   Default is NULL because we recommend inputting 'timePointsSurvival' and 'timePointsEndpoint'.
 #'
 #' @param tau A numeric object or NULL. The study length. If NULL, the
-#'   maximum timePoint is used.
+#'   maximum timePoint is used. For RE, this is the maximum of all the stop times in
+#'   the recurrent event dataset (multiple rows per person)
 #'
 #' @param criticalValue1 A character object. Must be one of
 #'   \{"mean", "prob", "mean.prob.combo"\}. The estimator for the value
@@ -118,13 +139,9 @@
 #' @param ERT A logical object. If TRUE, the Extremely Randomized Trees
 #'   algorithm is used to select the candidate variable.
 #'
-#' @param sampleSize A numeric object, numeric vector object, or NULL.
+#' @param sampleSize A numeric object or NULL.
 #'   The fraction (0 < sampleSize <= 1) of the data to be used for each
-#'   tree in the forest. If only
-#'   one value is given, it is assumed to be the fraction for all decision
-#'   points. If a vector is given, the length must be equal to the total
-#'   number of decision points and each element corresponds to its respective
-#'   decision point. If NULL and 'ERT' is TRUE,
+#'   tree in the forest. If NULL and 'ERT' is TRUE,
 #'   sampleSize defaults to 1.0. If NULL and 'ERT'
 #'   is FALSE, sampleSize defaults to 0.632.
 #'
@@ -260,13 +277,14 @@
 #'
 itrSurv <- function(data,
                     txName,
+                    epName,
                     models,
                     endPoint = "CR",
                     ...,
                     timePointsSurvival,
                     timePointsEndpoint, # for CR, this is the same as timePointsSurvival
-                    timePoints = "quad",
-                    nTimes = 100L,
+                    timePoints = NULL, #"quad",
+                    nTimes = NULL, # 100L,
                     tau = NULL,
                     criticalValue1 = "mean", # delete later
                     criticalValue2 = "mean", # delete later
@@ -306,20 +324,30 @@ itrSurv <- function(data,
   data <- .VerifyData(data = data, endPoint = endPoint)
 
   if (endPoint == "RE"){
-    message("First, we identify failure dataset")
-    data_surv = data
-    message("Next, we identify recurrent event dataset")
-    data_ep = data
+    # ensure that 'epName' is provided as a character or character vector and
+    # that the provided names are present in 'data'. This input defines the
+    # dataset for the endpoint Phase analysis. If 'epName' is appropriate,
+    # the object returned is the original input without modification.
+    epName <- .VerifyEpName(epName = epName, data = data)
+  } else{
+    epName = NULL
   }
 
-  # total number of individuals in dataset
-  if (endPoint == "CR"){
-    nSamples <- nrow(x = data)
-  } else if (endPoint == "RE"){
-    message("IMPORTANT: dataset must be inputted with first column as the individual ID variable")
-    nSamples <- nrow(unique(x = data[1])) # unique because multiple rows per patient
-    message("Dataset sample size: N = ", nSamples)
+  # Determining Phase 1 and Phase 2 Datasets (in case they differ like in RE)
+  if (endPoint == "RE"){
+    message("First, we identify failure dataset")
+    # epName = "status" #equal to 1 if recurrent event.
+    data_surv = data %>% filter(!!sym(epName) == 0) #filter to NON RE (one row per id)
+    message("Next, we identify recurrent event dataset")
+    data_ep = data # entire dataset
+  } else{ # for CR, the dataset is the same for both phase 1 and phase 2
+    message("Phase 1 and Phase 2 datasets are the same.")
+    data_surv = data_ep = data
   }
+
+  # # total number of individuals in dataset
+  nSamples <- nrow(data_surv)
+  message("Dataset sample size: N = ", nSamples)
 
   # ensure that 'txName' is provided as a character or character vector and
   # that the provided names are present in 'data'. This input defines the
@@ -328,7 +356,13 @@ itrSurv <- function(data,
   txName <- .VerifyTxName(txName = txName, data = data)
 
   # ignore nDP - leftover from multi-stage part that we DON'T do.
-  nDP <- 1 #length(x = txName) # number of decision points in the analysis
+  # nDP = length(x = txName) # number of decision points in the analysis
+  if (endPoint == "CR"){
+    # need to check but in CR, it's used maybe to determine which model to use? (phase1 vs phase2)
+    nDP <- 1
+  } else{
+    nDP <- 1
+  }
   if (endPoint == "CR"){
     # print(models)
     nCauses = 2 #there are always 2 causes because one is the priorty cause, and everything else is lumped into cause 2.
@@ -339,6 +373,8 @@ itrSurv <- function(data,
   # ensure endPoint is one of {'CR', 'RE'}.
   # Methods return the original character possibly modified to be upper case.
   endPoint <- .VerifyEndPoint(endPoint = endPoint)
+
+  data_list = list(data_surv, data_ep)
 
   #######################################################################################################
   #######################################################################################################
@@ -357,43 +393,88 @@ itrSurv <- function(data,
   # that the provided models can be generated by the data. If the input is
   # appropriate, the object returned is list containing
   #   "models" - the original input.
-  models0 <- .VerifyModels(models = models,
-                          endPoint = endPoint,
-                          nDP = nDP,
-                          nCauses = nCauses,
-                          data = data,
-                          txName = txName,
-                          stageLabel = stageLabel)
+  models_surv <- .VerifyModels(models = models[[1]], #Surv(obs_time, D.0) ~ Z1
+                           endPoint = endPoint,
+                           nDP = nDP,
+                           nCauses = nCauses,
+                           data = data_surv,
+                           txName = txName,
+                           epName = epName,
+                           stageLabel = stageLabel)
 
   if (endPoint == "CR"){
-    response <- models0$response
-    del <- models0$delta[[1]] #overall failure
-    models <- models0$models[[1]] #overall failure survival model
-    # print(del)
-    # print(models)
-    if (nCauses > 0){
-      message("nCauses = ", nCauses)
-      del1 = models0$delta[[2]] #cause 1 failure
-      models1 = models0$models[[2]] #cause 1 failure CR model
-      # for (cause in 1:length(models0)){
-      #   message("Cause ", cause)
-      #   index = cause + 1
-      #   d1 <- models0$delta[[index]]
-      #   m1 <- models0$models[[index]]
-      #   d1name = sprintf("del%s", cause)
-      #   m1name = sprintf("models%s", cause)
-      #   assign(d1name, d1)
-      #   assign(m1name, m1)
-      # }
-    }
+    #this line is redundant since earlier we specified data=data_surv=data_ep for models_ep, but just to be safe :D
+    models_ep <- .VerifyModels(models = models[[2]], #Surv(obs_time, D.1) ~ Z1
+                               endPoint = endPoint,
+                               nDP = nDP,
+                               nCauses = nCauses,
+                               data = data_surv, # same dataset, just different event indicator
+                               txName = txName,
+                               epName = epName,
+                               stageLabel = stageLabel)
   } else if (endPoint == "RE"){
-
+    models_ep <- .VerifyModels(models = models[[2]], # should be epName = 1 as the models surv object
+                               endPoint = endPoint,
+                               nDP = nDP,
+                               nCauses = nCauses,
+                               data = data_ep,
+                               txName = txName,
+                               epName = epName,
+                               stageLabel = stageLabel)
   } else{
-    message("ERROR: endPoint is NEITHER CR NOR RE --- ")
-    response <- models0$response
-    del <- models0$delta
-    models <- models0$models
+    stop("itrSurv.R Line 419: endPoint is not specified. no models_ep created.")
   }
+
+  response <- models_surv$response
+  del <- models_surv$delta
+  models <- models_surv$models
+
+  response1 <- models_ep$response # not really needed
+  del1 <- models_ep$delta
+  # for CR: del1 is priority event indicator
+  # for RE: del1 is recurrent event indicator
+  models1 <- models_ep$models
+
+
+  # below is OLD code before adding in RE.
+  # models0 <- .VerifyModels(models = models,
+  #                     endPoint = endPoint,
+  #                     nDP = nDP,
+  #                     nCauses = nCauses,
+  #                     data1 = data_surv,
+  #                     data2 = data_ep,
+  #                     txName = txName,
+  #                     epName = epName,
+  #                     stageLabel = stageLabel)
+  # if (endPoint == "CR"){
+  #   response <- models0$response
+  #   del <- models0$delta[[1]] #overall failure
+  #   models <- models0$models[[1]] #overall failure survival model
+  #   # print(del)
+  #   # print(models)
+  #   if (nCauses > 0){
+  #     message("nCauses = ", nCauses)
+  #     del1 = models0$delta[[2]] #cause 1 failure
+  #     models1 = models0$models[[2]] #cause 1 failure CR model
+  #     # for (cause in 1:length(models0)){
+  #     #   message("Cause ", cause)
+  #     #   index = cause + 1
+  #     #   d1 <- models0$delta[[index]]
+  #     #   m1 <- models0$models[[index]]
+  #     #   d1name = sprintf("del%s", cause)
+  #     #   m1name = sprintf("models%s", cause)
+  #     #   assign(d1name, d1)
+  #     #   assign(m1name, m1)
+  #     # }
+  #   }
+  # } else if (endPoint == "RE"){
+  #
+  # } else{
+  #   message("ERROR: endPoint is NEITHER CR NOR RE --- ")
+  #   response <- models0$response
+  #   del <- models0$delta
+  #   models <- models0$models
+  # }
 
   # combine all inputs that regulate tree and specify analysis preferences
   # function returns a Parameters object
@@ -417,7 +498,7 @@ itrSurv <- function(data,
                         criticalValue1 = criticalValue1,
                         criticalValue2 = criticalValue2,
                         survivalTime = evalTime,
-                        CIFTime = evalTime,
+                        CIFTime = evalTime, # need to change CIFTime to endpointTime in all scripts.
                         nSamples = nSamples,
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)
@@ -514,13 +595,14 @@ itrSurv <- function(data,
   # print(txName[nDP]); print(mTry[nDP]); print(sampleSize1[nDP])
   Phase1Results <<- .itrSurvStep(Phase = "Survival",
                                 eps0 = tol1,
-                                model = models,
-                                model_cause = NULL,
+                                model_surv = models_surv,
+                                model_ep = models_ep,
+                                # model_cause = NULL, #discontinued July 2024 after adding in RE endpoint
                                 endPoint = endPoint,
-                                data = data,
+                                data = data_list, # list of data_surv and data_ep
                                 priorStep = NULL,
                                 params = params1,
-                                txName = txName[1], #[nDP],
+                                txName = txName[nDP],
                                 mTry = mTry[nDP],
                                 sampleSize = sampleSize1[nDP])
   # message("...end of .itrSurvStep...")
@@ -543,7 +625,7 @@ itrSurv <- function(data,
   ### Phase 2: ENDPOINT
   crit2 <- .CriticalValueCriterion(params2, subcrit = criticalValue2)
   # message("crit2:", crit2)
-  if (endPoint == "CR"){
+  if (endPoint == "CR" | endPoint == "RE"){
     if (crit2 == "mean" | crit2 == "area") {
       ind2 = 0L
       frac2 = 0.0
@@ -558,6 +640,10 @@ itrSurv <- function(data,
     splitR_endpoint = as.integer(3)
   } else if (params2@splitRule == 'meancr' | params2@splitRule == 'mean'){
     splitR_endpoint = as.integer(4)
+  } else if (params2@splitRule == 'logrankre'){
+    splitR_endpoint = as.integer(5)
+  } else if (params2@splitRule == 'meanre' | params2@splitRule == 'mean'){
+    splitR_endpoint = as.integer(6)
   } else{
     message("splitRule is unclear and we assigned splitR_endpoint as 99")
     splitR_endpoint = as.integer(99)
@@ -572,7 +658,7 @@ itrSurv <- function(data,
                   t_uniformSplit = as.integer(x = params2@uniformSplit),
                   t_nodeSize = as.integer(x = .NodeSize(object = params2)),
                   t_minEvent = as.integer(x = .MinEvent(object = params2)),
-                  t_rule = splitR_endpoint, # as.integer(x = params2@splitRule == 'logrank')
+                  t_rule = splitR_endpoint,
                   t_sIndex = as.integer(x = ind2),
                   t_sFraction = as.double(x = frac2),
                   t_stratifiedSplit = as.double(x = params2@stratifiedSplit),
@@ -602,30 +688,43 @@ itrSurv <- function(data,
   # message("#######################################################################")
   message(sprintf("RSF Starting: Phase 2: look at %s", endPoint))
   # message("#######################################################################")
-  if (endPoint == "CR"){
-    cause = 1 #TO DO: CHANGE THIS TO BECOME PRIORITY CAUSE LATER
-  # for (cause in 1:nCauses){
-    name = sprintf("Phase2Results_cause%s",cause);
-    # print(name)
-    # print("!!!!!!!!!!!!! models")
-    # print(models)
-    Phase2Results <<- .itrSurvStep(Phase = toString(endPoint),
-                                   eps0 = tol1, # don't really even need b/c dont use in Phase 2
-                                   model = models,
-                                   model_cause = get(sprintf("models%s", cause)),
-                                   endPoint = endPoint,
-                                   data = data,
-                                   params = params2,
-                                   txName = txName[nDP],
-                                   mTry = mTry[nDP],
-                                   sampleSize = sampleSize2[nDP])
-    # print("Phase2Results")
-    # print(name)
-    # View(Phase2Results)
-    assign(name, Phase2Results, envir = .GlobalEnv)
-    # print("assigned.")
-  # }
-}
+#   if (endPoint == "CR"){
+#     cause = 1 #TO DO: CHANGE THIS TO BECOME PRIORITY CAUSE LATER
+#   # for (cause in 1:nCauses){
+#     name = sprintf("Phase2Results_cause%s",cause);
+#     # print(name)
+#     # print("!!!!!!!!!!!!! models")
+#     # print(models)
+#     Phase2Results <<- .itrSurvStep(Phase = toString(endPoint),
+#                                    eps0 = tol1, # don't really even need b/c dont use in Phase 2
+#                                    model = models,
+#                                    model_cause = get(sprintf("models%s", cause)),
+#                                    endPoint = endPoint,
+#                                    data = data_ep, # use Phase 2 data
+#                                    params = params2,
+#                                    txName = txName[nDP],
+#                                    mTry = mTry[nDP],
+#                                    sampleSize = sampleSize2[nDP])
+#     # print("Phase2Results")
+#     # print(name)
+#     # View(Phase2Results)
+#     assign(name, Phase2Results, envir = .GlobalEnv)
+#     # print("assigned.")
+#   # }
+# }
+
+  Phase2Results <<- .itrSurvStep(Phase = toString(endPoint),
+                                 eps0 = tol1, # don't really even need b/c dont use in Phase 2
+                                 model_surv = models_surv,
+                                 model_ep = models_ep,
+                                 # model_cause = get(sprintf("models%s", cause)), #discontinued July 2024 after adding in RE endpoint
+                                 endPoint = endPoint,
+                                 data = data_list,  # list of data_surv and data_ep
+                                 params = params2,
+                                 txName = txName[nDP],
+                                 mTry = mTry[nDP],
+                                 sampleSize = sampleSize2[nDP])
+    assign("Phase2Results_endpoint", Phase2Results, envir = .GlobalEnv)
 
   phaseResults[[2]] <- Phase2Results
   p2 <<- Phase2Results
@@ -665,7 +764,7 @@ value1Train <- .meanValue(object = phaseResults,
                           Phase = "Survival")
 value2Train <- mean(phaseResults[[1]]@optimal@Ratio_Stopping_Ind == 0)
 
-if (endPoint == "CR"){
+if (endPoint == "CR" | endPoint == "RE"){
   # print(endPoint)
   # amongst those in value2Train (aka Phase1Results@optimal@Ratio_Stopping_Ind == 0), find mean CIF curve
   value3Train <- .meanValue(object = phaseResults,

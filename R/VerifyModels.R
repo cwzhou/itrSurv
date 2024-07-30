@@ -18,8 +18,8 @@
 # In summary, the cause-specific CIF estimator does not assume censoring of other causes; it explicitly models the presence of competing risks and provides a way to estimate the cumulative incidence of the specific cause of interest while accounting for the competing risks.
 
 # if endPoint = "RE", we do the following:
-# 1) set tau = max of stop times in dataset data
-#
+# 1) extract survival status from terminal event (=1 when provided delta_D >0, =0 o/w)
+# 2) extract recurrent event ("cause1") status (=1 when provided delta_R = 1; 0 o/w) (this is same as epName)
 #
 # successful methods return a list containing the formula(s) and
 # the survival response variable(s)
@@ -37,9 +37,13 @@ setMethod(f = ".VerifyModels",
             })
 
 #-------------------------------------------------------------------------------
-# method returns a list containing "models", the models for each decision,
-# "response", the survival response as a single column matrix, and
+# method returns a list containing "models", the surv object model,
+# "response", the endpoint response as a single column matrix, and
 # "delta", the event status as a single column matrix
+#
+# For overall survival: this is survival response and event status from any cause failure (NOT recurrent event)
+# For CR: this is priority cause response and event status from priority cause failure
+# For RE: this is recurrent event response and recurrent event status
 #-------------------------------------------------------------------------------
 #' @importFrom stats as.formula
 setMethod(f = ".VerifyModels",
@@ -51,6 +55,7 @@ setMethod(f = ".VerifyModels",
                                 nCauses,
                                 data,
                                 txName,
+                                epName,
                                 stageLabel,
                                 usePrevTime) {
 
@@ -68,28 +73,30 @@ setMethod(f = ".VerifyModels",
 
               if (is.null(x = mf) && nDP > 1L) {
 
-                # assume that a failure indicates a common formula
-                models <- commonFormula(models = models,
-                          endPoint = endPoint,
-                          # nDP = nDP,
-                          nCauses = nCauses,
-                          data = data,
-                          txName = txName,
-                          stageLabel = stageLabel,
-                          usePrevTime = usePrevTime)
+                stop("nDP should NOT be greater than 1. Single stage setting.")
 
-                # if (endPoint == "CR"){
-                #   print("endPoint is CR")
-                #   message("Double check that your 'delta' variable within 'models' parameter is for the overall survival (i.e., 1 = any event and 0 = censor)")
-                # }
-
-                # call method for list of models
-                return( .VerifyModels(models = models,
-                                      endPoint = endPoint,
-                                      # nDP = nDP,
-                                      nCauses = nCauses,
-                                      data = data,
-                                      txName = txName) )
+                # # assume that a failure indicates a common formula
+                # models <- commonFormula(models = models,
+                #           endPoint = endPoint,
+                #           nDP = nDP,
+                #           nCauses = nCauses,
+                #           data = data,
+                #           txName = txName,
+                #           stageLabel = stageLabel,
+                #           usePrevTime = usePrevTime)
+                #
+                # # if (endPoint == "CR"){
+                # #   print("endPoint is CR")
+                # #   message("Double check that your 'delta' variable within 'models' parameter is for the overall survival (i.e., 1 = any event and 0 = censor)")
+                # # }
+                #
+                # # call method for list of models
+                # return( .VerifyModels(models = models,
+                #                       endPoint = endPoint,
+                #                       nDP = nDP,
+                #                       nCauses = nCauses,
+                #                       data = data,
+                #                       txName = txName) )
 
               }
 
@@ -123,171 +130,172 @@ setMethod(f = ".VerifyModels",
               return( list("models" = models, "response" = resp, "delta" = del) )
             })
 
-# internal function identifies element of dataNames that include the provided
-# label and removes all instances of that label from the dataNames object
-rmCov <- function(dataNames, label, stageLabel, nDP) {
+# this is for multistage settings
 
-  # split remaining data names at stageLabel
-  # a list is created, each element contains 1 or more elements
-  # the first is the covariate name before stageLabel
-  # the second, if present, is the first component after the
-  # first stageLabel
-  # the third, if present, means that there are multiple stageLabels
-  #   in the covariate name -- this is no longer allowed
-  cov <- strsplit(x = dataNames, split = stageLabel, fixed = TRUE)
-
-  tst <- sapply(X = cov, FUN = length) > 2L
-  if (any(tst)) {
-    stop("data headers cannot contain multiple instances of the stage label",
-         call. = FALSE)
-  }
-
-  # identify the label
-  areLabel <- sapply(X = cov, FUN = function(x){x[1L] == label})
-
-  if (sum(areLabel) < nDP) {
-    stop("insufficient number of ", label, "variables in data",
-         call. = FALSE)
-  }
-
-  # remove label's from dataNames
-  dataNames <- dataNames[!areLabel]
-
-  return( dataNames )
-}
-
-
-commonFormula <- function(models,
-                          endPoint,
-                          ...,
-                          nDP,
-                          nCauses,
-                          data,
-                          txName,
-                          stageLabel,
-                          usePrevTime) {
-
-  message("assuming a common formula")
-
-  # extract y and delta labels from lhs of formula
-  yLabel <- deparse(expr = models[[ 2L ]][[ 2L ]])
-  dLabel <- deparse(expr = models[[ 2L ]][[ 3L ]])
-
-  # create lhs of models
-  resp <- paste0("Surv(", yLabel, stageLabel, 1L:nDP, ",",
-                          dLabel, stageLabel, 1L:nDP, ")~")
-
-  # extract covariate labels from rhs of formula
-  xLabels <- attr(x = terms(x = models), which = "term.labels")
-
-  # extract tx variable label from txName vector
-  txLabel <- strsplit(x = txName, split = stageLabel, fixed = TRUE)
-  txLabel <- sapply(X = txLabel, function(x){ x[1L] })
-  if (!all(txLabel %in% txLabel[1L])) {
-    stop("tx names do not have a common label", call. = FALSE)
-  }
-  txLabel <- txLabel[1L]
-
-  # check to see if  treatment is in formula
-  txInXLabels <- sum(xLabels %in% txLabel)
-
-  # if more than 1 label in xLabels matches treatment, there is a problem
-  if (txInXLabels > 1L) {
-    stop("unable to interpret model", call. = FALSE)
-  }
-
-  # if tx variable in model, remove from covariate label vector
-  if (txInXLabels == 1L) {
-    xLabels <- xLabels[!(xLabels %in% txLabel)]
-  }
-
-  # extract headers from data
-  dataNames <- colnames(x = data)
-
-  # remove txNames from dataNames
-  dataNames <- rmCov(dataNames = dataNames,
-                     label = txLabel,
-                     stageLabel = stageLabel,
-                     nDP = nDP)
-
-  # remove response from dataNames
-  dataNames <- rmCov(dataNames = dataNames,
-                     label = yLabel,
-                     stageLabel = stageLabel,
-                     nDP = nDP)
-
-  # remove event indicators from dataNames
-  dataNames <- rmCov(dataNames = dataNames,
-                     label = dLabel,
-                     stageLabel = stageLabel,
-                     nDP = nDP)
-
-  # dataNames now only contains covariate names
-
-  # if tx label in formula, add back dp component and include in
-  # rhs of models
-  if (txInXLabels) {
-    mod <- as.list(x = paste0(txLabel, stageLabel, 1L:nDP))
-  } else {
-    mod <- vector(mode = "list", length = nDP)
-  }
-
-  # if non-tx covariates in rhs, extract, add decision point if appropriate
-  # and add to rhs
-  if (length(x = xLabels) > 0L) {
-
-    # split remaining data names at stageLabel
-    cov <- strsplit(x = dataNames, split = stageLabel, fixed = TRUE)
-
-    # extract label component
-    covLabels <- sapply(X = cov, FUN = function(x){x[1L]})
-
-    # identify which covLabels are in model
-    covInModel <- covLabels %in% xLabels
-
-    # if data is (X1, X2, X3) as baseline covariates xLabels will be
-    # ("X1","X2","X3")
-    # if data is (X.1, X.2, X.3) as dp covariates, xLabels will be "X"
-    if (sum(covInModel) > length(x = xLabels)) {
-
-      # implies that there are decision point values concatenated
-      for (i in 1L:nDP) {
-        stageCovs <- paste0(xLabels, stageLabel, i)
-        # this allows for covariates that are not defined in other stages
-        useCovs <- stageCovs %in% dataNames
-        mod[[ i ]] <- c(mod[[ i ]], stageCovs[useCovs])
-      }
-
-    } else {
-      # implies that covariates are baseline
-      for (i in 1L:nDP) {
-        mod[[ i ]] <- c(mod[[ i ]], xLabels)
-      }
-    }
-  }
+# # internal function identifies element of dataNames that include the provided
+# # label and removes all instances of that label from the dataNames object
+# rmCov <- function(dataNames, label, stageLabel, nDP) {
 #
-#   if (usePrevTime) {
-#     # if previous times are to be included in model, add to rhs
-#     for (i in 2L:nDP) {
-#       pTime = paste(paste0(yLabel, stageLabel, 1L:{i-1}), collapse = "+")
-#       pTime = paste0("I(",pTime,")")
-#       mod[[ i ]] <- c(mod[[ i ]], pTime)
+#   # split remaining data names at stageLabel
+#   # a list is created, each element contains 1 or more elements
+#   # the first is the covariate name before stageLabel
+#   # the second, if present, is the first component after the
+#   # first stageLabel
+#   # the third, if present, means that there are multiple stageLabels
+#   #   in the covariate name -- this is no longer allowed
+#   cov <- strsplit(x = dataNames, split = stageLabel, fixed = TRUE)
+#
+#   tst <- sapply(X = cov, FUN = length) > 2L
+#   if (any(tst)) {
+#     stop("data headers cannot contain multiple instances of the stage label",
+#          call. = FALSE)
+#   }
+#
+#   # identify the label
+#   areLabel <- sapply(X = cov, FUN = function(x){x[1L] == label})
+#
+#   if (sum(areLabel) < nDP) {
+#     stop("insufficient number of ", label, "variables in data",
+#          call. = FALSE)
+#   }
+#
+#   # remove label's from dataNames
+#   dataNames <- dataNames[!areLabel]
+#
+#   return( dataNames )
+# }
+#
+# commonFormula <- function(models,
+#                           endPoint,
+#                           ...,
+#                           nDP,
+#                           nCauses,
+#                           data,
+#                           txName,
+#                           stageLabel,
+#                           usePrevTime) {
+#
+#   message("assuming a common formula")
+#
+#   # extract y and delta labels from lhs of formula
+#   yLabel <- deparse(expr = models[[ 2L ]][[ 2L ]])
+#   dLabel <- deparse(expr = models[[ 2L ]][[ 3L ]])
+#
+#   # create lhs of models
+#   resp <- paste0("Surv(", yLabel, stageLabel, 1L:nDP, ",",
+#                           dLabel, stageLabel, 1L:nDP, ")~")
+#
+#   # extract covariate labels from rhs of formula
+#   xLabels <- attr(x = terms(x = models), which = "term.labels")
+#
+#   # extract tx variable label from txName vector
+#   txLabel <- strsplit(x = txName, split = stageLabel, fixed = TRUE)
+#   txLabel <- sapply(X = txLabel, function(x){ x[1L] })
+#   if (!all(txLabel %in% txLabel[1L])) {
+#     stop("tx names do not have a common label", call. = FALSE)
+#   }
+#   txLabel <- txLabel[1L]
+#
+#   # check to see if  treatment is in formula
+#   txInXLabels <- sum(xLabels %in% txLabel)
+#
+#   # if more than 1 label in xLabels matches treatment, there is a problem
+#   if (txInXLabels > 1L) {
+#     stop("unable to interpret model", call. = FALSE)
+#   }
+#
+#   # if tx variable in model, remove from covariate label vector
+#   if (txInXLabels == 1L) {
+#     xLabels <- xLabels[!(xLabels %in% txLabel)]
+#   }
+#
+#   # extract headers from data
+#   dataNames <- colnames(x = data)
+#
+#   # remove txNames from dataNames
+#   dataNames <- rmCov(dataNames = dataNames,
+#                      label = txLabel,
+#                      stageLabel = stageLabel,
+#                      nDP = nDP)
+#
+#   # remove response from dataNames
+#   dataNames <- rmCov(dataNames = dataNames,
+#                      label = yLabel,
+#                      stageLabel = stageLabel,
+#                      nDP = nDP)
+#
+#   # remove event indicators from dataNames
+#   dataNames <- rmCov(dataNames = dataNames,
+#                      label = dLabel,
+#                      stageLabel = stageLabel,
+#                      nDP = nDP)
+#
+#   # dataNames now only contains covariate names
+#
+#   # if tx label in formula, add back dp component and include in
+#   # rhs of models
+#   if (txInXLabels) {
+#     mod <- as.list(x = paste0(txLabel, stageLabel, 1L:nDP))
+#   } else {
+#     mod <- vector(mode = "list", length = nDP)
+#   }
+#
+#   # if non-tx covariates in rhs, extract, add decision point if appropriate
+#   # and add to rhs
+#   if (length(x = xLabels) > 0L) {
+#
+#     # split remaining data names at stageLabel
+#     cov <- strsplit(x = dataNames, split = stageLabel, fixed = TRUE)
+#
+#     # extract label component
+#     covLabels <- sapply(X = cov, FUN = function(x){x[1L]})
+#
+#     # identify which covLabels are in model
+#     covInModel <- covLabels %in% xLabels
+#
+#     # if data is (X1, X2, X3) as baseline covariates xLabels will be
+#     # ("X1","X2","X3")
+#     # if data is (X.1, X.2, X.3) as dp covariates, xLabels will be "X"
+#     if (sum(covInModel) > length(x = xLabels)) {
+#
+#       # implies that there are decision point values concatenated
+#       for (i in 1L:nDP) {
+#         stageCovs <- paste0(xLabels, stageLabel, i)
+#         # this allows for covariates that are not defined in other stages
+#         useCovs <- stageCovs %in% dataNames
+#         mod[[ i ]] <- c(mod[[ i ]], stageCovs[useCovs])
+#       }
+#
+#     } else {
+#       # implies that covariates are baseline
+#       for (i in 1L:nDP) {
+#         mod[[ i ]] <- c(mod[[ i ]], xLabels)
+#       }
 #     }
 #   }
-
-  message("models identified as ")
-
-  mods <- list()
-  for (i in 1L:nDP) {
-    message("\t", paste0(resp[i], paste(mod[[ i ]], collapse="+")))
-    mods[[ i ]] <- stats::as.formula(paste0(resp[i],
-                                     paste(mod[[ i ]], collapse="+")))
-
-  }
-
-  return( mods )
-
-}
+# #
+# #   if (usePrevTime) {
+# #     # if previous times are to be included in model, add to rhs
+# #     for (i in 2L:nDP) {
+# #       pTime = paste(paste0(yLabel, stageLabel, 1L:{i-1}), collapse = "+")
+# #       pTime = paste0("I(",pTime,")")
+# #       mod[[ i ]] <- c(mod[[ i ]], pTime)
+# #     }
+# #   }
+#
+#   message("models identified as ")
+#
+#   mods <- list()
+#   for (i in 1L:nDP) {
+#     message("\t", paste0(resp[i], paste(mod[[ i ]], collapse="+")))
+#     mods[[ i ]] <- stats::as.formula(paste0(resp[i],
+#                                      paste(mod[[ i ]], collapse="+")))
+#
+#   }
+#
+#   return( mods )
+#
+# }
 
 #-------------------------------------------------------------------------------
 # method to ensure that the number of models provided is appropriate, that
@@ -302,56 +310,63 @@ setMethod(f = ".VerifyModels",
           signature = c(models = "list"),
           definition = function(models, ..., endPoint, nDP, nCauses, data) {
 
-              # # a model must be provided for each decision point
-              # if (length(x = models) != nDP) {
-              #   stop("insufficient number of models", call. = FALSE)
-              # }
-
-            # a model must be provided for overall survival status and each cause status
-            if (endPoint == "CR"){
-              # message('Verifymodels: CR endpoint.')
-              if (length(x = models) != nCauses+1) {
-                message("you are providing a priority cause. One model for overall survival; and one priority cause model.", call. = FALSE)
-              }
-
-              # ensure that each element of the list is a formula and extract
-              # the response variable
-              resp <- NULL
-              del <- list()
-              for (i in 1L:length(x=models)) {
-                # if (i ==1){
-                  # message('Overall Survival Status')
-                # } else{
-                  # message('Cause: ', i-1)
-                # }
-                # print("test1")
-                # print(models[[i]])
-                tst <- .VerifyModels(models = models[[ i ]],
-                                     endPoint = endPoint,
-                                     nDP = 1L,
-                                     data = data)
-                # message('resp: ', tst$resp)
-                # message('tst', tst)
-                models[[ i ]] <- tst$models
-                del[[i]] <- tst$del
-              }
-              resp <- cbind(resp, tst$resp)
-              # message('del: ')
-              # print(del)
-              # message("resp:")
-              # print(resp)
-            } else{
-              # ensure that each element of the list is a formula and extract
-              # the response variable
-              resp <- NULL
-              del <- NULL
-              for (i in 1L:nDP) {
-                tst <- .VerifyModels(models = models[[ i ]],
-                                     nDP = 1L,
-                                     data = data)
-                models[[ i ]] <- tst$models
-                resp <- cbind(resp, tst$resp)
-                del <- cbind(del, tst$del)
-              }
-            }
-              return( list("models" = models, "response" = resp, "delta" = del) )            })
+            # UPDATE 7/30/24: WE DO NOT ALLOW LISTS - WE GET DEL AND RESPONSE FOR PHASE 1 AND PHASE 2 SEPARATELY IN ITRSURV.R
+            stop("VerifyModels.R Line 312: This should not be inputted as list. IT should be just one formula at a time.")
+#
+#               # # a model must be provided for each decision point
+#               # if (length(x = models) != nDP) {
+#               #   stop("insufficient number of models", call. = FALSE)
+#               # }
+#
+#             # a model must be provided for overall survival status and each cause status
+#             if (endPoint == "CR"){
+#               # message('Verifymodels: CR endpoint.')
+#               if (length(x = models) != nCauses+1) {
+#                 message("you are providing a priority cause. One model for overall survival; and one priority cause model.", call. = FALSE)
+#               }
+#
+#               # ensure that each element of the list is a formula and extract
+#               # the response variable
+#               resp <- NULL
+#               del <- list()
+#               for (i in 1L:length(x=models)) {
+#                 # if (i ==1){
+#                   # message('Overall Survival Status')
+#                 # } else{
+#                   # message('Cause: ', i-1)
+#                 # }
+#                 # print("test1")
+#                 # print(models[[i]])
+#                 tst <- .VerifyModels(models = models[[ i ]],
+#                                      endPoint = endPoint,
+#                                      nDP = 1L,
+#                                      data = data)
+#                 # message('resp: ', tst$resp)
+#                 # message('tst', tst)
+#                 models[[ i ]] <- tst$models
+#                 del[[i]] <- tst$del
+#               }
+#               resp <- cbind(resp, tst$resp)
+#               # message('del: ')
+#               # print(del)
+#               # message("resp:")
+#               # print(resp)
+#             } else{
+#               # ensure that each element of the list is a formula and extract
+#               # the response variable
+#               resp <- NULL
+#               del <- NULL
+#               for (i in 1L:nDP) {
+#                 tst <- .VerifyModels(models = models[[ i ]],
+#                                      endPoint = endPoint,
+#                                      nDP = 1L,
+#                                      data = data)
+#                 models[[ i ]] <- tst$models
+#                 resp <- cbind(resp, tst$resp)
+#                 del <- cbind(del, tst$del)
+#               }
+#             }
+#               return( list("models" = models,
+#                            "response" = resp,
+#                            "delta" = del) )
+            })

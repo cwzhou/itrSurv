@@ -56,8 +56,8 @@ setMethod(f = ".VerifySplitRule",
 
               splitRule <- tolower(x = splitRule)
               # print(splitRule)
-              if (!(splitRule %in% c("logrank", "mean", "logrankcr", "meancr", "logrankRE", "meanRE", "logrankMC", "meanMC"))) {
-                stop("splitRule must be one of {'logrank', 'mean', 'logrankcr', 'meancr', 'logrankRE', 'meanRE', 'logrankMC', 'meanMC'}")
+              if (!(splitRule %in% c("logrank", "mean", "logrankcr", "meancr", "logrankre", "meanre", "logrankmc", "meanmc"))) {
+                stop("splitRule must be one of {'logrank', 'mean', 'logrankcr', 'meancr', 'logrankre', 'meanre', 'logrankmc', 'meanmc'}")
               }
               return( splitRule )
             })

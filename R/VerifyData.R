@@ -31,6 +31,10 @@ setMethod(f = ".VerifyData",
                 stop("data cannot include NaN values", call. = FALSE)
               }
 
+            if (endPoint == "RE"){
+              message("verifydata.r: line 35")
+            }
+
               return( data )
             })
 

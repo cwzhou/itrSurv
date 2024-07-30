@@ -9,7 +9,7 @@ This is the doctoral dissertation thesis work of Christina W Zhou under the ment
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Updated July 2024:
-Now incorporating a second endpoint, recurrent event.
+Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
 
 Updated 1/17/24:
 

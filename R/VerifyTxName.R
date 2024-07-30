@@ -4,7 +4,8 @@
 #
 # ensures that 'txName' is provided as a character or character vector and
 # that the provided names are present in data. This input defines the
-# number of decision points for the analysis.
+# number of decision points for the analysis. We can ignore decision points in the
+# single stage setting.
 #
 # successful methods return the original input without modification.
 #

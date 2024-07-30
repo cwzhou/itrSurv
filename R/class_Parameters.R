@@ -6,7 +6,7 @@
 #   .ParametersAsList(object, ...) {new; defined}
 #
 # Functions
-# .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, response, nTree, ERT, uniformSplit,
+# .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, #response, nTree, ERT, uniformSplit,
 #                      randomSplit, splitRule, replace, nodeSize,
 #                      minEvent, tieMethod, criticalValue,
 #                      survivalTime, nSamples, pooled, stratifiedSplit)
@@ -240,10 +240,12 @@ setMethod(f = "initialize",
 # Function returns a Parameters object
 #-------------------------------------------------------------------------------
 .parameters <- function(endPoint,
+                        timePointsSurvival,
+                        timePointsEndpoint,
                         timePoints,
                         tau,
                         nTimes,
-                        response,
+                        # response,
                         nTree,
                         ERT,
                         uniformSplit,
@@ -265,11 +267,28 @@ setMethod(f = "initialize",
 
   # initialize TimeInfo
   # function returns a TimeInfo object
-  timeInfo <- .timeInfo(timePoints = timePoints,
+  timeInfo1 <- .timeInfo(timePointsPhase = timePointsSurvival, #timePointsPhase is priotized over timePoints/nTimes
+                        timePoints = timePoints,
                         tau = tau,
                         nTimes = nTimes,
-                        response = response)
-  # View(timeInfo)
+                        # response = response
+                        )
+  timeInfo2 <- .timeInfo(timePointsPhase = timePointsEndpoint,
+                         timePoints = timePoints,
+                         tau = tau,
+                         nTimes = nTimes,
+                         # response = response
+  )
+
+  # timeInfo <- .timeInfo(timePointsSurvival = timePointsSurvival,
+  #                        timePointsEndpoint = timePointsEndpoint,
+  #                        timePoints = timePointsSurvival,
+  #                        tau = tau,
+  #                        nTimes = nTimes,
+  #                        response = response
+  # )
+  # timeInfo1 = timeInfo@TimeInfoSurvival
+  # timeInfo2 = timeInfo@TimeInfoEndpoint
 
   cv1 <- tolower(criticalValue1)
   cv2 <- tolower(criticalValue2)
@@ -282,40 +301,51 @@ setMethod(f = "initialize",
   #   CriticalValueSurvival depending on input survivalTime
   # print("criticalValue1")
   # print(criticalValue1)
+
+  # PHASE 1
   criticalValue1 <- .criticalValue(criticalValue = criticalValue1,
                                   Time = survivalTime,
                                   Step = "survival",
-                                  tau = .Tau(object = timeInfo),
-                                  timePoints = .TimePoints(object = timeInfo))
+                                  tau = .Tau(object = timeInfo1),
+                                  timePoints = .TimePoints(object = timeInfo1))
   # print("criticalValue1")
   # View(criticalValue1)
 
-  if (endPoint == "CR"){
-    # print("CR")
-    criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
-                                     Time = CIFTime,
-                                     Step = toString(endPoint),
-                                     tau = .Tau(object = timeInfo),
-                                     timePoints = .TimePoints(object = timeInfo))
-    # print("criticalValue2")
-    # View(criticalValue2)
-  } else if (endPoint == "RE"){
-    print("RE")
-    criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
-                                     Time = RETime,
-                                     Step = endPoint,
-                                     tau = .Tau(object = timeInfo),
-                                     timePoints = .TimePoints(object = timeInfo))
-  } else if (endPoint == "MC"){
-    print("MC")
-    criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
-                                     Time = MCTime,
-                                     Step = endPoint,
-                                     tau = .Tau(object = timeInfo),
-                                     timePoints = .TimePoints(object = timeInfo))
-  } else{
-    stop(".criticalValue within class_Parameters.R: EndPoint isn't right.")
-  }
+  # PHASE 2
+  # NEED TO UPDATE ALL CIFTIME TO "ENDPOINTTIME FOR ALL SCRIPTS
+  criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
+                                   Time = CIFTime, # change all scripts later to endpointTime
+                                   Step = toString(endPoint),
+                                   tau = .Tau(object = timeInfo2),
+                                   timePoints = .TimePoints(object = timeInfo2))
+
+# we dont need below because we just change CIFTime to a generic EndpointTime
+  # if (endPoint == "CR"){
+  #   # print("CR")
+  #   criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
+  #                                    Time = CIFTime,
+  #                                    Step = toString(endPoint),
+  #                                    tau = .Tau(object = timeInfo),
+  #                                    timePoints = .TimePoints(object = timeInfo))
+  #   # print("criticalValue2")
+  #   # View(criticalValue2)
+  # } else if (endPoint == "RE"){
+  #   print("RE")
+  #   criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
+  #                                    Time = RETime,
+  #                                    Step = endPoint,
+  #                                    tau = .Tau(object = timeInfo),
+  #                                    timePoints = .TimePoints(object = timeInfo))
+  # } else if (endPoint == "MC"){
+  #   print("MC")
+  #   criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
+  #                                    Time = MCTime,
+  #                                    Step = endPoint,
+  #                                    tau = .Tau(object = timeInfo),
+  #                                    timePoints = .TimePoints(object = timeInfo))
+  # } else{
+  #   stop(".criticalValue within class_Parameters.R: EndPoint isn't right.")
+  # }
 
   # print("end of .criticalValue")
 
@@ -337,6 +367,7 @@ setMethod(f = "initialize",
   # print("end of .treeType")
 
   splitRule2 = paste0(treeType1@splitRule,endPoint)
+  message("class_Parameters.R: Line 354: Use the same rule type of splitrule for both Phase 1 and Phase 2 (", splitRule2, ")")
   # print(splitRule2)
   # print("Line279: cv2")
   # print(cv2)
@@ -367,7 +398,7 @@ setMethod(f = "initialize",
     # print("Survival Parameters for Survival Probability")
     survparam = new(Class = "SurvivalParameters_Probability",
                 # endPoint,
-                timeInfo,
+                timeInfo1,
                 criticalValue1,
                 treeType1,
                 treeConditions)
@@ -376,7 +407,7 @@ setMethod(f = "initialize",
     # print("Survival Parameters for Survival Mean")
     survparam = new(Class = "SurvivalParameters_Mean",
                 # endPoint,
-                timeInfo,
+                timeInfo1,
                 criticalValue1,
                 treeType1,
                 treeConditions)
@@ -385,7 +416,7 @@ setMethod(f = "initialize",
     # print("Survival Parameters for Survival Mean")
     survparam = new(Class = "SurvivalParameters_Area",
                     # endPoint,
-                    timeInfo,
+                    timeInfo1,
                     criticalValue1,
                     treeType1,
                     treeConditions)
@@ -400,7 +431,7 @@ setMethod(f = "initialize",
     # print(sprintf("EndPoint %s Parameters for CIF Probability", endPoint))
     endpointparam = new(Class = "EndPointParameters_Probability",
                 # endPoint,
-                timeInfo,
+                timeInfo2,
                 criticalValue2,
                 treeType2,
                 treeConditions)
@@ -408,7 +439,7 @@ setMethod(f = "initialize",
     # print("EndPoint Parameters for CIF Mean")
     endpointparam = new(Class = "EndPointParameters_Mean",
                 # endPoint,
-                timeInfo,
+                timeInfo2,
                 criticalValue2,
                 treeType2,
                 treeConditions)
@@ -416,7 +447,7 @@ setMethod(f = "initialize",
     # print("EndPoint Parameters for CIF Area Under Curve")
     endpointparam = new(Class = "EndPointParameters_Area",
                         # endPoint,
-                        timeInfo,
+                        timeInfo2,
                         criticalValue2,
                         treeType2,
                         treeConditions)
