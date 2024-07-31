@@ -30,7 +30,7 @@ setClass(Class = "EndPointParameters_Area", # before: Parameters_Mean
          contains = c("TimeInfo", "CriticalValueArea", "TreeType", "TreeConditions"))
 
 setClass(Class = "EndPointParameters_Probability",
-         contains = c("TimeInfo", "CriticalValueCR", "TreeType", "TreeConditions"))
+         contains = c("TimeInfo", "CriticalValueEndpoint", "TreeType", "TreeConditions"))
 
 # Define a class union based on the selected classes
 setClassUnion("AllParameters",
@@ -259,7 +259,7 @@ setMethod(f = "initialize",
                         criticalValue1,
                         criticalValue2,
                         survivalTime,
-                        CIFTime,
+                        endpointTime,
                         nSamples,
                         pooled,
                         stratifiedSplit) {
@@ -313,18 +313,18 @@ setMethod(f = "initialize",
   # View(criticalValue1)
 
   # PHASE 2
-  # NEED TO UPDATE ALL CIFTIME TO "ENDPOINTTIME FOR ALL SCRIPTS
+  # NEED TO UPDATE ALL endpointTIME TO "ENDPOINTTIME FOR ALL SCRIPTS
   criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
-                                   Time = CIFTime, # change all scripts later to endpointTime
+                                   Time = endpointTime, # change all scripts later to endpointTime
                                    Step = toString(endPoint),
                                    tau = .Tau(object = timeInfo2),
                                    timePoints = .TimePoints(object = timeInfo2))
 
-# we dont need below because we just change CIFTime to a generic EndpointTime
+# we dont need below because we just change endpointTime to a generic endpointTime
   # if (endPoint == "CR"){
   #   # print("CR")
   #   criticalValue2 <- .criticalValue(criticalValue = criticalValue2,
-  #                                    Time = CIFTime,
+  #                                    Time = endpointTime,
   #                                    Step = toString(endPoint),
   #                                    tau = .Tau(object = timeInfo),
   #                                    timePoints = .TimePoints(object = timeInfo))
@@ -428,7 +428,7 @@ setMethod(f = "initialize",
   # Step2 EndPoint
   # print("Line328:criticalValue2")
   # print(criticalValue2)
-  if (is(object = criticalValue2, class2 = "CriticalValueCR")){
+  if (is(object = criticalValue2, class2 = "CriticalValueEndpoint")){
     # print(sprintf("EndPoint %s Parameters for CIF Probability", endPoint))
     endpointparam = new(Class = "EndPointParameters_Probability",
                 # endPoint,
@@ -453,7 +453,7 @@ setMethod(f = "initialize",
                         treeType2,
                         treeConditions)
   } else{
-    stop("class_Parameters.R Line 424: we have object = criticalValue2 but class2 is neither CVCR nor CVM")
+    stop("class_Parameters.R Line 424: we have object = criticalValue2 \n BUT class2 is neither CVCR nor CVM")
   }
 
   # message("stage params done")

@@ -3,21 +3,23 @@ Type: Package
 Title: single stage optimization
 Version: 0.1.0
 Author: Christina Zhou
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
+Maintainer: Christina Zhou <czhou.bios@gmail.com>
+Description: Estimates optimal individualized treatment regime for survival data with multiple endpoints.
+    Currently only supports CR and RE
+    Based on dissertation work under guidance of Michael Kosorok at UNC-CH.
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
 Encoding: UTF-8
 Depends: methods, stats, survival
 RoxygenNote: 7.2.3
-Collate: 'VerifyCIFTime.R' 'VerifyCriticalValue.R' 'VerifyData.R'
+Collate: 'VerifyEndpointTime.R' 'VerifyCriticalValue.R' 'VerifyData.R'
         'VerifyERT.R' 'VerifyEndPoint.R' 'VerifyModels.R' 'VerifyTol1.R'
         'VerifyRandomSplit.R' 'VerifyReplace.R' 'VerifySampleSize.R'
         'VerifySplitRule.R' 'VerifySurvivalTime.R' 'VerifyTieMethod.R'
         'VerifyTimePoints.R' 'VerifyTxName.R' 'VerifyIdName.R' 'VerifyEpName.R' 
         'VerifyUniformSplit.R' 'VerifyUsePrevTime.R' 'class_CriticalValue.R' 
         'criticalValue.R' 'class_CriticalValueMean.R' 'class_CriticalValueArea.R'
-        'class_CriticalValueSurv.R'  'class_CriticalValueCR.R' 
+        'class_CriticalValueSurv.R'  'class_CriticalValueEndpoint.R' 
         'class_TreeConditions.R' 'class_TreeType.R' 'class_TimeInfo.R'
         'class_Parameters.R' 'predictSurvTree.R' 'class_SurvRF.R'
         'survRF.R' 'shiftMat.R' 'class_Optimal.R' 'class_ITRSurvStep.R'

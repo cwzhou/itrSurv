@@ -25,7 +25,7 @@
 #'
 #' @param txName A character object. The treatment variable name.
 #'
-#' @param epName A character object. The endpoint indicator variable name.
+#' @param epName A character object. The endpoint indicator variable name. Only required for endpoint RE.
 #'   Primarily for "RE" endpoint. Refers to indicator if row is recurrent event (1) or not (0).
 #'   Later used to subset Phase 1 survival dataset (one row per subject).
 #'   For CR endpoint, this variable does not matter and can be left blank.
@@ -322,6 +322,10 @@ itrSurv <- function(data,
   #######################################################################################################
   #######################################################################################################
 
+  # ensure endPoint is one of {'CR', 'RE'}.
+  # Methods return the original character possibly modified to be upper case.
+  endPoint <- .VerifyEndPoint(endPoint = endPoint)
+
   # ensure that 'data' is provided as a data.frame or a matrix and does not
   # contain NaN values. If 'data' is appropriate, method returns a data.frame
   # object
@@ -340,8 +344,6 @@ itrSurv <- function(data,
   nSamples <- nrow(data_surv)
   message("Dataset sample size: N = ", nSamples)
 
-
-
   # ignore nDP - leftover from multi-stage part that we DON'T do.
   # nDP = length(x = txName) # number of decision points in the analysis
   if (endPoint == "CR"){
@@ -352,14 +354,12 @@ itrSurv <- function(data,
   }
   if (endPoint == "CR"){
     # print(models)
+    message("Setting nCauses = 2 because there is one priority cause and everything else is lumped into Cause 2*")
     nCauses = 2 #there are always 2 causes because one is the priorty cause, and everything else is lumped into cause 2.
   } else{
     nCauses = 1
   }
 
-  # ensure endPoint is one of {'CR', 'RE'}.
-  # Methods return the original character possibly modified to be upper case.
-  endPoint <- .VerifyEndPoint(endPoint = endPoint)
 
   #######################################################################################################
   #######################################################################################################
@@ -388,7 +388,8 @@ itrSurv <- function(data,
                            stageLabel = stageLabel)
 
   if (endPoint == "CR"){
-    #this line is redundant since earlier we specified data=data_surv=data_ep for models_ep, but just to be safe :D
+    #this line is redundant since earlier we specified
+    # data=data_surv=data_ep for models_ep, but just to be safe :D
     models_ep <- .VerifyModels(models = models[[2]], #Surv(obs_time, D.1) ~ Z1
                                endPoint = endPoint,
                                nDP = nDP,
@@ -398,7 +399,7 @@ itrSurv <- function(data,
                                epName = epName,
                                stageLabel = stageLabel)
   } else if (endPoint == "RE"){
-    models_ep <- .VerifyModels(models = models[[2]], # should be epName = 1 as the models surv object
+    models_ep <- .VerifyModels(models = models[[2]], # Surv(TStart, TStop, epName) ~ Z1
                                endPoint = endPoint,
                                nDP = nDP,
                                nCauses = nCauses,
@@ -414,7 +415,7 @@ itrSurv <- function(data,
   del <- models_surv$delta
   models <- models_surv$models
 
-  response1 <- models_ep$response # not really needed
+  response1 <- models_ep$response # 2-column vector for RE
   del1 <- models_ep$delta
   # for CR: del1 is priority event indicator
   # for RE: del1 is recurrent event indicator
@@ -484,7 +485,7 @@ itrSurv <- function(data,
                         criticalValue1 = criticalValue1,
                         criticalValue2 = criticalValue2,
                         survivalTime = evalTime,
-                        CIFTime = evalTime, # need to change CIFTime to endpointTime in all scripts.
+                        endpointTime = evalTime, # need to change endpointTime to endpointTime in all scripts.
                         nSamples = nSamples,
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)

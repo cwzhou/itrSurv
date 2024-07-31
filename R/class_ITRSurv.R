@@ -75,7 +75,7 @@ setMethod(f = "print",
                 cat("Criterion: Truncated Mean Survival Time\n")
                 if (x@call[['endPoint']] == "CR"){
                   cat("Criterion: CIF Probability at T=",
-                      x@params@endpointparam@CIFTime,
+                      x@params@endpointparam@endpointTime,
                       " cif.", x@params@endpointparam@type, "\n")
                 }
               } else if (is(x = x@params, class2 = "Param_SurvivalProbabilityEndPointProbability")){
@@ -84,7 +84,7 @@ setMethod(f = "print",
                     " surv.", x@params@survivalparam@type, "\n")
                 if (x@call[['endPoint']] == "CR"){
                   cat("Criterion: CIF Probability at T=",
-                      x@params@endpointparam@CIFTime,
+                      x@params@endpointparam@endpointTime,
                       " cif.", x@params@endpointparam@type, "\n")
                 }
               } else{
@@ -163,14 +163,14 @@ setMethod(f = "show",
               } else if (is(object = object@params, class2 = "Param_SurvivalMeanEndPointProbability")){
                 cat("Criterion: Truncated Mean Survival Time\n")
                 cat("Criterion: CIF Probability at T=",
-                      object@params@endpointparam@CIFTime,
+                      object@params@endpointparam@endpointTime,
                       " cif.", object@params@endpointparam@type, "\n")
               } else if (is(object = object@params, class2 = "Param_SurvivalProbabilityEndPointProbability")){
                 cat("Criterion: Survival Probability at T=",
                     object@params@survivalparam@survivalTime,
                     " surv.", object@params@survivalparam@type, "\n")
                 cat("Criterion: CIF Probability at T=",
-                    object@params@endpointparam@CIFTime,
+                    object@params@endpointparam@endpointTime,
                     " cif.", object@params@endpointparam@type, "\n")
               } else{
                 stop("params are not right class2")

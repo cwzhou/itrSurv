@@ -113,7 +113,7 @@ setMethod(f = ".VerifyModels",
                              error = function(e){
                                        stop("unable to create model frame for model ",
                                             deparse(expr = models), "\n", e$message,
-                                            call. = FALSE)
+                                            call. = FALSE) # different than before bc FALSE here not NULL
                                      })
 
               if (!is(object = mf[,1], class2 = "Surv")) {
@@ -121,11 +121,28 @@ setMethod(f = ".VerifyModels",
                      call. = FALSE)
               }
 
-              # extract survival response
-              resp <- matrix(data = model.response(data = mf)[,1L], ncol = 1L)
+              if (ncol(model.response(data = mf)) > 2){
+                if (endPoint == "RE"){
+                  print("Phase 2 RE")
+                  # extract survival response
+                  resp <- matrix(data = model.response(data = mf)[,1L:2L], ncol = 2L)
+                  print("Adjusting for the warning messages about stop time > start time")
+                  resp[,1] = ifelse(is.na(resp[,1]),resp[,2], resp[,1])
 
-              # extract event
-              del <- matrix(data = model.response(data = mf)[,2L], ncol = 1L)
+                  # extract event
+                  del <- matrix(data = model.response(data = mf)[,3L], ncol = 1L)
+
+                } else{
+                  stop("Model must be presented in Surv(TStart, TStop, epName) ~ Covariates")
+                }
+              } else{
+                print("Phase 1 Surv OR Phase 2 CR")
+                # extract survival response
+                resp <- matrix(data = model.response(data = mf)[,1L], ncol = 1L)
+
+                # extract event
+                del <- matrix(data = model.response(data = mf)[,2L], ncol = 1L)
+              }
 
               return( list("models" = models, "response" = resp, "delta" = del) )
             })

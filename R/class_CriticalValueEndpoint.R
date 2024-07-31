@@ -1,14 +1,14 @@
-# Class extends CriticalValue to indicate that critical value is CIF
+# Class extends CriticalValue to indicate that critical value is for endpoint
 #
 # Class is not exported and is for internal convenience only
 #
-# @slot CIFTime A numeric object. The time at which the CIF
+# @slot endpointTime A numeric object. The time at which the Endpoint
 #   probability is to be estimated
 #
 # @slot cIndex An integer object. The index of the timePoint vector above
-#   which the CIF time lies (and it is below the cIndex + 1 element)
+#   which the Endpoint time lies (and it is below the cIndex + 1 element)
 #
-# @slot cFraction A numeric object. The fractional location of CIFTime in
+# @slot cFraction A numeric object. The fractional location of endpointTime in
 #   t[cIndex] and t[cIndex+1]
 #
 # @slot type A character object. Indicates of mean is to be used to break ties.
@@ -16,14 +16,14 @@
 # Methods
 #  .CriticalValueCriterion(object, ...) {not allowed}
 #  .CreateValueObject(object, ...) {defined}
-#  .IsCIF(object, ...) {new; defined}
+#  .IsEndpoint(object, ...) {new; defined}
 #
 # Functions
-# .criticalValueCR(CIFTime, timePoints)
+# .criticalValueCR(endpointTime, timePoints)
 #
 #' @include class_CriticalValue.R
-setClass(Class = "CriticalValueCR",
-         slots = c(CIFTime = "ANY",
+setClass(Class = "CriticalValueEndpoint",
+         slots = c(endpointTime = "ANY",
                    cIndex = "integer",
                    cFraction = "numeric",
                    type = "character"),
@@ -35,7 +35,7 @@ setClass(Class = "CriticalValueCR",
 # method returns a character (specifically "mean")
 #-------------------------------------------------------------------------------
 setMethod(f = ".CriticalValueCriterion",
-          signature = c(object = "CriticalValueCR"),
+          signature = c(object = "CriticalValueEndpoint"),
           definition = function(object, ...) {
             if (object@type == "cif.mean") return( "mean.prob.combo" )
             if (object@type == "cif.prob") return( "prob" )
@@ -43,14 +43,14 @@ setMethod(f = ".CriticalValueCriterion",
           })
 
 setMethod(f = "initialize",
-          signature = c(.Object = "CriticalValueCR"),
-          def = function(.Object, ..., CIFTime, cIndex, cFraction, type) {
+          signature = c(.Object = "CriticalValueEndpoint"),
+          def = function(.Object, ..., endpointTime, cIndex, cFraction, type) {
 
             obj <- list(...)
             tst <- sapply(X = obj,
                           FUN = function(x){
                             is(object = x,
-                               class2 = "CriticalValueCR")
+                               class2 = "CriticalValueEndpoint")
                           })
 
             if (any(tst)) {
@@ -59,17 +59,17 @@ setMethod(f = "initialize",
               # print("obj")
               # print(obj)
               .Object <- obj[[ which(tst) ]]
-            } else if (missing(x = CIFTime) && missing(x = cIndex) &&
+            } else if (missing(x = endpointTime) && missing(x = cIndex) &&
                        missing(x = cFraction) && missing(x = type)) {
-              .Object@CIFTime <- Inf
+              .Object@endpointTime <- Inf
               .Object@cIndex <- -1L
               .Object@cFraction <- 0
               .Object@type <- "none"
             } else {
-              if (missing(x = CIFTime) || missing(x = cIndex) ||
+              if (missing(x = endpointTime) || missing(x = cIndex) ||
                   missing(x = cFraction) || missing(x = type)) {
                 gn <- unlist(lapply(list(...),is))
-                if( "CriticalValueCR" %in% gn ) return(.Object)
+                if( "CriticalValueEndpoint" %in% gn ) return(.Object)
                 stop("insufficient inputs provided")
               }
               if (type %in% c("prob")) {
@@ -79,7 +79,7 @@ setMethod(f = "initialize",
               } else if (type %in% c("mean","mean.prob.combo")) {
                 .Object@type <- "cif.mean"
               }
-              .Object@CIFTime <- CIFTime
+              .Object@endpointTime <- endpointTime
               .Object@cIndex <- cIndex
               .Object@cFraction <- cFraction
             }
@@ -87,53 +87,53 @@ setMethod(f = "initialize",
           })
 
 #-------------------------------------------------------------------------------
-# method to identify if critical value is of CIF type
+# method to identify if critical value is of Endpoint type
 #-------------------------------------------------------------------------------
 # method returns a logical
 #-------------------------------------------------------------------------------
-setGeneric(name = ".IsCIF",
-           def = function(object, ...) { standardGeneric(".IsCIF") })
+setGeneric(name = ".IsEndpoint",
+           def = function(object, ...) { standardGeneric(".IsEndpoint") })
 
-setMethod(f = ".IsCIF",
+setMethod(f = ".IsEndpoint",
           signature = c(object = "ANY"),
           definition = function(object, ...) { return( FALSE ) })
 
-setMethod(f = ".IsCIF",
-          signature = c(object = "CriticalValueCR"),
+setMethod(f = ".IsEndpoint",
+          signature = c(object = "CriticalValueEndpoint"),
           definition = function(object, ...) { return( TRUE ) })
 
 #-------------------------------------------------------------------------------
-# internal function to create an object of class CriticalValueCR
+# internal function to create an object of class CriticalValueEndpoint
 #-------------------------------------------------------------------------------
-# function returns a CriticalValueCR object
+# function returns a CriticalValueEndpoint object
 #-------------------------------------------------------------------------------
-.criticalValueCR <- function(CIFTime, timePoints, type) {
+.criticalValueCR <- function(endpointTime, timePoints, type) {
 
   # message("-------starting .criticalValueCR ---------")
   # print(type)
   nTimes <- length(x = timePoints)
 
-  # index of last time point <= CIFTime
-  cIndex <- sum(timePoints <= CIFTime)
+  # index of last time point <= endpointTime
+  cIndex <- sum(timePoints <= endpointTime)
 
   if (cIndex < nTimes) {
-    # if CIFTime is below tau, determine the fraction
-    cFraction <- {CIFTime - timePoints[cIndex]} /
+    # if endpointTime is below tau, determine the fraction
+    cFraction <- {endpointTime - timePoints[cIndex]} /
       {timePoints[cIndex + 1L] - timePoints[cIndex]}
   } else if (cIndex == 0L) {
     # if it is below the minimum, stop -- cannot extrapolate
-    stop("CIF time is below minimum timepoint")
+    stop("Endpoint time is below minimum timepoint")
   } else {
     # if it is above tau, use tau -- cannot extrapolate
     cFraction <- 0.0
-    CIFTime <- max(timePoints)
-    message("CIF time reset to tau")
+    endpointTime <- max(timePoints)
+    message("Endpoint time reset to tau")
   }
   # print(type)
-  # print("CIFTime")
-  # print(CIFTime)
-  return( new("CriticalValueCR",
-              "CIFTime" = CIFTime,
+  # print("endpointTime")
+  # print(endpointTime)
+  return( new("CriticalValueEndpoint",
+              "endpointTime" = endpointTime,
               "cIndex" = cIndex,
               "cFraction" = cFraction,
               "type" = type) )

@@ -10,7 +10,7 @@
 #' @include class_CriticalValueSurv.R #class_CriticalValueSurvival.R
 #' @include class_CriticalValueCR.R
 #' @include VerifyCriticalValue.R
-#' @include VerifySurvivalTime.R VerifyCIFTime.R
+#' @include VerifySurvivalTime.R VerifyendpointTime.R
 #'
 .criticalValue <- function(criticalValue,
                            Time,
@@ -46,7 +46,7 @@
                                      type = criticalValue) )
     } else{
       # message("Survival Mean - no evalTime needed")
-      # if survivalTime nor CIFTime are not given as input, create a CriticalValueMean object
+      # if survivalTime nor endpointTime are not given as input, create a CriticalValueMean object
       if (criticalValue == "area"){
         return( .criticalValueArea() )
       } else{
@@ -54,26 +54,26 @@
     }
     }
   }
-  else if (Step == "CR") {
-    # print(".VerifyCIFTime")
+  else if (Step == "CR" | Step == "RE") {
+    # print(".VerifyendpointTime")
 
-    # ensure that CIFTime is provided if criticalValue is
-    # {'cif'}. Methods return the numeric CIFTime or NULL.
-    CIFTime <- .VerifyCIFTime(CIFTime = Time, # this has to be Time input
+    # ensure that endpointTime is provided if criticalValue is
+    # {'cif'}. Methods return the numeric endpointTime or NULL.
+    endpointTime <- .VerifyendpointTime(endpointTime = Time, # this has to be Time input
                               criticalValue = criticalValue,
                               tau = tau)
-    # message("CIFTime:", CIFTime)
-    if (!is.null(x = CIFTime)){
-      # message("CIFTime:",CIFTime)
-      # if CIFTime is given as input, verify it and the timePoints input and
+    # message("endpointTime:", endpointTime)
+    if (!is.null(x = endpointTime)){
+      # message("endpointTime:",endpointTime)
+      # if endpointTime is given as input, verify it and the timePoints input and
       # create a CriticalValueCR object
-      return( .criticalValueCR(CIFTime = CIFTime, # this haas to be CIFTime, not Time
+      return( .criticalValueCR(endpointTime = endpointTime, # this haas to be endpointTime, not Time
                                timePoints = timePoints,
                                type = criticalValue) )
 
     } else{
       # message("Mean Cumulative Incidence - no evalTime needed")
-      # if survivalTime nor CIFTime are not given as input, create a CriticalValueMean object
+      # if survivalTime nor endpointTime are not given as input, create a CriticalValueMean object
       # same as above for if not survival prob
       if (criticalValue == "area"){
         return( .criticalValueArea() )
