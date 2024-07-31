@@ -38,7 +38,7 @@ setClass(Class = "CriticalValueSurv",
 setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueSurv"),
           definition = function(object, ...) {
-            # message("sfdkljksld: object@type:", object@type)
+            message("sfdkljksld: object@type:", object@type)
               if (object@type == "surv.mean") return( "mean.prob.combo" )
               if (object@type == "surv.prob") return( "prob" )
               if (object@type == "surv.area") return( "area" )
@@ -48,7 +48,7 @@ setMethod(f = "initialize",
          signature = c(.Object = "CriticalValueSurv"),
          def = function(.Object, ..., survivalTime, sIndex, sFraction, type) {
 
-           # message("~~~ begin initialize ~~~ 1")
+           message("~~~ begin initialize ~~~ 1")
 
                    obj <- list(...)
                    tst <- sapply(X = obj,
@@ -56,7 +56,7 @@ setMethod(f = "initialize",
                                          is(object = x,
                                             class2 = "CriticalValueSurv")
                                         })
-                   # message("~~~ begin initialize ~~~ 2")
+                   message("~~~ begin initialize ~~~ 2")
 
                    if (any(tst)) {
                      .Object <- obj[[ which(tst) ]]
@@ -117,7 +117,7 @@ setMethod(f = ".IsSurvival",
 #-------------------------------------------------------------------------------
 .criticalValueSurv <- function(survivalTime, timePoints, type) {
 
-  # message("-------starting .criticalValueSurv ---------")
+  message("-------starting .criticalValueSurv ---------")
 
   nTimes <- length(x = timePoints)
   # message("nTimes: ", nTimes)

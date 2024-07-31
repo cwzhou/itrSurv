@@ -10,7 +10,7 @@
 #' @include class_CriticalValueSurv.R #class_CriticalValueSurvival.R
 #' @include class_CriticalValueCR.R
 #' @include VerifyCriticalValue.R
-#' @include VerifySurvivalTime.R VerifyendpointTime.R
+#' @include VerifySurvivalTime.R VerifyEndpointTime.R
 #'
 .criticalValue <- function(criticalValue,
                            Time,
@@ -18,7 +18,7 @@
                            tau,
                            timePoints) {
 
-  # message("-- Starting .criticalValue Function in criticalValue.R--")
+  message("-- Starting .criticalValue Function in criticalValue.R--")
 
   # ensure criticalValue is one of {'mean', 'prob', 'area', 'mean.prob.combo'}.
   # Methods return the original character possibly modified to be lower case.
@@ -53,21 +53,20 @@
         return( .criticalValueMean() )
     }
     }
-  }
-  else if (Step == "CR" | Step == "RE") {
-    # print(".VerifyendpointTime")
+  } else if (Step == "CR" | Step == "RE") {
+    # print(".VerifyEndpointTime")
 
     # ensure that endpointTime is provided if criticalValue is
     # {'cif'}. Methods return the numeric endpointTime or NULL.
-    endpointTime <- .VerifyendpointTime(endpointTime = Time, # this has to be Time input
+    endpointTime <- .VerifyEndpointTime(endpointTime = Time, # this has to be Time input
                               criticalValue = criticalValue,
                               tau = tau)
     # message("endpointTime:", endpointTime)
     if (!is.null(x = endpointTime)){
       # message("endpointTime:",endpointTime)
       # if endpointTime is given as input, verify it and the timePoints input and
-      # create a CriticalValueCR object
-      return( .criticalValueCR(endpointTime = endpointTime, # this haas to be endpointTime, not Time
+      # create a CriticalValueEndpoint object
+      return( .criticalValueEndpoint(endpointTime = endpointTime, # this haas to be endpointTime, not Time
                                timePoints = timePoints,
                                type = criticalValue) )
 

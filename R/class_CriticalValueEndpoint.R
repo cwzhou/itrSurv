@@ -107,7 +107,7 @@ setMethod(f = ".IsEndpoint",
 #-------------------------------------------------------------------------------
 # function returns a CriticalValueEndpoint object
 #-------------------------------------------------------------------------------
-.criticalValueCR <- function(endpointTime, timePoints, type) {
+.criticalValueEndpoint <- function(endpointTime, timePoints, type) {
 
   # message("-------starting .criticalValueCR ---------")
   # print(type)

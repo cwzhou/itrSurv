@@ -20,14 +20,19 @@ setGeneric(name = ".CriticalValueCriterion",
 
 setMethod(f = ".CriticalValueCriterion", # .CriticalValueCriterion Default Method:
           signature = c(object = "ANY"),
-          definition = function(object, ...) { stop("class_CriticalValue.R: not allowed") }) # Generates an error message that it's not allowed to be called directly on objects of the CriticalValueBase class.
+          definition = function(object, ...) {
+
+            print("class_CriticalValue.R")
+            stop("class_CriticalValue.R: not allowed")
+
+            }) # Generates an error message that it's not allowed to be called directly on objects of the CriticalValueBase class.
 
 
 
-resample <- function(x, ...) x[sample.int(n = length(x = x), ...)] #Takes a vector x and performs a random resampling of its elements using sample.int. 
+resample <- function(x, ...) x[sample.int(n = length(x = x), ...)] #Takes a vector x and performs a random resampling of its elements using sample.int.
 
 
-# Defines a virtual class which serves as a base class for objects that store information related to critical value selection. 
+# Defines a virtual class which serves as a base class for objects that store information related to critical value selection.
 # This class contains methods that are not allowed to be directly called for any object of this class. Instead, these methods are meant to be overridden in subclasses of CriticalValueBase:
-# In summary, the provided code establishes a virtual base class for objects related to critical value selection and includes a placeholder method for identifying the type of critical value (mean or probability). 
+# In summary, the provided code establishes a virtual base class for objects related to critical value selection and includes a placeholder method for identifying the type of critical value (mean or probability).
 # Subclasses are expected to override this method to provide specific implementations.
