@@ -307,7 +307,7 @@ setMethod(f = ".TimeInfoAsList",
 #' @include VerifyTimePoints.R
 .timeInfo <- function(timePointsPhase,
                       # timePointsSurvival, timePointsEndpoint,
-                      timePoints, nTimes, tau){ #, response) {
+                      timePoints, nTimes, tau, response) {
 
   # ensure that timePoints and nTimes are appropriate. Methods return 2 vectors
   # of unique time points that are sorted in ascending order.
@@ -319,8 +319,8 @@ setMethod(f = ".TimeInfoAsList",
                                   # timePointsEndpoint = timePointsEndpoint,
                                   timePoints = timePoints,
                                   tau = tau,
-                                  nTimes = nTimes#,
-                                  # response = response
+                                  nTimes = nTimes,
+                                  response = response
                                   )
 
   tau <- timePoints0$tau

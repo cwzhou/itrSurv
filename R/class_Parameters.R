@@ -6,7 +6,7 @@
 #   .ParametersAsList(object, ...) {new; defined}
 #
 # Functions
-# .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, #response, nTree, ERT, uniformSplit,
+# .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, response, response_endpoint, nTree, ERT, uniformSplit,
 #                      randomSplit, splitRule, replace, nodeSize,
 #                      minEvent, tieMethod, criticalValue,
 #                      survivalTime, nSamples, pooled, stratifiedSplit)
@@ -245,7 +245,8 @@ setMethod(f = "initialize",
                         timePoints,
                         tau,
                         nTimes,
-                        # response,
+                        response,
+                        response_endpoint,
                         nTree,
                         ERT,
                         uniformSplit,
@@ -271,13 +272,13 @@ setMethod(f = "initialize",
                         timePoints = timePoints,
                         tau = tau,
                         nTimes = nTimes,
-                        # response = response
+                        response = response
                         )
   timeInfo2 <- .timeInfo(timePointsPhase = timePointsEndpoint,
                          timePoints = timePoints,
                          tau = tau,
                          nTimes = nTimes,
-                         # response = response
+                         response = response_endpoint
   )
 
   # timeInfo <- .timeInfo(timePointsSurvival = timePointsSurvival,

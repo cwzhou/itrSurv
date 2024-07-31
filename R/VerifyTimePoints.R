@@ -40,8 +40,7 @@ setMethod(f = ".VerifyTimePoints",
                         # timePointsEndpoint = "numeric",
                         timePoints = "ANY",
                         nTimes = "ANY"),
-          definition = function(timePointsPhase, timePoints, nTimes, ..., tau) {
-                                # response
+          definition = function(timePointsPhase, timePoints, nTimes, ..., tau, response) {
 
             # if (length(x = timePointsSurvival) == 0L) {
             #   stop("timePointsSurvival is of zero length", call. = FALSE)
