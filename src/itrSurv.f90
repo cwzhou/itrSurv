@@ -62,6 +62,7 @@ MODULE INNERS
   LOGICAL, SAVE :: isCIF = .FALSE.
   LOGICAL, SAVE :: isPhase1 = .FALSE.
   LOGICAL, SAVE :: isPhase2CR = .FALSE.
+  LOGICAL, SAVE :: isPhase2 = .FALSE.
 
   TYPE NODE
     INTEGER :: nNode
@@ -1974,6 +1975,8 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
 
   isPhase1 = t_rule < 3
   isPhase2CR = t_rule > 2
+  isPhase2 = isPhase2CR
+
   ! PRINT *, "isPhase1:", isPhase1
   ! PRINT *, "isPhase2CR:", isPhase2CR
 

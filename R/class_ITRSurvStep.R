@@ -385,8 +385,8 @@ setMethod(f = ".Predict",
                             na.action = na.pass)
     response_surv <- stats::model.response(data = x_surv)
     delta <- response_surv[,2L] # survival delta
-    x = x_endpoint
-    response = response_endpoint
+    x = x_surv # covariates of survival dataset
+    response = response_endpoint # response of endpoint dataset
   }
 
 
@@ -580,14 +580,14 @@ setMethod(f = ".Predict",
   # identify time points <= response
   tSurv <- sapply(X = response[elig],
                   FUN = function(s, tp) { as.integer(x = {s < tp}) },
-                  tp = .TimePoints(object = params))
+                  tp = .TimePoints(object = params)) # tp = sort(unique(timePointsEndpoint1)))
 
   # time point nearest the response without going over
   # {nTimes x nElig}
   pr <- {rbind(tSurv[-1L,],1)-tSurv}
-  # message('pr: nTimes x nElig')
-  #print(pr)
-  #print(dim(pr))
+  message('pr: nTimes x nElig')
+  print(pr)
+  print(dim(pr))
 
   if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
                                call. = FALSE)

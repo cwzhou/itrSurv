@@ -31,14 +31,14 @@
 # y = response[elig],
 # pr = pr,
 # delta = delta[elig],
-# delta_cause = delta_cause[elig],
+# delta_endpoint = delta_endpoint[elig],
 # params = params,
 # mTry = mTry,
 # txLevels = txLevels,
 # model = mod,
 # sampleSize = sampleSize)
 
-.survRF <- function(..., Phase, eps0, x, delta, delta_cause, pr, params, mTry, sampleSize) {
+.survRF <- function(..., Phase, eps0, x, delta, delta_endpoint, pr, params, mTry, sampleSize) {
   # message("starting .survRF from survRF.R")
 
   # if x_i is an unordered factor, nCat_i is the number of levels
@@ -54,7 +54,8 @@
   # View(nCat)
 
   # number of individuals in training data
-  nSamples <- nrow(x = x)
+  nSamples <- nrow(x = x) # this is OLD code - doesnt reflect RE where nrow(x) is for RE for Phase 2 data
+  nSamples <- params@nSamples
   # message('number of individuals in training data: ', nSamples)
 
   # number of time points
@@ -76,18 +77,18 @@
 
   # convert factors to integers
   x = data.matrix(frame = x)
-  nr = nrow(x = x)
+  nr = nrow(x = x) # maximum number of nodes in a tree
   # message("nr: ", nr)
 
   # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
   res = .Fortran("setUpInners",
-                 t_n = as.integer(x = nrow(x = x)),
-                 t_np = as.integer(x = ncol(x = x)),
-                 t_x = as.double(x = x),
-                 t_pr = as.double(x = t(x = pr)),
-                 t_delta = as.integer(x = delta),
-                 t_delta_m = as.integer(x = delta_cause),
+                 t_n = as.integer(x = nSamples), # number of subjects
+                 t_np = as.integer(x = ncol(x = x)), # number of covariates
+                 t_x = as.double(x = x), # covariates
+                 t_pr = as.double(x = t(x = pr)), # pr
+                 t_delta = as.integer(x = delta), # delta failure
+                 t_delta_m = as.integer(x = delta_endpoint), # endpoint delta
                  t_mTry = as.integer(x = mTry),
                  t_nCat = as.integer(x = nCat),
                  t_sampleSize = as.integer(x = sampleSize),
