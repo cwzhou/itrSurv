@@ -370,9 +370,9 @@ setMethod(f = ".TimeInfoAsList",
   #     "timeDiffEndpoint" = timeDiffEndpoint)
 
   time = new(Class = "TimeInfo",
-             "tau" = tau,
              "timePoints" = timePoints,
-             "timeDiff" = timeDiff)
+             "timeDiff" = timeDiff,
+             "tau" = tau)
 
   return( time )
 }

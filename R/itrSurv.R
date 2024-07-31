@@ -605,7 +605,8 @@ itrSurv <- function(data,
                                 params = params1,
                                 txName = txName[nDP],
                                 mTry = mTry[nDP],
-                                sampleSize = sampleSize1[nDP])
+                                sampleSize = sampleSize1[nDP],
+                                nSamples = nSamples)
   # message("...end of .itrSurvStep...")
   # message("Phase1Results")
   # View(Phase1Results)
@@ -724,7 +725,8 @@ itrSurv <- function(data,
                                  params = params2,
                                  txName = txName[nDP],
                                  mTry = mTry[nDP],
-                                 sampleSize = sampleSize2[nDP])
+                                 sampleSize = sampleSize2[nDP],
+                                 nSamples = nSamples)
     assign("Phase2Results_endpoint", Phase2Results, envir = .GlobalEnv)
 
   phaseResults[[2]] <- Phase2Results

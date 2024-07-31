@@ -38,7 +38,8 @@
 # model = mod,
 # sampleSize = sampleSize)
 
-.survRF <- function(..., Phase, eps0, x, delta, delta_endpoint, pr, params, mTry, sampleSize) {
+.survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
+                    pr, params, mTry, sampleSize) {
   # message("starting .survRF from survRF.R")
 
   # if x_i is an unordered factor, nCat_i is the number of levels
@@ -53,9 +54,11 @@
   nCat <- ifelse(test = sapply(X = x, FUN = is.ordered), yes = 1L, no = nCat)
   # View(nCat)
 
+  # FIGURE OUT HOW TO DO WITHOUT CRASHING
   # number of individuals in training data
   nSamples <- nrow(x = x) # this is OLD code - doesnt reflect RE where nrow(x) is for RE for Phase 2 data
-  nSamples <- params@nSamples
+  # View(params)
+  # nSamples <- nSamples
   # message('number of individuals in training data: ', nSamples)
 
   # number of time points

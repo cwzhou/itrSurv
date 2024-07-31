@@ -32,7 +32,7 @@ setMethod(f = ".VerifyData",
               }
 
             if (endPoint == "RE"){
-              message("verifydata.r: line 35")
+              message("Endpoint: RE")
             }
 
               return( data )

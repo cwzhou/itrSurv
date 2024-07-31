@@ -17,6 +17,8 @@
 #
 #  @slot tieMethod A character object; must be one of {'first', 'random', 'NA'}
 #
+#  @slot nSamples A numeric object; the sample size of the dataset
+#
 # Getters
 #
 # Methods
@@ -33,7 +35,8 @@ setClass(Class = "TreeType",
                    "ERT" = "logical",
                    "uniformSplit" = "logical",
                    "splitRule" = "character",
-                   "tieMethod" = "character"))
+                   "tieMethod" = "character",
+                   "nSamples" = "numeric"))
 
 ## Getters
 
@@ -89,6 +92,7 @@ setClass(Class = "TreeType",
               "ERT" = ERT,
               "uniformSplit" = uniformSplit,
               "splitRule" = splitRule,
-              "tieMethod" = tieMethod) )
+              "tieMethod" = tieMethod,
+              "nSamples" = nSamples) )
 
 }
