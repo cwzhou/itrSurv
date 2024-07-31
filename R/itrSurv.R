@@ -16,9 +16,16 @@
 #'   Can be provided as a matrix object if column headers are included.
 #'   Can contain missing data coded as NA, but cannot contain NaN.
 #'
-#' @param txName A character vector object. The treatment variable name.
+#' @param endPoint A character object. Must be one of
+#'   \{"CR", "RE"\}. The label for the ultimate end point type.
+#'   For "CR": competing risks data to examine cumulative incidence function;
+#'   For "RE": recurrent events data to examine mean frequency function
 #'
-#' @param epName A character vector object. The endpoint indicator variable name.
+#' @param idName A character object. The ID variable name. Only required for endpoint RE.
+#'
+#' @param txName A character object. The treatment variable name.
+#'
+#' @param epName A character object. The endpoint indicator variable name.
 #'   Primarily for "RE" endpoint. Refers to indicator if row is recurrent event (1) or not (0).
 #'   Later used to subset Phase 1 survival dataset (one row per subject).
 #'   For CR endpoint, this variable does not matter and can be left blank.
@@ -34,16 +41,11 @@
 #'                 [[1]] Surv(obs_time, D.0) ~ Z1
 #'                 [[2]] Surv(obs_time, D.1) ~ Z1
 #'    Example: RE:
-#'                 [[1]] Surv(obs_time, D.0) ~ Z1
-#'                 [[2]] Surv(obs_time, D.1) ~ Z1
-#'    For RE, obs_time is STOP time, and D.0 represents death indicator for survival dataset
+#'                 [[1]] Surv(TStop, D.0) ~ Z1
+#'                 [[2]] Surv(TStart, TStop, D.1) ~ Z1
+#'    For RE, TStart is start time, TStop is stop time, and D.0 represents death indicator for survival dataset
 #'    D.1 represents recurrent event indicator for RE dataset (full dataset)
 #'    The inputted dataset must reflect these variable names.
-#'
-#' @param endPoint A character object. Must be one of
-#'   \{"CR", "RE"\}. The label for the ultimate end point type.
-#'   For "CR": competing risks data to examine cumulative incidence function;
-#'   For "RE": recurrent events data to examine mean frequency function
 #'
 #' @param timePointsSurvival A numeric vector object of the time points to be used.
 #'   This should be the unique observed failure times.
@@ -276,10 +278,11 @@
 
 #'
 itrSurv <- function(data,
+                    endPoint,
+                    idName,
                     txName,
                     epName,
                     models,
-                    endPoint = "CR",
                     ...,
                     timePointsSurvival,
                     timePointsEndpoint, # for CR, this is the same as timePointsSurvival
@@ -318,42 +321,26 @@ itrSurv <- function(data,
   #######################################################################################################
   #######################################################################################################
   #######################################################################################################
+
   # ensure that 'data' is provided as a data.frame or a matrix and does not
   # contain NaN values. If 'data' is appropriate, method returns a data.frame
   # object
-  data <- .VerifyData(data = data, endPoint = endPoint)
+  # Verify epName and Verify idName are ran for RE endpoint
+  data_list <- .VerifyData(data = data, epName = epName, endPoint = endPoint, idName = idName)
 
-  if (endPoint == "RE"){
-    # ensure that 'epName' is provided as a character or character vector and
-    # that the provided names are present in 'data'. This input defines the
-    # dataset for the endpoint Phase analysis. If 'epName' is appropriate,
-    # the object returned is the original input without modification.
-    epName <- .VerifyEpName(epName = epName, data = data)
-  } else{
-    epName = NULL
-  }
+  data_surv = data_list[[1]]
+  data_ep = data_list[[2]]
 
-  # Determining Phase 1 and Phase 2 Datasets (in case they differ like in RE)
-  if (endPoint == "RE"){
-    message("First, we identify failure dataset")
-    # epName = "status" #equal to 1 if recurrent event.
-    data_surv = data %>% filter(!!sym(epName) == 0) #filter to NON RE (one row per id)
-    message("Next, we identify recurrent event dataset")
-    data_ep = data # entire dataset
-  } else{ # for CR, the dataset is the same for both phase 1 and phase 2
-    message("Phase 1 and Phase 2 datasets are the same.")
-    data_surv = data_ep = data
-  }
+  # ensure that 'txName' is provided as a character or character vector and
+  # that the provided names are present in 'data'. If 'txName' is appropriate,
+  # the object returned is the original input without modification.
+  txName <- .VerifyTxName(txName = txName, data = data)
 
   # # total number of individuals in dataset
   nSamples <- nrow(data_surv)
   message("Dataset sample size: N = ", nSamples)
 
-  # ensure that 'txName' is provided as a character or character vector and
-  # that the provided names are present in 'data'. This input defines the
-  # number of decision points for the analysis. If 'txName' is appropriate,
-  # the object returned is the original input without modification.
-  txName <- .VerifyTxName(txName = txName, data = data)
+
 
   # ignore nDP - leftover from multi-stage part that we DON'T do.
   # nDP = length(x = txName) # number of decision points in the analysis
@@ -373,8 +360,6 @@ itrSurv <- function(data,
   # ensure endPoint is one of {'CR', 'RE'}.
   # Methods return the original character possibly modified to be upper case.
   endPoint <- .VerifyEndPoint(endPoint = endPoint)
-
-  data_list = list(data_surv, data_ep)
 
   #######################################################################################################
   #######################################################################################################
