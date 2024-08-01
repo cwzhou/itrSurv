@@ -22,6 +22,8 @@ setClass(Class = "CriticalValueArea",
 setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueArea"),
           definition = function(object, ...) {
+
+            print("test")
             return("area")
           }
 )

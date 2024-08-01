@@ -299,7 +299,7 @@ setMethod(f = "initialize",
 
   # initialize CriticalValue
   # function returns an object of class CriticalValueMean or
-  #   CriticalValueSurvival depending on input survivalTime
+  #   CriticalValueSurv depending on input survivalTime
   # print("criticalValue1")
   # print(criticalValue1)
 
@@ -396,7 +396,7 @@ setMethod(f = "initialize",
   # print(criticalValue1)
   # Step1 Survival
   if (is(object = criticalValue1, class2 = "CriticalValueSurv")) {
-    # print("Survival Parameters for Survival Probability")
+    print("Survival Parameters for Survival Probability")
     survparam = new(Class = "SurvivalParameters_Probability",
                 # endPoint,
                 timeInfo1,
@@ -405,7 +405,7 @@ setMethod(f = "initialize",
                 treeConditions)
   } else if (
     is(object = criticalValue1, class2 = "CriticalValueMean")) {
-    # print("Survival Parameters for Survival Mean")
+    print("Survival Parameters for Survival Mean")
     survparam = new(Class = "SurvivalParameters_Mean",
                 # endPoint,
                 timeInfo1,
@@ -414,7 +414,7 @@ setMethod(f = "initialize",
                 treeConditions)
   } else if (
     is(object = criticalValue1, class2 = "CriticalValueArea")) {
-    # print("Survival Parameters for Survival Mean")
+    print("Survival Parameters for Survival Area Under Curve")
     survparam = new(Class = "SurvivalParameters_Area",
                     # endPoint,
                     timeInfo1,
@@ -422,14 +422,14 @@ setMethod(f = "initialize",
                     treeType1,
                     treeConditions)
   } else{
-      stop("class_Parameters.R Line 393: we have object = criticalValue1 but class2 is neither CVS nor CVM")
+      stop("class_Parameters.R Line 393: we have object = criticalValue1 but class2 is neither CVSurv nor CVMean nor CVArea")
   }
 
   # Step2 EndPoint
   # print("Line328:criticalValue2")
   # print(criticalValue2)
   if (is(object = criticalValue2, class2 = "CriticalValueEndpoint")){
-    # print(sprintf("EndPoint %s Parameters for CIF Probability", endPoint))
+    print(sprintf("EndPoint %s Parameters for CIF Probability", endPoint))
     endpointparam = new(Class = "EndPointParameters_Probability",
                 # endPoint,
                 timeInfo2,
@@ -437,7 +437,7 @@ setMethod(f = "initialize",
                 treeType2,
                 treeConditions)
   } else if (is(object = criticalValue2, class2 = "CriticalValueMean")) {
-    # print("EndPoint Parameters for CIF Mean")
+    print("EndPoint Parameters for CIF Mean")
     endpointparam = new(Class = "EndPointParameters_Mean",
                 # endPoint,
                 timeInfo2,
@@ -445,7 +445,7 @@ setMethod(f = "initialize",
                 treeType2,
                 treeConditions)
   } else if (is(object = criticalValue2, class2 = "CriticalValueArea")) {
-    # print("EndPoint Parameters for CIF Area Under Curve")
+    print("EndPoint Parameters for CIF Area Under Curve")
     endpointparam = new(Class = "EndPointParameters_Area",
                         # endPoint,
                         timeInfo2,
@@ -468,7 +468,7 @@ setMethod(f = "initialize",
   # Create objects based on user input
   A = paste0("Param_",A1,A2);#print(A)
   params <- new(A,
-                survivalparam=survparam,
+                survivalparam = survparam,
                 endpointparam = endpointparam)
 
   # params <- .createCombinedObject(survival_class, endpoint_class, survparam, endpointparam)

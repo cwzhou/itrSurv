@@ -2,13 +2,13 @@
 #
 # Function is not exported and for internal convenience only
 #
-# Function returns an object of class CriticalValueMean or CriticalValueSurvival
+# Function returns an object of class CriticalValueMean or CriticalValueSurv
 #
 #' @include class_CriticalValue.R
-#' @include class_CriticalValueMean.R
-#' @include class_CriticalValueArea.R
-#' @include class_CriticalValueSurv.R #class_CriticalValueSurvival.R
-#' @include class_CriticalValueCR.R
+#' @include class_CriticalValueMean.R #this is for mean
+#' @include class_CriticalValueArea.R # this is for area (similar to mean)
+#' @include class_CriticalValueSurv.R #this is for surv prob #OLD: class_CriticalValueSurvival.R
+#' @include class_CriticalValueEndPoint.R # this is for endpoint prob
 #' @include VerifyCriticalValue.R
 #' @include VerifySurvivalTime.R VerifyEndpointTime.R
 #'
@@ -17,7 +17,7 @@
                            Step,
                            tau,
                            timePoints) {
-
+  message("criticalValue.R: LINE 20")
   message("-- Starting .criticalValue Function in criticalValue.R--")
 
   # ensure criticalValue is one of {'mean', 'prob', 'area', 'mean.prob.combo'}.

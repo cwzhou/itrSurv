@@ -189,7 +189,7 @@
 #'
 #' @param stageLabel A character object. If using a common formula, the
 #'    character used to separate the covariate from the decision point label.
-#'    See details.
+#'    See details. IGNORE THIS FOR SINGLE STAGE.
 #'
 #' @references Zhou, C.W. and Kosorok, M.R.
 #'   Estimating optimal individualized treatment regimes for survival data with competing risks.
@@ -330,7 +330,10 @@ itrSurv <- function(data,
   # contain NaN values. If 'data' is appropriate, method returns a data.frame
   # object
   # Verify epName and Verify idName are ran for RE endpoint
-  data_list <- .VerifyData(data = data, epName = epName, endPoint = endPoint, idName = idName)
+  data_list <- .VerifyData(data = data,
+                           epName = epName,
+                           endPoint = endPoint,
+                           idName = idName)
 
   data_surv = data_list[[1]]
   data_ep = data_list[[2]]
@@ -500,14 +503,14 @@ itrSurv <- function(data,
   # store basic information on fortran side
 
   ### Phase 1: SURVIVAL
-  # retrieve index and fraction if survival type value estimator
-  # set as 0's if mean estimator
   params1 = params@survivalparam
   # View(params1)
   crit1 <- .CriticalValueCriterion(params1, subcrit = criticalValue1)
   # View(crit1)
   tol1 = .VerifyTol1(tol1 = tol1, criticalValue = crit1)
 
+  # retrieve index and fraction if survival type value estimator
+  # set as 0's if mean estimator
   if (crit1 == "mean" | crit1 == "area") {
     ind1 = 0L
     frac1 = 0.0
@@ -618,8 +621,8 @@ itrSurv <- function(data,
       ind2 = 0L
       frac2 = 0.0
     } else if (crit2 == "mean.prob.combo" || crit2 == "prob" || crit2 == "cif.prob") {
-      ind2 = params2@cIndex
-      frac2 = params2@cFraction
+      ind2 = params2@eIndex
+      frac2 = params2@eFraction
     }
   }
 

@@ -16,21 +16,26 @@ setClass(Class = "CriticalValueBase", # defines the virtual class CriticalValueB
 # method is not defined for a general CriticalValue object
 #-------------------------------------------------------------------------------
 setGeneric(name = ".CriticalValueCriterion",
-           def = function(object, ...) { standardGeneric(".CriticalValueCriterion") }) #not intended to be called directly on objects of the CriticalValueBase class. Instead, it's meant to be overridden in subclasses to identify if the critical value is a mean or a probability.
+           def = function(object, ...) {
+             #not intended to be called directly on objects of the CriticalValueBase class.
+             # Instead, it's meant to be overridden in subclasses to identify if the
+             # critical value is a mean or a probability.
+             standardGeneric(".CriticalValueCriterion")
+             })
 
-setMethod(f = ".CriticalValueCriterion", # .CriticalValueCriterion Default Method:
+# .CriticalValueCriterion Default Method:
+setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "ANY"),
           definition = function(object, ...) {
 
-            print("class_CriticalValue.R")
+            print("class_CriticalValue.R: LINE 31")
             stop("class_CriticalValue.R: not allowed")
 
             }) # Generates an error message that it's not allowed to be called directly on objects of the CriticalValueBase class.
 
 
-
-resample <- function(x, ...) x[sample.int(n = length(x = x), ...)] #Takes a vector x and performs a random resampling of its elements using sample.int.
-
+#Takes a vector x and performs a random resampling of its elements using sample.int.
+resample <- function(x, ...) x[sample.int(n = length(x = x), ...)]
 
 # Defines a virtual class which serves as a base class for objects that store information related to critical value selection.
 # This class contains methods that are not allowed to be directly called for any object of this class. Instead, these methods are meant to be overridden in subclasses of CriticalValueBase:

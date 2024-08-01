@@ -1,15 +1,15 @@
-# Class extends CriticalValue to indicate that critical value is for endpoint
+# Class extends CriticalValue to indicate that critical value is endpoint
 #
 # Class is not exported and is for internal convenience only
 #
-# @slot endpointTime A numeric object. The time at which the Endpoint
+# @slot EndpointTime A numeric object. The time at which the endpoint
 #   probability is to be estimated
 #
-# @slot cIndex An integer object. The index of the timePoint vector above
-#   which the Endpoint time lies (and it is below the cIndex + 1 element)
+# @slot eIndex An integer object. The index of the timePoint vector above
+#   which the endpoint time lies (and it is below the eIndex + 1 element)
 #
-# @slot cFraction A numeric object. The fractional location of endpointTime in
-#   t[cIndex] and t[cIndex+1]
+# @slot eFraction A numeric object. The fractional location of EndpointTime in
+#   t[eIndex] and t[eIndex+1]
 #
 # @slot type A character object. Indicates of mean is to be used to break ties.
 #
@@ -19,13 +19,14 @@
 #  .IsEndpoint(object, ...) {new; defined}
 #
 # Functions
-# .criticalValueCR(endpointTime, timePoints)
+# .criticalValueEndpoint(EndpointTime, timePoints)
 #
 #' @include class_CriticalValue.R
+#'
 setClass(Class = "CriticalValueEndpoint",
          slots = c(endpointTime = "ANY",
-                   cIndex = "integer",
-                   cFraction = "numeric",
+                   eIndex = "integer",
+                   eFraction = "numeric",
                    type = "character"),
          contains = c("CriticalValueBase"))
 
@@ -37,14 +38,17 @@ setClass(Class = "CriticalValueEndpoint",
 setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueEndpoint"),
           definition = function(object, ...) {
-            if (object@type == "cif.mean") return( "mean.prob.combo" )
-            if (object@type == "cif.prob") return( "prob" )
-            if (object@type == "cif.area") return( "area" )
+            message("sfdkljksld: object@type:", object@type)
+            if (object@type == "end.mean") return( "mean.prob.combo" )
+            if (object@type == "end.prob") return( "prob" )
+            if (object@type == "end.area") return( "area" )
           })
 
 setMethod(f = "initialize",
           signature = c(.Object = "CriticalValueEndpoint"),
-          def = function(.Object, ..., endpointTime, cIndex, cFraction, type) {
+          def = function(.Object, ..., endpointTime, eIndex, eFraction, type) {
+
+            message("~~~ begin initialize ~~~ 1")
 
             obj <- list(...)
             tst <- sapply(X = obj,
@@ -52,42 +56,46 @@ setMethod(f = "initialize",
                             is(object = x,
                                class2 = "CriticalValueEndpoint")
                           })
+            message("~~~ begin initialize ~~~ 2")
 
             if (any(tst)) {
-              # print("testing")
-              # print(which(tst))
-              # print("obj")
-              # print(obj)
               .Object <- obj[[ which(tst) ]]
-            } else if (missing(x = endpointTime) && missing(x = cIndex) &&
-                       missing(x = cFraction) && missing(x = type)) {
+            } else if (missing(x = endpointTime) && missing(x = eIndex) &&
+                       missing(x = eFraction) && missing(x = type)) {
               .Object@endpointTime <- Inf
-              .Object@cIndex <- -1L
-              .Object@cFraction <- 0
+              .Object@eIndex <- -1L
+              .Object@eFraction <- 0
               .Object@type <- "none"
             } else {
-              if (missing(x = endpointTime) || missing(x = cIndex) ||
-                  missing(x = cFraction) || missing(x = type)) {
+              # message("~~~ begin initialize ~~~ 3")
+
+              if (missing(x = endpointTime) || missing(x = eIndex) ||
+                  missing(x = eFraction) || missing(x = type)) {
                 gn <- unlist(lapply(list(...),is))
                 if( "CriticalValueEndpoint" %in% gn ) return(.Object)
                 stop("insufficient inputs provided")
               }
               if (type %in% c("prob")) {
-                .Object@type <- "cif.prob"
+                .Object@type <- "end.prob"
               } else if (type %in% c("area")) {
-                .Object@type <- "cif.area"
+                .Object@type <- "end.area"
               } else if (type %in% c("mean","mean.prob.combo")) {
-                .Object@type <- "cif.mean"
+                .Object@type <- "end.mean"
               }
+              # message("~~~ begin initialize ~~~ 4")
+
               .Object@endpointTime <- endpointTime
-              .Object@cIndex <- cIndex
-              .Object@cFraction <- cFraction
+              .Object@eIndex <- eIndex
+              .Object@eFraction <- eFraction
             }
+            # message("~~~ begin initialize ~~~ 5")
+            # print(.Object)
+            # print("!!!")
             return( .Object )
           })
 
 #-------------------------------------------------------------------------------
-# method to identify if critical value is of Endpoint type
+# method to identify if critical value is of endpoint type
 #-------------------------------------------------------------------------------
 # method returns a logical
 #-------------------------------------------------------------------------------
@@ -109,33 +117,34 @@ setMethod(f = ".IsEndpoint",
 #-------------------------------------------------------------------------------
 .criticalValueEndpoint <- function(endpointTime, timePoints, type) {
 
-  # message("-------starting .criticalValueCR ---------")
-  # print(type)
+  message("-------starting .criticalValueEndpoint ---------")
+
   nTimes <- length(x = timePoints)
+  # message("nTimes: ", nTimes)
 
-  # index of last time point <= endpointTime
-  cIndex <- sum(timePoints <= endpointTime)
+  # index of last time point <= EndpointTime
+  eIndex <- sum(timePoints <= endpointTime)
+  # message("eIndex: ", eIndex)
 
-  if (cIndex < nTimes) {
-    # if endpointTime is below tau, determine the fraction
-    cFraction <- {endpointTime - timePoints[cIndex]} /
-      {timePoints[cIndex + 1L] - timePoints[cIndex]}
-  } else if (cIndex == 0L) {
-    # if it is below the minimum, stop -- cannot extrapolate
-    stop("Endpoint time is below minimum timepoint")
+  if (eIndex < nTimes) {
+    # message("if EndpointTime is below tau, determine the fraction")
+    eFraction <- {endpointTime - timePoints[eIndex]} /
+      {timePoints[eIndex + 1L] - timePoints[eIndex]}
+    # message("eFraction: ", eFraction)
+  } else if (eIndex == 0L) {
+    # message("if it is below the minimum, stop -- cannot extrapolate")
+    stop("endpoint time is below minimum timepoint")
   } else {
-    # if it is above tau, use tau -- cannot extrapolate
-    cFraction <- 0.0
+    # message("if it is above tau, use tau -- cannot extrapolate")
+    eFraction <- 0.0
     endpointTime <- max(timePoints)
-    message("Endpoint time reset to tau")
+    message("evalTime > tau --> endpoint time reset to tau")
   }
-  # print(type)
-  # print("endpointTime")
-  # print(endpointTime)
+
   return( new("CriticalValueEndpoint",
               "endpointTime" = endpointTime,
-              "cIndex" = cIndex,
-              "cFraction" = cFraction,
+              "eIndex" = eIndex,
+              "eFraction" = eFraction,
               "type" = type) )
 
 }

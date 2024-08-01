@@ -29,7 +29,7 @@ setMethod(f = ".VerifyIdName",
               stop("idName must be provided", call. = FALSE)
             }
 
-            # if recurrent event indicator name is in data, it is *the* recurrent event indicator name
+            # if id name is in data, it is *the* id name
             # if it is not, then we set an error because user must input if doing RE endpoint.
 
             test <- tryCatch(expr = data[,idName,drop = FALSE],
@@ -56,11 +56,11 @@ setMethod(f = ".VerifyIdName",
                   if (!isTRUE(all.equal(target = test[,i],
                                         current = round(x = test[,i], digits = 0L)))) {
 
-                    stop("recurrent event indicator variable must be integer or factor",
+                    stop("id variable must be integer or factor",
                          call. = FALSE)
                   }
                 } else {
-                  stop("recurrent event indicator variable must be integer or factor",
+                  stop("id variable must be integer or factor",
                        call. = FALSE)
                 }
               }

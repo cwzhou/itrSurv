@@ -56,11 +56,11 @@ setMethod(f = ".VerifyEpName",
                   if (!isTRUE(all.equal(target = test[,i],
                                         current = round(x = test[,i], digits = 0L)))) {
 
-                    stop("recurrent event indicator variable must be integer or factor",
+                    stop("EpName: recurrent event indicator variable must be integer or factor",
                          call. = FALSE)
                   }
                 } else {
-                  stop("recurrent event indicator variable must be integer or factor",
+                  stop("EpName: recurrent event indicator variable must be integer or factor",
                        call. = FALSE)
                 }
               }
