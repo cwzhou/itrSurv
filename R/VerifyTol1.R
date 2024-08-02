@@ -1,3 +1,6 @@
+### LATER: NEED TO CHANGE SO THERE IS NO DIFF AND UPDATE CORRESOPNDING PARTS IN OTHER SCRIPTS
+# WE LOOK AT RATIO ONLY.
+
 # Verify input 'tol1', which is the tolerance only for Phase1
 #
 # methods are not exported and are for internal convenience only

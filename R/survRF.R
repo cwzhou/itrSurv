@@ -40,8 +40,8 @@
 
 .survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
                     pr, params, mTry, sampleSize) {
-  # message("starting .survRF from survRF.R")
-
+  message("---------- starting .survRF function from survRF.R ----------------")
+  print(Phase)
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -57,31 +57,30 @@
   # FIGURE OUT HOW TO DO WITHOUT CRASHING
   # number of individuals in training data
   nSamples <- nrow(x = x) # this is OLD code - doesnt reflect RE where nrow(x) is for RE for Phase 2 data
-  # View(params)
-  # nSamples <- nSamples
-  # message('number of individuals in training data: ', nSamples)
+  # nSamples = params@nSamples
+  message('number of individuals in training data: ', nSamples)
 
   # number of time points
   nTimes <- nrow(x = pr)
-  # message('number of time points: ', nTimes)
+  message('number of time points: ', nTimes)
 
   # total number of trees to be grown in the forest
   # .NTree() is a getter method defined for Parameters objects
   nTree <- .NTree(object = params)
-  # message("total number of trees to be grown in forest: ", nTree)
+  message("total number of trees to be grown in forest: ", nTree)
 
   # determine the number of samples to include in each tree
   sampleSize <- ceiling(x = sampleSize * nSamples)
-  # message("number of samples to include in each tree: ", sampleSize)
+  message("number of samples to include in each tree: ", sampleSize)
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  # message("maximum nodes in a tree: ", maxNodes)
+  message("maximum nodes in a tree: ", maxNodes)
 
   # convert factors to integers
   x = data.matrix(frame = x)
-  nr = nrow(x = x) # maximum number of nodes in a tree
-  # message("nr: ", nr)
+  nr = nrow(x = x) # number of individuals based on covariate length
+  # message("number of individuals, nr: ", nr)
 
   # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
@@ -99,36 +98,29 @@
                  t_nrNodes = as.integer(x = maxNodes),
                  PACKAGE = "itrSurv")
 
-  # if (sampleSize == 339){
-  #   res339 <<- res
-  #   trees2_339 <<- trees
-  #   # View(res339)
-  # }
-  # if (sampleSize == 94){
-  #   res94 <<- res
-  #   trees2_94 <<- trees
-  #   # View(res94)
-  # }
-
   # message("================= Phase: ", Phase)
-  if (grepl("surv", Phase, ignore.case = TRUE)){
+  if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
-    # message("survTree: survTree in Fortran")
+    print("survTree: survTree in Fortran")
+    # nTimes = maximum number of time points
+    # nr = number of rows
+    # message("number of rows/people in dataset: nr = ", nr)
+    # message("maximum number of time points: nTimes = ", nTimes)
     Tree <- .Fortran("survTree",
-                       forestSurvFunc = as.double(numeric(nTimes*nr)),
-                       forestMean = as.double(numeric(nr)),
-                       forestSurvProb = as.double(numeric(nr)),
+                       forestSurvFunc = as.double(numeric(nTimes*nr)),#survival function averaged over forest
+                       forestMean = as.double(numeric(nr)),#mean survival time averaged over forest
+                       forestSurvProb = as.double(numeric(nr)),#survival probability at t0 (evalTime/survivalTime) averaged over forest
                        PACKAGE = "itrSurv")
 
     # print(nr)
     Tree_Surv <<- Tree
 
-  } else if (grepl("CR", Phase, ignore.case = TRUE)){
+  } else{ #if (grepl("CR", Phase, ignore.case = TRUE)){
     res_pooled0_cif <<- res
     Tree <- .Fortran("cifTree",
-                         forestSurvFunc = as.double(numeric(nTimes*nr)), #survival function averaged over forest
-                         forestMean = as.double(numeric(nr)), #mean survival time averaged over forest
-                         forestSurvProb = as.double(numeric(nr)), #survival probability at t0 averaged over forest
+                         forestSurvFunc = as.double(numeric(nTimes*nr)),
+                         forestMean = as.double(numeric(nr)),
+                         forestSurvProb = as.double(numeric(nr)),
                          PACKAGE = "itrSurv")
     # print(nr)
     Tree_Cif <<- Tree
@@ -140,6 +132,7 @@
   trees <- list()
   # print(nr)
   for (i in 1L:nTree) {
+    print(sprintf("Tree %s", i))
 
     trees[[ i ]] <- list()
     # if (i == 2 & nSamples == 339){

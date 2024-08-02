@@ -17,8 +17,8 @@
                            Step,
                            tau,
                            timePoints) {
-  message("criticalValue.R: LINE 20")
-  message("-- Starting .criticalValue Function in criticalValue.R--")
+  # message("criticalValue.R")
+  # message("-- Starting .criticalValue Function in criticalValue.R--")
 
   # ensure criticalValue is one of {'mean', 'prob', 'area', 'mean.prob.combo'}.
   # Methods return the original character possibly modified to be lower case.
@@ -26,7 +26,7 @@
   criticalValue <- .VerifyCriticalValue(criticalValue = criticalValue)
   # message("end of .VerifyCriticalValue")
   # message("criticalValue: ", criticalValue)
-  # message("Step: ", Step)
+  message("Step: ", Step)
   # message("tau is: ", tau)
   if (grepl("surv", Step, ignore.case = TRUE)){
     # print(".VerifySurvivalTime")
@@ -38,7 +38,7 @@
     # message("end of .VerifySurvivalTime")
     # message("survivalTime: ", survivalTime)
     if (!is.null(x = survivalTime)) {
-      # message("survivalTime: ", survivalTime)
+      message("survivalTime: ", survivalTime)
       # if survivalTime is given as input, verify it and the timePoints input and
       # create a CriticalValueSurvivalProb object (used to be .criticalValueSurvival)
       return( .criticalValueSurv(survivalTime = survivalTime, #this has tobe survivalTime
@@ -48,8 +48,10 @@
       # message("Survival Mean - no evalTime needed")
       # if survivalTime nor endpointTime are not given as input, create a CriticalValueMean object
       if (criticalValue == "area"){
+        # print("area")
         return( .criticalValueArea() )
       } else{
+        # print("mean")
         return( .criticalValueMean() )
     }
     }

@@ -467,7 +467,7 @@ itrSurv <- function(data,
 
   # combine all inputs that regulate tree and specify analysis preferences
   # function returns a Parameters object
-  print(criticalValue1)
+  # print(criticalValue1)
   params <- .parameters(endPoint = endPoint,
                         timePointsSurvival = timePointsSurvival,
                         timePointsEndpoint = timePointsEndpoint,
@@ -492,13 +492,14 @@ itrSurv <- function(data,
                         nSamples = nSamples,
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)
+  # View(params)
   # message("End of params.")
 
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print("Phase 1: Survival")
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   # message("----------------Survival Parameters: Storing on Fortran Side----------------")
   # store basic information on fortran side
 
@@ -594,8 +595,7 @@ itrSurv <- function(data,
                                 params = params1,
                                 txName = txName[nDP],
                                 mTry = mTry[nDP],
-                                sampleSize = sampleSize1[nDP],
-                                nSamples = nSamples)
+                                sampleSize = sampleSize1[nDP])
   # message("...end of .itrSurvStep...")
   # message("Phase1Results")
   # View(Phase1Results)
@@ -603,11 +603,11 @@ itrSurv <- function(data,
   phaseResults[[1]] <- Phase1Results
 
 
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print(sprintf("Phase 2: Endpoint: %s", endPoint))
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-  # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+  print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   params2 = params@endpointparam
 #   #   # we still want to run this for everyone- we just won't use the results for anyone who had ratio_stopping_ind = 1.
 #   #   endPoint = "CR" #delete later
@@ -714,8 +714,7 @@ itrSurv <- function(data,
                                  params = params2,
                                  txName = txName[nDP],
                                  mTry = mTry[nDP],
-                                 sampleSize = sampleSize2[nDP],
-                                 nSamples = nSamples)
+                                 sampleSize = sampleSize2[nDP])
     assign("Phase2Results_endpoint", Phase2Results, envir = .GlobalEnv)
 
   phaseResults[[2]] <- Phase2Results

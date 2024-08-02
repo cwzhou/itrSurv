@@ -88,7 +88,7 @@ setClass(Class = "ITRSurvStep",
     # message("OK3")
 
     if (!is.null(object_surv@valueAllTx$Prob[[1]])) {
-      message("Calculate mean Survival probability curve")
+      # message("Calculate mean Survival probability curve")
       # View(object_surv@valueAllTx$Prob)
       prob_dat0 <<- object_surv@valueAllTx$Prob[[1]]
       prob_dat1 <<- object_surv@valueAllTx$Prob[[2]]
@@ -192,9 +192,9 @@ setMethod(f = ".Predict",
                                 ...,
                                 params,
                                 findOptimal) {
-            # message("class_ITRSurvStep.R: LINE 179")
-            # print(".Predict from class_ITRSurvStep.R when when newdata = dataframe")
-            # print(sprintf("Phase: %s", Phase))
+            print("class_ITRSurvStep.R: LINE 195")
+            print(".Predict from class_ITRSurvStep.R when when newdata = dataframe")
+            print(sprintf("Phase: %s", Phase))
             # View(object)
             # print(eps0)
 
@@ -585,9 +585,9 @@ setMethod(f = ".Predict",
   # time point nearest the response without going over
   # {nTimes x nElig}
   pr <- {rbind(tSurv[-1L,],1)-tSurv}
-  message('pr: nTimes x nElig')
-  print(pr)
+  message('Phase: ', Phase, '. pr: nTimes x nElig: ')
   print(dim(pr))
+  # View(pr)
 
   if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
                                call. = FALSE)
@@ -642,10 +642,10 @@ setMethod(f = ".Predict",
       # matches the current treatment level.
       # This is used to subset the dataset for the current treatment level.
       use <- elig & {dataset[,txName] == txLevels[i]}
-      # print("starting .SurvRF")
+      print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))
       result[[ nms ]] <- .survRF(Phase = Phase,
                                  eps0 = eps0,
-                                 x = x[use,,drop=FALSE], # subset of dataset for the current treatment level
+                                 x = x[use,,drop=FALSE], # subset of covariates for the current treatment level
                                  y = response[use],
                                  pr = pr[,di],
                                  delta = delta[use],
@@ -660,8 +660,8 @@ setMethod(f = ".Predict",
     result <- new(Class = "SurvRFStratified", "strat" = result)
   }
 
-  # message('mod')
-  # print(mod)
+  print("====================================== end of forest =================================")
+
   # calculate the estimated values for all treatment levels
   # .PredictAll() is a method; called here for objects of class SurvRF, which
   # is defined in file class_SurvRF.R

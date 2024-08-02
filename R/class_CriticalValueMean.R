@@ -22,6 +22,7 @@ setClass(Class = "CriticalValueMean",
 setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueMean"),
           definition = function(object, ...) {
+            # print("class_CriticalValueMean.R: LINE 26")
             return( "mean" )
           }
             )

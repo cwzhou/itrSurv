@@ -64,7 +64,7 @@
   # print(head(res$predProb))
   # print(head(res$predMean,12))
   if (isProb) valueObj[[ "Prob" ]] <- res$predProb
-  # message("End of R script: predictSurvTree.R")
+  message("End of R script: predictSurvTree.R")
   return( valueObj )
 
 }

@@ -23,7 +23,7 @@ setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueArea"),
           definition = function(object, ...) {
 
-            print("test")
+            # print("class_CriticalValueArea.R: LINE 26")
             return("area")
           }
 )

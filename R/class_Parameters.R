@@ -352,8 +352,8 @@ setMethod(f = "initialize",
 
   # initialize tree type info
   # function returns a TreeType object
-  # print("Line263:cv1")
-  # print(cv1)
+  # print("class_Parameters.R: Line263")
+  # print(sprintf("cv1: %s", cv1))
   treeType1 <- .treeType(endPoint = endPoint,
                         ERT = ERT,
                         nSamples = nSamples,
@@ -453,7 +453,7 @@ setMethod(f = "initialize",
                         treeType2,
                         treeConditions)
   } else{
-    stop("class_Parameters.R Line 424: we have object = criticalValue2 \n BUT class2 is neither CVCR nor CVM")
+    stop("class_Parameters.R Line 424: we have object = criticalValue2 BUT class2 is neither CVCR nor CVM")
   }
 
   # message("stage params done")

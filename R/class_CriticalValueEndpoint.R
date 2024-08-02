@@ -38,7 +38,9 @@ setClass(Class = "CriticalValueEndpoint",
 setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "CriticalValueEndpoint"),
           definition = function(object, ...) {
-            message("sfdkljksld: object@type:", object@type)
+
+            # message("class_CriticalValueEndpoint.R: LINE 41")
+            # message("sfdkljksld: object@type:", object@type)
             if (object@type == "end.mean") return( "mean.prob.combo" )
             if (object@type == "end.prob") return( "prob" )
             if (object@type == "end.area") return( "area" )
@@ -48,7 +50,7 @@ setMethod(f = "initialize",
           signature = c(.Object = "CriticalValueEndpoint"),
           def = function(.Object, ..., endpointTime, eIndex, eFraction, type) {
 
-            message("~~~ begin initialize ~~~ 1")
+            # message("~~~ begin initialize ~~~ 1")
 
             obj <- list(...)
             tst <- sapply(X = obj,
@@ -56,7 +58,7 @@ setMethod(f = "initialize",
                             is(object = x,
                                class2 = "CriticalValueEndpoint")
                           })
-            message("~~~ begin initialize ~~~ 2")
+            # message("~~~ begin initialize ~~~ 2")
 
             if (any(tst)) {
               .Object <- obj[[ which(tst) ]]

@@ -28,7 +28,9 @@ setMethod(f = ".CriticalValueCriterion",
           signature = c(object = "ANY"),
           definition = function(object, ...) {
 
-            print("class_CriticalValue.R: LINE 31")
+            # print("class_CriticalValue.R: LINE 31 ---")
+            # print(object)
+            # print("---")
             stop("class_CriticalValue.R: not allowed")
 
             }) # Generates an error message that it's not allowed to be called directly on objects of the CriticalValueBase class.
