@@ -811,7 +811,9 @@ setMethod(f = ".PredictAll",
             #   mutate(Ratio = NonOpt_AUS/Opt_AUS) %>%
             #   #if ratio >= 0.9 then ratio_stop_ind = 1 (aka we stop b/c we know which treatment to pick; otherwise ind = 0 aka we keep going)
             #   mutate(Ratio_Stop_Ind = ifelse(Ratio >= (1-eps0), 1, 0)) #%>% filter(Ratio_Stop_Ind == 1)
-
+            # if (Phase == "Survival"){
+            #   View(res)
+            # }
             print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
             opt <- .optimal(Phase = Phase,
                             eps0 = eps0,
@@ -837,11 +839,12 @@ setMethod(f = ".PredictAll",
 ###############################################################################################
 # Phase = 1; eps0 = mean_tol1; params = pa; predicted = re; txLevels = trtlevel
 .optimal <- function(Phase, eps0, params, predicted, txLevels) {
+
+  print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
+  message("Phase:", Phase)
   if (Phase == "Survival"){
     View(predicted)
   }
-  print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
-  message("Phase:", Phase)
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
@@ -867,7 +870,7 @@ setMethod(f = ".PredictAll",
   for (trt in seq_along(txLevels)){
     mean_trts[, trt] <- unlist(predicted$mean[[trt]])
     area_trts[, trt] <- unlist(predicted$AUS[[trt]])
-    if (crit == "mean.prob.combo"){
+    if (crit == "mean.prob.combo" | crit == "prob"){
       ttmp <<-  unlist(predicted$Prob[[trt]])
       prob_trts[, trt] <- unlist(predicted$Prob[[trt]])
     }
@@ -908,8 +911,8 @@ setMethod(f = ".PredictAll",
       pred_trts = predicted[["Prob"]]
     }
     print("test3")
-    # View(dat_trts)
-    # View(pred_trts)
+    View(dat_trts)
+    View(pred_trts)
     # identify which Trt contains the maximum expected survival time or min expected CI time
     optTx <- apply(X = dat_trts,
                    MARGIN = 1L, # across rows (each person)
