@@ -689,7 +689,7 @@ setMethod(f = ".PredictAll",
             #######################################################################################################################################################################
 
 
-            message("%%%%%%%%%% AUS start")
+            # message("%%%%%%%%%% AUS start")
             # Calculate AUS using all timepoints from params@timepoints
 
             # Initialize a list to store the areas under the curve for each treatment
@@ -721,7 +721,7 @@ setMethod(f = ".PredictAll",
               res[["AUS"]][[i]] <- area_trt_list[[i]]
               i = i + 1L
             }
-            message("%%%%%%%%%% AUS end")
+            # message("%%%%%%%%%% AUS end")
 
 
 
