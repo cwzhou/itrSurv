@@ -40,8 +40,8 @@
 
 .survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
                     pr, params, mTry, sampleSize) {
-  message("---------- starting .survRF function from survRF.R ----------------")
-  print(Phase)
+  # message("---------- starting .survRF function from survRF.R ----------------")
+  # print(Phase)
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -101,7 +101,7 @@
   # message("================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
-    print("survTree: survTree in Fortran")
+    # print("survTree: survTree in Fortran")
     # nTimes = maximum number of time points
     # nr = number of rows
     # message("number of rows/people in dataset: nr = ", nr)
@@ -132,7 +132,7 @@
   trees <- list()
   # print(nr)
   for (i in 1L:nTree) {
-    print(sprintf("Tree %s", i))
+    # print(sprintf("survRF.R: Tree %s", i))
 
     trees[[ i ]] <- list()
     # if (i == 2 & nSamples == 339){

@@ -307,7 +307,7 @@ setMethod(f = ".PredictAll",
             }
 
 
-            message("%%%%%%%%%% AUS start")
+            # message("%%%%%%%%%% AUS start")
             # Calculate AUS using all timepoints from params@timepoints
 
             # Initialize a list to store the areas under the curve for each treatment
@@ -339,7 +339,7 @@ setMethod(f = ".PredictAll",
               res[["AUS"]][[i]] <- area_trt_list[[i]]
               i = i + 1L
             }
-            message("%%%%%%%%%% AUS end")
+            # message("%%%%%%%%%% AUS end")
 
 
             # message("%%%%%%%%%% start AUS_cut")
@@ -616,6 +616,7 @@ setMethod(f = ".PredictAll",
               tt <- .Predict(object = object@strat[[ i ]],
                              newdata = x,
                              params = params, ...)
+              Func_tt = as.matrix(tt$Func)
 
               new_tp_tt = list()
               for (subj in 1:ncol(Func_tt)){
@@ -814,7 +815,7 @@ setMethod(f = ".PredictAll",
             # if (Phase == "Survival"){
             #   View(res)
             # }
-            print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
+            # print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
             opt <- .optimal(Phase = Phase,
                             eps0 = eps0,
                             params = params,
@@ -840,11 +841,11 @@ setMethod(f = ".PredictAll",
 # Phase = 1; eps0 = mean_tol1; params = pa; predicted = re; txLevels = trtlevel
 .optimal <- function(Phase, eps0, params, predicted, txLevels) {
 
-  print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
-  message("Phase:", Phase)
-  if (Phase == "Survival"){
-    View(predicted)
-  }
+  # print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
+  # message("Phase:", Phase)
+  # if (Phase == "Survival"){
+    # View(predicted)
+  # }
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
@@ -875,7 +876,7 @@ setMethod(f = ".PredictAll",
       prob_trts[, trt] <- unlist(predicted$Prob[[trt]])
     }
   }
-  print("test1")
+  # print("test1")
   # if (Phase == 1 | Phase == "Survival"){
   #   pp1_mean <<- mean_trts
   #   pp1_area <<- area_trts
@@ -898,28 +899,28 @@ setMethod(f = ".PredictAll",
     eps0_diff = eps0[2]
 
     if (crit == "mean"){
-      print("test2")
+      # print("test2")
       dat_trts = mean_trts
       pred_trts = predicted[["mean"]]
     } else if (crit == "area"){
-      print("test2.2")
+      # print("test2.2")
       dat_trts = area_trts
       pred_trts = predicted[["AUS"]]
     } else{
-      print("test2.3")
+      # print("test2.3")
       dat_trts = prob_trts
       pred_trts = predicted[["Prob"]]
     }
-    print("test3")
-    View(dat_trts)
-    View(pred_trts)
+    # print("test3")
+    # View(dat_trts)
+    # View(pred_trts)
     # identify which Trt contains the maximum expected survival time or min expected CI time
     optTx <- apply(X = dat_trts,
                    MARGIN = 1L, # across rows (each person)
                    FUN = .whichExtremum,
                    tieMethod = params@tieMethod,
                    findMax = findMax1)
-    print("test4")
+    # print("test4")
     # extract the survival or cumulative incidence mean/probability at optimal tx
     V_star <- matrix(data = 0.0,
                      nrow = length(x = optTx),
@@ -929,7 +930,7 @@ setMethod(f = ".PredictAll",
       # message("subject:", i)
       V_star[i] <- pred_trts[[optTx[i]]][i]
     }
-    print("test5")
+    # print("test5")
     tol_V_star = (1-eps0_ratio)*V_star
 
     if (!(Phase %in% c(1, "Survival", 2, "CR"))) {
@@ -951,7 +952,7 @@ setMethod(f = ".PredictAll",
           V_mat[subj,trt] = ifelse(V_trt >= tol_V_star_subj, 1, 0)
         } # end trts
       } # end subject
-      print("test6")
+      # print("test6")
       # Calculate the row sums to get number of chosen trts
       row_sums <- rowSums(V_mat); all(row_sums > 0) # should always be true b/c one trt will always equal the opt b/c of how derived
       # Add the row sums as a new column to the matrix
@@ -1063,13 +1064,13 @@ setMethod(f = ".PredictAll",
     stop("CRIT NOT DEFINED")
   }
 
-  print("test7")
+  # print("test7")
   if (Phase == 2 | Phase == "CR"){
     # dont care about going to another phase
     num_trts = rep(99, length(optTx))
     stop_ind = rep(99, length(optTx))
     } # end of CIF
-  print("test8")
+  # print("test8")
   # extract the survival or cumulative indcidence function at optimal tx
   optSv <- matrix(data = 0.0,
                   nrow = length(x = optTx),
@@ -1081,7 +1082,7 @@ setMethod(f = ".PredictAll",
 
   Ratio_Stopping_Ind = stop_ind
   NumTrts = num_trts
-  print("test9")
+  # print("test9")
   # BELOW IS OLD STUFF.
   # # initialize empty matrices for mean_trts and area_trts based on trt1
   # mean_trts = area_trts = matrix(nrow = ncol(predicted[["Func"]][[1]]), ncol = length(txLevels))
@@ -1344,7 +1345,7 @@ setMethod(f = ".PredictAll",
   #   Ratio = rep(99, length(optTx))
   # }
 
-  print("LAST TEST")
+  # print("LAST TEST")
   return( new(Class = "Optimal",
               "optimalTx" = txLevels[optTx],
               "optimalY" = optSv,
@@ -1390,7 +1391,7 @@ setMethod(f = ".PredictAll",
 # function returns a single numeric or NA
 #-------------------------------------------------------------------------------
 .whichMax <- function(x, tieMethod) {
-  print("class_SurvRF.R: .whichMax")
+  # print("class_SurvRF.R: .whichMax")
   ind <- which(x >= {max(x) - 1e-8}) # for ties
   if (length(x = ind) == 1L) return( ind )
   if (tieMethod == "first") return( ind[1L] )
@@ -1399,7 +1400,7 @@ setMethod(f = ".PredictAll",
 }
 
 .whichMin <- function(x, tieMethod) {
-  print("class_SurvRF.R: .whichMin")
+  # print("class_SurvRF.R: .whichMin")
     ind <- which(x <= {min(x) + 1e-8})
     if (length(x = ind) == 1L) return(ind)
     if (tieMethod == "first") return(ind[1L])
