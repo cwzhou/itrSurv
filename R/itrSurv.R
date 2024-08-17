@@ -596,12 +596,12 @@ itrSurv <- function(data,
                                 txName = txName[nDP],
                                 mTry = mTry[nDP],
                                 sampleSize = sampleSize1[nDP])
-  # message("...end of .itrSurvStep...")
-  # message("Phase1Results")
+  message("...end of .itrSurvStep...")
+  message("Phase1Results")
   # View(Phase1Results)
   assign("Phase1Results_survival", Phase1Results, envir = .GlobalEnv)
   phaseResults[[1]] <- Phase1Results
-
+stop("TMP STOP")
 
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")

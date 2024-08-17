@@ -347,6 +347,9 @@ setMethod(f = ".Predict",
     }
     response = response_surv
 
+    ###########################################################################
+    ############################ PHASE 2: ENDPOINT ############################
+    ###########################################################################
   } else{ # endpoint Phase 2
     dataset = data[[2]]
 
@@ -578,13 +581,30 @@ setMethod(f = ".Predict",
 
   ### Transform the time variable to a probability mass vector ###
   # identify time points <= response
-  tSurv <- sapply(X = response[elig],
-                  FUN = function(s, tp) { as.integer(x = {s < tp}) },
-                  tp = .TimePoints(object = params)) # tp = sort(unique(timePointsEndpoint1)))
+  # resp.tmp <<- response[elig]
+  tp.tmp <<- .TimePoints(object = params)
 
+# we use tSurv to get pr
+  # tSurv shows at risk to not at risk.
+  tSurv <- sapply(X = response[elig],
+                  FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk; 1 means NOT at risk
+                  tp = .TimePoints(object = params)) # tp = sort(unique(timePointsEndpoint1)))
+  tSurv.tmp<<-tSurv
   # time point nearest the response without going over
   # {nTimes x nElig}
   pr <- {rbind(tSurv[-1L,],1)-tSurv}
+  # pr gives the indicator for the time of at-risk status change (either failure or censoring)
+  # the time point at which they become not at risk anymore
+  # message("tSurv")
+  # print(tSurv)
+  # message("tSurv[-1] : delete first row")
+  # print(tSurv[-1,])
+  # message("rbind(tSurv[-1],1)")
+  # print(rbind(tSurv[-1],1))
+  # message("pr")
+  # print(pr)
+  # # pr.tmp <<- pr
+  # stop("tmp stop")
   # message('Phase: ', Phase, '. pr: nTimes x nElig: ')
   # print(dim(pr))
   # View(pr)

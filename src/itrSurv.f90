@@ -24,14 +24,16 @@ MODULE INNERS
   INTEGER, SAVE :: sIndex
   INTEGER, SAVE :: uniformSplit ! 0/1 1 = random cutoff comes from values
 
-  ! censoring indicator 1 = not censored
+  ! censoring indicator 1 = event from any cause (not censored; 0 = censored)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: deltaAll
-  ! censoring indicator 1 = not censored
+  ! censoring indicator 1 = event from cause m (not censored; 0 = censored)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: deltaAll_m
-  ! censoring indicator 1 = not censored
+  ! event indicator 1 = event from any cause (not censored; 0 = censored)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta
-  ! censoring indicator 1 = not censored for cause m for CR 
+  ! COMPETING RISKS: event indicator 1 = event from cause m (not censored for cause m for CR)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_m
+  ! RECURRENT EVENTS: event indicator 1 = RECURRENT EVENT (0 = not a recurrent event (could be death or censoring))
+  !INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_RE
  ! number of categories in each np covariate
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: nCat
 
@@ -180,7 +182,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
   INTEGER :: splitLeft_m, splitLeftFinal_m
   INTEGER :: tieValue, variablesTried
-  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases
+  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases !dSorted_RE,
   INTEGER, DIMENSION(1:nv) :: variables
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, ind_m, indSingles, indSingles_m, leftCases, leftCases_m, rightCases, rightCases_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: uncensoredIndices, uncensoredIndices_m
@@ -206,8 +208,36 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
   are_equal = .TRUE.
 
-  ! write(*,'(/,A)') '============================ tfindSplit ============================'
+  write(*,'(/,A)') '============================ tfindSplit ============================'
   ! PRINT *, "******************** tfindSplit ********************"
+
+  PRINT *, "=== pr"!, size(pr)
+  PRINT *, pr
+  PRINT *, "=== nt"!, size(nt)
+  PRINT *, nt
+
+
+  PRINT *, "testing eventsLeft"
+  PRINT *, sum(pr * &
+                   & spread(delta, 2, nt), DIM = 1)
+  PRINT *, "size eventsLEft", size(sum(pr * &
+                   & spread(delta, 2, nt), DIM = 1))
+
+  PRINT *, "%%%%%%%%%%%%%"
+    PRINT *, "=== delta"
+  PRINT *, delta
+  PRINT *, "spread"
+  PRINT *, spread(delta, 2, 2)
+  PRINT *, size(spread(delta,2,2))
+
+  PRINT *, "TESTING %%%"
+  PRINT *, pr * &
+                   & spread(delta, 2, 2)
+  PRINT *, "shape(pr*spread(delta,2,nt))", shape(pr*spread(delta,2,nt))
+  PRINT *, "shape of spread(delta,2,nt))", shape(spread(delta,2,nt))
+  PRINT *, "shape of pr", shape(pr)
+
+
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
   ! PRINT *, "rs =", rs
@@ -286,12 +316,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 !    CALL hpsort_eps_epw(nCases, xSorted, cases, 1d-8)
 
     ! sort event indicator data accordingly
-    dSorted = delta(cases)
-    dSorted_m = delta_m(cases)
+    dSorted = delta(cases) ! Phase 1: overall survival (delta = event indicator from any cause)
+    dSorted_m = delta_m(cases) ! Phase 2 for competing risks (delta_m = indicator for event from cause m)
+    !dSorted_RE = delta_RE(cases) ! Phase 2 for recurrent events (delta_RE = indicator for recurrent events)
 
     ! ******************** splitBoundaries ********************
     ! identify minimum cases for left and right splits based on minimum uncensored cases, minimum node size, and assurance that all equal valued cases are included in the minimum nodes
-    ! PRINT *, "******************** splitBoundaries ********************"
+    PRINT *, "******************** splitBoundaries ********************"
 
     rUnif = 0.d0
     rUnif_m = 0.d0
@@ -403,7 +434,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       !! extremely randomized tree methods used
 
       IF (uniformSplit .EQ. 0) THEN
-      	! PRINT *, "TESTER_UNIF1"
+      	PRINT *, "TESTER_UNIF1"
 
         ! if the cutoff is not determined from a uniform distribution
         ! randomly sample available indices to identify the last case
@@ -435,7 +466,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         ! END IF
 
       ELSE IF (uniformSplit .EQ. 1) THEN
-      	! PRINT *, "TESTER_UNIF2"
+      	PRINT *, "TESTER_UNIF2"
         ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
         random1 = rnd(0.d0, 1.d0)
         rUnif = random1 * (xSorted(splitLeftFinal+1) - &
@@ -471,7 +502,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
     END IF
 
-    ! PRINT *, "TESTER_UNIF-END"
+    PRINT *, "TESTER_UNIF-END"
 
     ! -1 is returned if cannot satisfy minimum requirements for nodes
     ! cycle to next covariate
@@ -481,7 +512,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! increment the number of covariates that have been explored
     variablesTried = variablesTried + 1
 
-    ! write(*,'(A)') '********************************* maxValue *********************************'
+    write(*,'(A)') '********************************* maxValue *********************************'
     !***************** maxValue ***************
 
     ! set initial values for outputs
@@ -489,6 +520,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     maxValueXm = 0.d0
     cutOff = 0.d0
 
+    ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
     leftCases = cases(1:(splitLeft-1))
     rightCases = cases(splitLeft:nCases)
     prl = pr(leftCases,:)
@@ -497,6 +529,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
                    & spread(dSorted(1:(splitLeft-1)), 2, nt), DIM = 1)
     eventsRight = sum(prr * &
                     & spread(dSorted(splitLeft:nCases), 2, nt), DIM = 1)
+
+    PRINT *, "eventsLeft", eventsLeft
+    PRINT *, "prl", prl
 
     ! PRINT *, "tt1"
     ! IF (isPhase2CR) THEN 
@@ -641,15 +676,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
       ! calculate test statistic
       IF (rule == 1) THEN
-        ! PRINT *, "&&&&&&& logrank test &&&&&&&&&"
+        PRINT *, "&&&&&&& logrank test &&&&&&&&&"
         CALL logrank(atRiskLeft, atRiskRight, eventsLeft, numJ, &
                    & denJ, valuej)
         ! PRINT *, "logrank statistic valuej = ", valuej
       ELSE IF (rule == 2) THEN
-        ! PRINT *, "&&&&&&& truncated mean test &&&&&&&&&"
+        PRINT *, "&&&&&&& truncated mean test &&&&&&&&&"
         CALL meanSplit(atRiskLeft, atRiskRight, eventsLeft, eventsRight, valuej)
       ELSE IF (rule == 3) THEN
-        ! PRINT *, "&&&&&&& gray's test &&&&&&&&&"
+        PRINT *, "&&&&&&& gray's test &&&&&&&&&"
         CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
         & atRiskRight, eventsRight_m, valuej)
       END IF
@@ -1197,27 +1232,26 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
   Func = 0.d0
   mean = 0.d0
 
-  ! PRINT *, "nCases: ", nCases
-  ! number of at risk cases at each time point
+  ! We now calculate the number of at risk cases at each time point, using Rb
   ! {nt}
-  Rb = sum(pr(casesIn,:), DIM = 1)
-  ! PRINT *, "Number of at risk cases at each time point: ", Rb
+  Rb = sum(pr(casesIn,:), DIM = 1) ! DIM = 1 is columns in fortran, this is time
+  !PRINT *, "sum(pr(casesIn,:), DIM = 1): ", Rb
 
   Nj(1) = nCases !number at risk at first time point is everyone
   DO i = 2, nt
     ! at each time point after first tp, we take # at risk at previous tp and subtract the number of events that happened
     Nj(i) = Nj(i-1) - Rb(i-1)
   END DO
-  ! PRINT *, "Number at Risk Cases at Each Time Point: Nj", Nj
+  !PRINT *, "Number at Risk Cases at Each Time Point: Nj", Nj
 
-  ! number of events at each time point
+  ! We now calculate the number of events at each time point
   ! {nt}
   DO i = 1, nt
     ! here: delta depends on if you are doing survival or CR
     Oj_m(i) = sum(pr(casesIn, i)*delta_m(casesIn))
-    Oj(i) = sum(pr(casesIn, i)*delta(casesIn))
-    ! PRINT *, "((((((((((((( CHECKING OJ(i) ))))))))))))): ", Oj(i)
-    ! PRINT *, "((((((((((((( CHECKING OJ_m(i) ))))))))))))): ", Oj_m(i)
+    Oj(i) = sum(pr(casesIn, i)*delta(casesIn)) ! HOW MANY FAILURES AT EACH TIME POINT, * IS ELEMENT-WISE MULTIPLICATION.
+    !PRINT *, "((((((((((((( CHECKING OJ(i) ))))))))))))): ", Oj(i)
+    !PRINT *, "((((((((((((( CHECKING OJ_m(i) ))))))))))))): ", Oj_m(i)
 
     IF (isPhase1) THEN
 	    IF (Oj_m(i) /= Oj(i)) THEN
@@ -1226,7 +1260,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
 	      PRINT *, "pr(casesIn, i): ", pr(casesIn, i)
 	      PRINT *, "pr(casesIn, i)*delta_m(casesIn): ", pr(casesIn, i)*delta_m(casesIn)
 	      PRINT *, "pr(casesIn, i)*delta(casesIn): ", pr(casesIn, i)*delta(casesIn)     
-	      ! PRINT *, "casesIn", casesIn
+	      PRINT *, "casesIn", casesIn
 	      PRINT *, "delta_m(casesIn): ", delta_m(casesIn)
 	      PRINT *, "delta(casesIn): ", delta(casesIn)
 	      PRINT *, "Oj_m(i) = ", Oj_m(i)
@@ -2058,8 +2092,13 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_delta, t_delta_m, t_mTry, t_nCat,
 
   isAllocated = .TRUE.
 
+  PRINT *, "t_pr"
+  PRINT *, t_pr
+
   xAll = reshape(t_x, (/nAll,np/))
   prAll = reshape(t_pr, (/nAll,nt/))
+  PRINT *, "prAll"
+  PRINT *, prAll
   deltaAll = t_delta
   deltaAll_m = t_delta_m
 
