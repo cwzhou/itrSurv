@@ -41,7 +41,8 @@ setClass(Class = "TreeType",
 ## Getters
 
 # initializer
-.treeType <- function(endPoint,
+.treeType <- function(Phase,
+                      endPoint,
                       ERT,
                       nSamples,
                       uniformSplit,
@@ -77,7 +78,8 @@ setClass(Class = "TreeType",
   # verify splitRule. methods return the original character object with possible
   # modification to make all lower case
   # step1 survival: splitRule1
-  splitRule <- .VerifySplitRule(splitRule = splitRule,
+  splitRule <- .VerifySplitRule(Phase = Phase,
+                                splitRule = splitRule,
                                 criticalValue = criticalValue)
   # splitRule2 <- .VerifySplitRule(splitRule = splitRule2,
   #                                criticalValue = criticalValue2)

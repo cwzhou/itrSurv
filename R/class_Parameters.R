@@ -7,7 +7,7 @@
 #
 # Functions
 # .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, response, response_endpoint, nTree, ERT, uniformSplit,
-#                      randomSplit, splitRule, replace, nodeSize,
+#                      randomSplit, splitRule1, splitRule2, replace, nodeSize,
 #                      minEvent, tieMethod, criticalValue,
 #                      survivalTime, nSamples, pooled, stratifiedSplit)
 #
@@ -251,7 +251,8 @@ setMethod(f = "initialize",
                         ERT,
                         uniformSplit,
                         randomSplit,
-                        splitRule,
+                        splitRule1,
+                        splitRule2,
                         replace,
                         nodeSize,
                         minEvent,
@@ -354,25 +355,19 @@ setMethod(f = "initialize",
   # function returns a TreeType object
   # print("class_Parameters.R: Line263")
   # print(sprintf("cv1: %s", cv1))
-  treeType1 <- .treeType(endPoint = endPoint,
-                        ERT = ERT,
-                        nSamples = nSamples,
-                        uniformSplit = uniformSplit,
-                        replace = replace,
-                        randomSplit = randomSplit,
-                        splitRule = splitRule,
-                        tieMethod = tieMethod,
-                        criticalValue = cv1)
-  # View(treeType1)
-  # print(treeType1)
-  # print("end of .treeType")
+  treeType1 <- .treeType(Phase = 1,
+                         endPoint = endPoint,
+                         ERT = ERT,
+                         nSamples = nSamples,
+                         uniformSplit = uniformSplit,
+                         replace = replace,
+                         randomSplit = randomSplit,
+                         splitRule = splitRule1,
+                         tieMethod = tieMethod,
+                         criticalValue = cv1)
 
-  splitRule2 = paste0(treeType1@splitRule,endPoint)
-  message("class_Parameters.R: Line 354: Use the same rule type of splitrule for both Phase 1 and Phase 2 (", splitRule2, ")")
-  # print(splitRule2)
-  # print("Line279: cv2")
-  # print(cv2)
-  treeType2 <- .treeType(endPoint = endPoint,
+  treeType2 <- .treeType(Phase = 2,
+                         endPoint = endPoint,
                          ERT = ERT,
                          nSamples = nSamples,
                          uniformSplit = uniformSplit,
@@ -431,7 +426,6 @@ setMethod(f = "initialize",
   if (is(object = criticalValue2, class2 = "CriticalValueEndpoint")){
     print(sprintf("EndPoint %s Parameters for CIF Probability", endPoint))
     endpointparam = new(Class = "EndPointParameters_Probability",
-                # endPoint,
                 timeInfo2,
                 criticalValue2,
                 treeType2,
@@ -439,7 +433,6 @@ setMethod(f = "initialize",
   } else if (is(object = criticalValue2, class2 = "CriticalValueMean")) {
     print("EndPoint Parameters for CIF Mean")
     endpointparam = new(Class = "EndPointParameters_Mean",
-                # endPoint,
                 timeInfo2,
                 criticalValue2,
                 treeType2,
@@ -447,7 +440,6 @@ setMethod(f = "initialize",
   } else if (is(object = criticalValue2, class2 = "CriticalValueArea")) {
     print("EndPoint Parameters for CIF Area Under Curve")
     endpointparam = new(Class = "EndPointParameters_Area",
-                        # endPoint,
                         timeInfo2,
                         criticalValue2,
                         treeType2,

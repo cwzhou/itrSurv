@@ -120,21 +120,22 @@
 #'   'criticalValue' must be one of  \{"mean.prob.combo", "prob"\}.
 #'   If NULL, 'criticalValue' must be \{"mean"\}.
 #'
-#' @param splitRule A character object OR NULL.
-#'   Must be one of \{"logrank", "mean", "logrankcr", "meancr", "logrankre", "meanre"\}
-#'   indicating the test used to determine an optimal split. If NULL and
-#'   'criticalValue' = 'mean', takes value 'mean'. If NULL and
-#'   'criticalValue' = 'prob' or 'mean.prob.combo', takes value 'logrank'.
-#'   If NULL and endPoint = 'CR', takes value 'logrankCR'.
-#'   If NULL and endPoint = 'RE', takes value 'logrankRE'.
+#' @param splitRule1 A character object. splitRule for Phase 1
+#'   Must be one of \{'logrank_surv', 'mean_surv'\} indicating the test used to determine an optimal split.
+#' @param splitRule2 A character object. splitRule for Phase 2
+#'   Must be one of \{'gray_cr', 'csh_cr', 'gray_re'\} indicating the test used to determine an optimal split.
+#'
+#'   If NULL and Phase = 'Survival' and 'criticalValue' = 'mean', then takes value 'mean'.
+#'   If NULL and Phase = 'Survival' and 'criticalValue' = 'prob' or 'mean.prob.combo', then takes value 'logrank'.
+#'   If NULL and Phase = 'CR' and endPoint = 'CR', takes value 'graycr'. # default over cshcr
+#'   If NULL and Phase = 'RE' and endPoint = 'RE', takes value 'grayre'.
 #'   ## survival endpoint ##
-#'   logrank = 1
-#'   mean = 2
+#'   logrank_surv = 1
+#'   mean_surv = 2
 #'   ## other endpoints (CR, RE) ##
-#'   logrankcr = 3
-#'   meancr = 4 but this is same as mean (=2) which we change later in fortran
-#'   logrankre = 5
-#'   meanre = 6
+#'   gray_cr = 3
+#'   csh_cr = 4
+#'   gray_re = 5
 #'   if splitRule <=2 then Phase 1 survival
 #'   if splitRule 3-4 then Phase 2 endpoint (CR)
 #'   if splitRule >4 then Phase 2 endpoint (RE)
@@ -295,7 +296,8 @@ itrSurv <- function(data,
                     # criticalValue = "mean",
                     tol1 = c(0.1,0.1,0,0), # default is eps0_ratio = 0.1 and eps0_diff = 0;
                     evalTime = NULL,
-                    splitRule = NULL,
+                    splitRule1 = NULL,
+                    splitRule2 = NULL,
                     ERT = TRUE,
                     uniformSplit = NULL,
                     sampleSize = NULL,
@@ -469,6 +471,15 @@ itrSurv <- function(data,
   # combine all inputs that regulate tree and specify analysis preferences
   # function returns a Parameters object
   # print(criticalValue1)
+
+  if (endPoint == "CR"){
+    if (!all(timePointsEndpoint == timePointsSurvival)){
+      message("itrSurv.R Line 477: For CR endpoint, timePointsEndpoint should be the same as timePointsSurvival, NOT the subset for priority cause")
+      print("-- changing timePointsEndpoint to be equal to inputted timePointsSurvival --")
+      timePointsEndpoint = timePointsSurvival
+    }
+  }
+
   params <- .parameters(endPoint = endPoint,
                         timePointsSurvival = timePointsSurvival,
                         timePointsEndpoint = timePointsEndpoint,
@@ -481,7 +492,8 @@ itrSurv <- function(data,
                         ERT = ERT,
                         uniformSplit = uniformSplit,
                         randomSplit = randomSplit,
-                        splitRule = splitRule,
+                        splitRule1 = splitRule1,
+                        splitRule2 = splitRule2,
                         replace = replace,
                         nodeSize = nodeSize,
                         minEvent = minEvent,
@@ -522,24 +534,7 @@ itrSurv <- function(data,
   # print('test2')
 
   # set basic parameter values in Fortran
-  if (params1@splitRule == 'logrank'){
-    #logrank for survival
-    splitR = as.integer(params1@splitRule == 'logrank')
-  } else{
-    # truncated mean test for survival
-    splitR = as.integer(2)
-  }
-  # message("FJDSD;JF: as.integer(x = .NTimes(object = params1)):", as.integer(.NTimes(object = params1)))
-  # print(.NTimes(object = params1))
-  # View(params1)
-
-  tmp.z<<- .Fortran("temporary",
-                 s = as.double(x = 10),
-                 vs = as.double(x = 2),
-                 z = as.double(1),
-                 PACKAGE = "itrSurv")
-  print(tmp.z)
-  stop("TESTING FORTRAN")
+  splitR_1 = ifelse(params1@splitRule == 'logrank_surv', 1, 2) # 1 for logrank; 2 for truncated mean
   res1 = .Fortran("setUpBasics",
                  t_nt = as.integer(x = .NTimes(object = params1)),
                  t_dt = as.double(x = .TimeDiff(object = params1)),
@@ -548,7 +543,7 @@ itrSurv <- function(data,
                  t_uniformSplit = as.integer(x = params1@uniformSplit),
                  t_nodeSize = as.integer(x = .NodeSize(object = params1)),
                  t_minEvent = as.integer(x = .MinEvent(object = params1)),
-                 t_rule = splitR, # as.integer(x = params1@splitRule == 'logrank')
+                 t_rule = as.integer(x = splitR_1),
                  t_sIndex = as.integer(x = ind1),
                  t_sFraction = as.double(x = frac1),
                  t_stratifiedSplit = as.double(x = params1@stratifiedSplit),
@@ -632,21 +627,10 @@ itrSurv <- function(data,
     }
   }
 
-  # set basic parameter values in Fortran
-  if (params2@splitRule == 'logrankcr'){
-    splitR_endpoint = as.integer(3)
-  } else if (params2@splitRule == 'meancr' | params2@splitRule == 'mean'){
-    splitR_endpoint = as.integer(4)
-  } else if (params2@splitRule == 'logrankre'){
-    splitR_endpoint = as.integer(5)
-  } else if (params2@splitRule == 'meanre' | params2@splitRule == 'mean'){
-    splitR_endpoint = as.integer(6)
-  } else{
-    message("splitRule is unclear and we assigned splitR_endpoint as 99")
-    splitR_endpoint = as.integer(99)
-  }
-
-  # print(splitR_endpoint)
+  splitR_2 = ifelse(params2@splitRule == 'gray_cr', 3,
+                    ifelse(params2@splitRule == 'csh_cr', 4,
+                           ifelse(params2@splitRule == 'gray_re', 5, NA)))
+  if (is.na(splitR_2)){stop("SPLIT RULE IS WRONG!!?")}
   res2 = .Fortran("setUpBasics",
                   t_nt = as.integer(x = .NTimes(object = params2)),
                   t_dt = as.double(x = .TimeDiff(object = params2)),
@@ -655,15 +639,12 @@ itrSurv <- function(data,
                   t_uniformSplit = as.integer(x = params2@uniformSplit),
                   t_nodeSize = as.integer(x = .NodeSize(object = params2)),
                   t_minEvent = as.integer(x = .MinEvent(object = params2)),
-                  t_rule = splitR_endpoint,
+                  t_rule = as.integer(splitR_2),
                   t_sIndex = as.integer(x = ind2),
                   t_sFraction = as.double(x = frac2),
                   t_stratifiedSplit = as.double(x = params2@stratifiedSplit),
                   t_replace = as.integer(params2@replace),
                   PACKAGE = "itrSurv")
-# #
-  # message("res2:")
-  # View(res2)
 
   # ensure that if given, sampleSize is 0 < sampleSize <= 1 and that
   # a value is provided for each decision point. If only 1 value is given,
@@ -804,4 +785,3 @@ cl[[ 1L ]] <- as.name("itrSurv")
 #' @keywords internal
 #' @import methods
 NULL
-

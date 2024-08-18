@@ -5,6 +5,8 @@ MODULE INNERS
   PUBLIC
 
   INTEGER, PARAMETER :: dp = selected_real_kind(15,307)
+  INTEGER, PARAMETER :: ng_set2 = 2
+  INTEGER, PARAMETER :: nst_set1 = 1
 
   INTEGER, SAVE :: ERT ! 0/1 1 = use extremely randomized tree
   INTEGER, SAVE :: minEvent ! minimum number of events in a node
@@ -18,10 +20,9 @@ MODULE INNERS
   INTEGER, SAVE :: nt ! number of time points
   INTEGER, SAVE :: nTree ! number of trees
   INTEGER, SAVE :: replace
-  INTEGER, SAVE :: rule ! 1 if logrank 0 if truncated mean
+  INTEGER, SAVE :: rule ! logrank:1; truncated mean: 2; gray: 3; gray2 (CSH): 4; Q_LR RE:5
   INTEGER, SAVE :: sampleSize
-  ! for survival probability, the index of nearest time point
-  INTEGER, SAVE :: sIndex
+  INTEGER, SAVE :: sIndex ! for survival probability, the index of nearest time point
   INTEGER, SAVE :: uniformSplit ! 0/1 1 = random cutoff comes from values
 
   ! censoring indicator 1 = event from any cause (not censored; 0 = censored)
@@ -203,12 +204,18 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
   LOGICAL :: are_equal
   INTEGER :: index_delta
-
   LOGICAL :: notEqual
-
-
   REAL(dp) :: rnd, random1
-
+  
+! for crstm  ! rho_set0, nst_set1, and ng_set2 defined in modules inners
+  REAL(dp) :: rho_set0, y_set(nAll), ys_set(nAll), ms_set(nAll), igs_set(nAll)
+  INTEGER :: ig_setSplit(nAll), ist_set1(nAll), m_set(nAll)
+  REAL(dp) :: s_set(ng_set2-1), vs_set(ng_set2-1, ng_set2-1)
+  REAL(dp) :: v_set(ng_set2*(ng_set2-1)/2), st_set(ng_set2-1), vt_set(ng_set2*(ng_set2-1)/2)
+  REAL(dp), DIMENSION(ng_set2*(4+3*ng_set2)) :: wk_set
+  integer, dimension(4*ng_set2) :: iwk_set
+  
+  
   EXTERNAL :: rnd
 
   are_equal = .TRUE.
@@ -216,32 +223,17 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   write(*,'(/,A)') '============================ tfindSplit ============================'
   ! PRINT *, "******************** tfindSplit ********************"
 
-  PRINT *, "=== pr"!, size(pr)
-  PRINT *, pr
-  PRINT *, "=== nt"!, size(nt)
-  PRINT *, nt
-
-
-  PRINT *, "testing eventsLeft"
-  PRINT *, sum(pr * &
-                   & spread(delta, 2, nt), DIM = 1)
-  PRINT *, "size eventsLEft", size(sum(pr * &
-                   & spread(delta, 2, nt), DIM = 1))
-
-  PRINT *, "%%%%%%%%%%%%%"
-    PRINT *, "=== delta"
-  PRINT *, delta
-  PRINT *, "spread"
-  PRINT *, spread(delta, 2, 2)
-  PRINT *, size(spread(delta,2,2))
-
-  PRINT *, "TESTING %%%"
-  PRINT *, pr * &
-                   & spread(delta, 2, 2)
-  PRINT *, "shape(pr*spread(delta,2,nt))", shape(pr*spread(delta,2,nt))
-  PRINT *, "shape of spread(delta,2,nt))", shape(spread(delta,2,nt))
-  PRINT *, "shape of pr", shape(pr)
-
+  ! set up for crstm
+  IF (isPhase2CR) THEN
+    IF (rule == 3) THEN
+      PRINT *, "CR: Gray's Test Set-Up to split nodes"
+      rho_set0 = 0
+    ELSE IF (rule == 4) THEN
+      PRINT *, "CR: Using CSH to split nodes"
+    ELSE 
+      PRINT *, "ERROR: CR setting but Rule is not Defined/Appropriate!!"
+    END IF
+  END IF
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -681,23 +673,28 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
       ! calculate test statistic
       IF (rule == 1) THEN
-        PRINT *, "&&&&&&& logrank test &&&&&&&&&"
+        PRINT *, "^^^^^ SPLITTING TEST: PHASE 1: logrank test ^^^^^"
         CALL logrank(atRiskLeft, atRiskRight, eventsLeft, numJ, &
                    & denJ, valuej)
         ! PRINT *, "logrank statistic valuej = ", valuej
       ELSE IF (rule == 2) THEN
-        PRINT *, "&&&&&&& truncated mean test &&&&&&&&&"
+        PRINT *, "^^^^^ SPLITTING TEST: PHASE 1: truncated mean test ^^^^^"
         CALL meanSplit(atRiskLeft, atRiskRight, eventsLeft, eventsRight, valuej)
       ELSE IF (rule == 3) THEN
-        PRINT *, "&&&&&&& gray's test &&&&&&&&&"
+        PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test ^^^^^"
+        !CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
+        !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
+      ELSE IF (rule == 4) THEN
+        PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test (kaplan way - CSH) ^^^^^"
         CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
         & atRiskRight, eventsRight_m, valuej)
-        CALL temporary(s, vs, valuej)
+      ELSE IF (rule == 5) THEN 
+        PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ^^^^^"
       END IF
-      ! PRINT *, "test statistic: ", valuej
+      PRINT *, "test statistic: ", valuej
 
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
-        ! PRINT *, "&&&&&&& TEST 5 &&&&&&&&&"
+        ! PRINT *, "^^^^^ TEST 5 ^^^^^"
 
         ! if first value or value > current max, save
         IF (rUnifSet .EQ. 1) THEN
@@ -715,7 +712,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         set = 1
 
       ELSE IF (valuej > (maxValueXm - 1d-8)) THEN
-        ! PRINT *, "&&&&&&& TEST 6 &&&&&&&&&"
+        ! PRINT *, "^^^^^ TEST 6 ^^^^^"
         ! if value is a tie, randomly determine if cutoff should be taken
         tieValue = tieValue + 1
 
@@ -770,7 +767,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       IF (randomSplit) EXIT
 
     ELSE IF (maxValueXm .GT. (maxValueSplit-1d-8)) THEN
-      ! PRINT *, "&&&&&&& TEST 7 &&&&&&&&&"
+      ! PRINT *, "^^^^^ TEST 7 ^^^^^"
 
       ! if equal to current maximum value, increment tie counter and randomly
       ! select the cutoff with equal probability for each tie
@@ -1214,6 +1211,328 @@ END SUBROUTINE Gray_m
 ! CALL Gray_m(ns1, ns2, delta_21j, N1j, O1j, delta_22j, N2j, O2j, Gray_CIF2) ! for cause 2
 ! =================================================================================
 
+
+
+! =================================================================================
+! USING A MODIFIED VERSION OF CMPRSK CRSTM AND CRST 
+! Copyright (C) 2000 Robert Gray
+! Distributed under the terms of the GNU public license
+SUBROUTINE crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk,z)
+IMPLICIT NONE
+
+! subroutine to calculate score and variance matrix for comparing
+! cumulative incidence curves for a specific cause among groups.
+!  test statistic given by s' inv(vs) s, dist approx chi-square(ng-1)
+!
+!  everything starting with i-n is integer, all others double precision
+!
+!  On input:
+!    y is the failure times (sorted in increasing order)
+!    m is coded 0 if censored, 1 if failed from the cause of interest
+!       2 if failed from some other cause.
+!    ig denotes group membership, must be coded 1,2,...,ng (ie
+!       consecutive integers from 1 to ng), where ng is the number of groups
+!    ist denotes strata membership, must be coded 1,2,...,nst, where nst
+!       is the number of strata (code all 1's if only 1 strata)
+!    no is the # of observations (length of y,m,ig,ist)
+!    rho is the power used in the weight function in the test statistic
+!    nst and ng are the # strata and # groups
+!  Length of ys, ms, and igs must be at least as long as the size of the
+!    largest strata
+!  Length of s and st must be at least ng-1
+!  Length of v and vt must be at least ng*(ng-1)/2
+!  Length of vs must be at least (ng-1)^2
+!  Length of wk must be at least ng*(4+3*ng)
+!  Length of iwk must be at least 4*ng
+!  
+!  On output:
+!    s gives the scores for the first ng-1 groups, and
+!    vs the estimated variance covariance matrix of these scores
+
+! double precision: a,b,c,d,e,f,g,h, o,p,q,r,s,t,u,v,w,x,y,z
+! integer: i,j,k,l,m,n
+
+    ! Input variables  
+    integer, intent(in) :: ig(no), ist(no), m(no), no, nst, ng
+    double precision, intent(in) :: y(no), rho
+    double precision, intent(inout) :: ys(no)
+    integer, intent(inout) :: igs(no), ms(no)
+  
+    ! Output variables
+    double precision, intent(out) :: s(ng-1), vs(ng-1, ng-1)
+    double precision, intent(out) :: v(ng*(ng-1)/2), st(ng-1), vt(ng*(ng-1)/2)
+    double precision, intent(out) :: z
+
+    ! Temporary arrays and variables
+    double precision, dimension(ng*(4+3*ng)) :: wk
+    integer, dimension(4*ng) :: iwk
+    integer :: i, j, l, ks, ng1, ng2, n
+    integer :: ng3, ng4
+
+    ng1 = ng - 1
+    ng2 = ng * ng1 / 2
+    l = 0
+    
+    ! Initialize s and v
+    s = 0.0d0
+    v = 0.0d0
+
+    DO i = 1, ng1
+      s(i) = 0
+      DO j = 1, i
+        l = l + 1
+        v(l) = 0
+      END DO
+    END DO
+    
+    ! Loop over strata
+    do ks = 1, nst !do 20
+      n = 0
+      do i = 1, no !do 21
+        if (ist(i).ne.ks) EXIT ! go to 21
+        n = n + 1
+        ys(n) = y(i)
+        ms(n) = m(i)
+        igs(n) = ig(i)
+      end do !21
+      ng3 = 4 * ng + 1
+      ng4 = ng * ng
+      ! Call subroutine crst
+      call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
+                & wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
+                & wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
+                & wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
+      l = 0
+      ! Update s and v
+      do i = 1, ng1 !do 23
+        s(i) = s(i) + st(i)
+        do j = 1, i !do 24
+          l = l + 1
+          v(l) = v(l) + vt(l)
+        end do !24
+      end do !23 
+    end do !20
+    
+    ! Populate vs matrix
+    l = 0
+    do i = 1, ng1 !do 31
+        do j = 1, i !do 332
+            l = l + 1
+            vs(i, j) = v(l)
+            vs(j, i) = vs(i, j)
+        end do !332
+    end do !31
+    
+    PRINT *, "vs"
+    PRINT *, vs
+    PRINT *, "s"
+    PRINT *, s
+
+    z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups (priority cause is first cause)
+    PRINT *, "z", z
+    ! return
+
+END SUBROUTINE crstm
+! =================================================================================
+
+ !           call crst(y = ys(1), m = ms(1), ig =igs(1), n = n, ng = ng, rho = rho, s = st, v = vt, ng1 = ng1, nv = ng2, &
+ !                f1m = wk(1), f1 = wk(ng+1), skmm = wk(2*ng+1), skm = wk(3*ng+1), &
+ !                 c= wk(ng3), a= wk(ng3+ng4), v3 = wk(ng3+2*ng4), &
+ !                 v2 = wk(ng3+2*ng4+ng), rs=iwk(1), d=iwk(ng+1))
+SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v3, v2, rs, d)
+    IMPLICIT NONE
+
+    ! Declare variables with explicit types and dimensions
+    integer, intent(in) :: n, ng, ng1, nv
+    real(dp), intent(in) :: rho
+    real(dp), dimension(n), intent(inout) :: y
+    real(dp), dimension(ng1), intent(inout) :: s
+    real(dp), dimension(ng), intent(inout) :: f1m, f1, skmm, skm, v3
+    real(dp), dimension(ng, ng), intent(inout) :: c, a
+    real(dp), dimension(nv), intent(inout) :: v
+    real(dp), dimension(ng1, ng), intent(inout) :: v2
+    integer, dimension(n), intent(inout) :: m, ig
+    integer, dimension(ng), intent(inout) :: rs
+    integer, dimension(0:2, ng), intent(inout) :: d
+
+    integer :: i, j, k, l, ll, lu, nd1, nd2
+    real(dp) :: fm, f, tr, tq, td, t1, t2, t3, t4, t5, t6, fb
+
+    ! Initialize rs array
+    rs(:) = 0
+
+    ! Populate rs array based on ig
+    do i = 1, n
+        j = ig(i)
+        rs(j) = rs(j) + 1
+    end do
+
+    ! Initialize arrays
+    s(:) = 0.0
+    f1m(:) = 0.0
+    f1(:) = 0.0
+    skmm(:) = 1.0
+    skm(:) = 1.0
+    v3(:) = 0.0
+    v(:) = 0.0
+    v2(:, :) = 0.0
+    c(:, :) = 0.0
+    a(:, :) = 0.0
+
+    ! Begin looping over unique times
+    fm = 0.0
+    f = 0.0
+    ll = 1
+    lu = ll
+
+50  do
+        lu = lu + 1
+        if (lu > n) exit
+        if (y(lu) > y(ll)) exit
+    end do
+
+    lu = lu - 1
+    nd1 = 0
+    nd2 = 0
+    ! d will contain the # in each group censored, failed from
+    ! cause 1, and failing from cause 2, at this time
+    d(:, :) = 0
+
+    do i = ll, lu
+        j = ig(i)
+        k = m(i)
+        d(k, j) = d(k, j) + 1
+    end do
+
+    nd1 = sum(d(1, :))
+    nd2 = sum(d(2, :))
+
+    if (nd1 == 0 .and. nd2 == 0) goto 90
+
+    tr = 0.0
+    tq = 0.0
+
+    do i = 1, ng
+        if (rs(i) <= 0) cycle
+        td = d(1, i) + d(2, i)
+        ! skmm is left continuous, and skm right continuous, km est.
+        skm(i) = skmm(i) * (rs(i) - td) / rs(i)
+        ! f1m is left continuous, and f1 right continuous, cuminc est.
+        f1(i) = f1m(i) + (skmm(i) * d(1, i)) / rs(i)
+        ! in notation of the Gray 1988 paper, tr is \sum_r\hat{h}_r, and tq is \sum_r R_r
+        tr = tr + rs(i) / skmm(i)
+        tq = tq + rs(i) * (1.0 - f1m(i)) / skmm(i)
+    end do
+
+    f = fm + nd1 / tr
+    fb = (1.0 - fm)**rho
+
+    a(:, :) = 0.0
+
+    do i = 1, ng
+        if (rs(i) <= 0) cycle
+        t1 = rs(i) / skmm(i)
+        a(i, i) = fb * t1 * (1.0 - t1 / tr)
+        if (a(i, i) /= 0.0) c(i, i) = c(i, i) + a(i, i) * nd1 / (tr * (1.0 - fm))
+
+        do j = i + 1, ng
+            if (rs(j) <= 0) cycle
+            a(i, j) = -fb * t1 * rs(j) / (skmm(j) * tr)
+            if (a(i, j) /= 0.0) c(i, j) = c(i, j) + a(i, j) * nd1 / (tr * (1.0 - fm))
+        end do
+    end do
+
+    ! Make a symmetric matrix
+    do i = 2, ng
+        k = i - 1
+        a(i, 1:k) = a(1:k, i)
+        c(i, 1:k) = c(1:k, i)
+    end do
+
+    do i = 1, ng1
+        if (rs(i) <= 0) cycle
+        s(i) = s(i) + fb * (d(1, i) - nd1 * rs(i) * (1.0 - f1m(i)) / (skmm(i) * tq))
+    end do
+
+    if (nd1 > 0) then
+        do k = 1, ng
+            if (rs(k) <= 0) cycle
+            t4 = 1.0
+            if (skm(k) > 0.0) t4 = 1.0 - (1.0 - f) / skm(k)
+            t5 = 1.0
+            if (nd1 > 1) t5 = 1.0 - (nd1 - 1) / (tr * skmm(k) - 1.0)
+            t3 = t5 * skmm(k) * nd1 / (tr * rs(k))
+            v3(k) = v3(k) + t4 * t4 * t3
+
+            do i = 1, ng1
+                t1 = a(i, k) - t4 * c(i, k)
+                v2(i, k) = v2(i, k) + t1 * t4 * t3
+
+                do j = 1, i
+                    l = i * (i - 1) / 2 + j
+                    t2 = a(j, k) - t4 * c(j, k)
+                    v(l) = v(l) + t1 * t2 * t3
+                end do
+            end do
+        end do
+    end if
+
+    if (nd2 > 0) then
+        do k = 1, ng
+            if (skm(k) <= 0.0 .or. d(2, k) <= 0) cycle
+            t4 = (1.0 - f) / skm(k)
+            t5 = 1.0
+            if (d(2, k) > 1) t5 = 1.0 - (d(2, k) - 1.0) / (rs(k) - 1.0)
+            t6 = rs(k)
+            t3 = t5 * ((skmm(k)**2) * d(2, k)) / (t6**2)
+            v3(k) = v3(k) + t4 * t4 * t3
+
+            do i = 1, ng1
+                t1 = t4 * c(i, k)
+                v2(i, k) = v2(i, k) - t1 * t4 * t3
+
+                do j = 1, i
+                    l = i * (i - 1) / 2 + j
+                    t2 = t4 * c(j, k)
+                    v(l) = v(l) + t1 * t2 * t3
+                end do
+            end do
+        end do
+    end if
+
+90  if (lu >= n) goto 30
+
+    do i = ll, lu
+        j = ig(i)
+        rs(j) = rs(j) - 1
+    end do
+
+    fm = f
+    f1m(:) = f1(:)
+    skmm(:) = skm(:)
+
+    ll = lu + 1
+    lu = ll
+    goto 50
+
+30  l = 0
+    do i = 1, ng1
+        do j = 1, i
+            l = l + 1
+            do k = 1, ng
+                v(l) = v(l) + c(i, k) * c(j, k) * v3(k)
+                v(l) = v(l) + c(i, k) * v2(j, k)
+                v(l) = v(l) + c(j, k) * v2(i, k)
+            end do
+        end do
+    end do
+
+    return
+END SUBROUTINE crst
+! =================================================================================
+
+
+! =================================================================================
 ! estimate the survival/cif function and mean survival/cif time
 !   nCases: integer, the number of elements in casesIn
 !   casesIn: integer, the indices of the subset for which the value is
@@ -1808,7 +2127,7 @@ SUBROUTINE predict(iTree, nr, nc, newData)
 
   RETURN
 
-END SUBROUTINE
+END SUBROUTINE predict
 ! =================================================================================
 
 END MODULE INNERS
@@ -1976,7 +2295,7 @@ END SUBROUTINE predictSurvTree
 !   when using ERT
 ! t_nodeSize, integer, the minimum number of cases in each node
 ! t_minEvent, integer, the minimum number of events in each node
-! t_rule, integer, 0 = mean, 1 = logrank
+! t_rule, integer, 1 = logrank, 2 = mean, 3 = CR gray (Gray 1988), 4 = CR csh, 5 = RE gray Q_LR (Ghosh & Lin 2000)
 ! t_sIndex, integer, the indices of time points that is closest to the
 !   requested survival time
 ! t_sFraction, real, the fractional distance between time points the the
@@ -1998,9 +2317,7 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
   INTEGER, INTENT(IN) :: t_uniformSplit
   INTEGER, INTENT(IN) :: t_nodeSize
   INTEGER, INTENT(IN) :: t_minEvent
-  ! we changed t_rule from intent so that we can manipulate it so rule = 4 --> rule = 2 for CR (mean test)
-  ! INTEGER, INTENT(IN) :: t_rule
-  INTEGER :: t_rule
+  INTEGER, INTENT(IN) :: t_rule
   INTEGER, INTENT(IN) :: t_sIndex
   REAL(dp), INTENT(IN) :: t_sFraction
   REAL(dp), INTENT(IN) :: t_stratifiedSplit
@@ -2013,17 +2330,14 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
 
   isSurvival = sIndex > 0
 
+  ! 1: logrank; 2: mean; 3: cr gray; 4: cr csh; 5: re q_lr
   isPhase1 = t_rule < 3
-  isPhase2CR = t_rule > 2
-  !isPhase2RE = t_rule
   isPhase2 = t_rule > 2
+  isPhase2CR = (t_rule == 3 .OR. t_rule == 4)
+  isPhase2RE = t_rule == 5
 
-  ! PRINT *, "isPhase1:", isPhase1
-  ! PRINT *, "isPhase2CR:", isPhase2CR
-
-  ! we set t_rule = 2 if in Phase 2 after assigning isPhase2CR so that we do truncated mean test
-  ! below is why we changed t_rule from intent(in) to just integer
-  IF (isPhase2CR) t_rule = 2
+  PRINT *, "isPhase1:", isPhase1
+  PRINT *, "isPhase2CR:", isPhase2CR
 
   IF (dtAllocated) DEALLOCATE(dt)
 
@@ -2251,272 +2565,3 @@ z = z*z
 END SUBROUTINE temporary
 
 
-! Copyright (C) 2000 Robert Gray
-! Distributed under the terms of the GNU public license
-
-SUBROUTINE crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk,z)
-    implicit none
-
-    ! Input variables  
-        integer, intent(in) :: ig(no), ist(no), m(no), no, nst, ng
-    double precision, intent(in) :: y(no), rho
-    double precision, intent(inout) :: ys(no)
-    integer, intent(inout) :: igs(no), ms(no)
-  
-    ! Output variables
-    double precision, intent(out) :: s(ng-1), vs(ng-1, ng-1)
-    double precision, intent(out) :: v(ng*(ng-1)/2), st(ng-1), vt(ng*(ng-1)/2)
-    double precision, intent(out) :: z
-
-    ! Temporary arrays and variables
-    double precision, dimension(ng*(4+3*ng)) :: wk
-    integer, dimension(4*ng) :: iwk
-    integer :: i, j, l, ks, ng1, ng2, n
-    integer :: ng3, ng4
-
-    ng1 = ng - 1
-    ng2 = ng * ng1 / 2
-    l = 0
-    
-    ! Initialize s and v
-    s = 0.0d0
-    v = 0.0d0
-
-    ! Loop over strata
-    do ks = 1, nst
-        n = 0
-        do i = 1, no
-            if (ist(i) == ks) then
-                n = n + 1
-                ys(n) = y(i)
-                ms(n) = m(i)
-                igs(n) = ig(i)
-            end if
-        end do
-        
-        ! Call subroutine crst
-        ng3 = 4 * ng + 1
-        ng4 = ng * ng
-        call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
-                  wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
-                  wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
-                  wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
-        
-        ! Update s and v
-        do i = 1, ng1
-            s(i) = s(i) + st(i)
-            do j = 1, i
-                l = l + 1
-                v(l) = v(l) + vt(l)
-            end do
-        end do
-    end do
-
-    ! Populate vs matrix
-    l = 0
-    do i = 1, ng1
-        do j = 1, i
-            l = l + 1
-            vs(i, j) = v(l)
-            vs(j, i) = vs(i, j)
-        end do
-    end do
-
-    PRINT *, "vs"
-    PRINT *, vs
-    
-    z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups.
-    PRINT *, "z", z
-
-    return
-end subroutine crstm
-
-
-
- !           call crst(y = ys(1), m = ms(1), ig =igs(1), n = n, ng = ng, rho = rho, s = st, v = vt, ng1 = ng1, nv = ng2, &
- !                f1m = wk(1), f1 = wk(ng+1), skmm = wk(2*ng+1), skm = wk(3*ng+1), &
- !                 c= wk(ng3), a= wk(ng3+ng4), v3 = wk(ng3+2*ng4), &
- !                 v2 = wk(ng3+2*ng4+ng), rs=iwk(1), d=iwk(ng+1))
-
-!    crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk)
-
-
-subroutine crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v3, v2, rs, d)
-    implicit none
-
-    ! Input variables
-    integer, intent(in) :: m(n), ig(n), n, ng, ng1, nv
-    integer, intent(inout) :: rs(ng), d(0:2,ng)
-    double precision, intent(in) :: y(n), rho
-    double precision, intent(inout) :: f1m(ng), f1(ng), skmm(ng), skm(ng), s(ng1), v(nv), c(ng,ng), a(ng,ng), v3(ng), v2(ng1,ng)
-!    integer, intent(in) :: n, ng, ng1, nv
- !   double precision, intent(in) :: rho
- !   double precision, intent(in) :: y(n), m(n)
- !   integer, intent(in) :: ig(n)
- !   integer, intent(inout) :: f1m(ng), f1(ng), skmm(ng), skm(ng)
- !   double precision, intent(inout) :: s(ng1)
- !   integer, intent(inout) :: c(ng, ng)
- !   double precision, intent(inout) :: a(ng, ng), v(nv), v3(ng)
- !   double precision, intent(inout) :: v2(ng1, ng)
- !   integer, intent(inout) :: rs(ng), d(0:2, ng)
-
-    ! Temporary variables
-    double precision :: fm, f, fb, tr, tq, t1, t2, t3, t4, t5, t6, td
-    integer :: i, j, k, l, ll, lu, nd1, nd2
-
-    ! Initialize risk set sizes and other variables
-    rs = 0
-    f1m = 0.0d0
-    f1 = 0.0d0
-    skmm = 1.0d0
-    skm = 1.0d0
-    v3 = 0.0d0
-    v2 = 0.0d0
-    c = 0.0d0
-    a = 0.0d0
-
-    ! Loop over unique times
-    ll = 1
-    lu = ll
-50  lu = lu + 1
-    if (lu > n) goto 55
-    if (y(lu) > y(ll)) goto 55
-    goto 50
-55  lu = lu - 1
-    nd1 = 0
-    nd2 = 0
-
-    ! Compute d matrix
-    d = 0
-    do i = ll, lu
-        j = ig(i)
-        k = m(i)
-        d(k, j) = d(k, j) + 1
-    end do
-
-    ! Calculate nd1 and nd2
-    nd1 = sum(d(1, :))
-    nd2 = sum(d(2, :))
-
-    if (nd1 == 0 .and. nd2 == 0) goto 90
-
-    tr = 0
-    tq = 0
-
-    ! Calculate f1 and s
-    do i = 1, ng
-        if (rs(i) > 0) then
-            td = d(1, i) + d(2, i)
-            skm(i) = skmm(i) * (rs(i) - td) / rs(i)
-            f1(i) = f1m(i) + (skmm(i) * d(1, i)) / rs(i)
-            tr = tr + rs(i) / skmm(i)
-            tq = tq + rs(i) * (1 - f1m(i)) / skmm(i)
-        end if
-    end do
-
-    f = fm + nd1 / tr
-    fb = (1 - fm)**rho
-
-    ! Update matrix a and c
-    do i = 1, ng
-        if (rs(i) > 0) then
-            t1 = rs(i) / skmm(i)
-            a(i, i) = fb * t1 * (1 - t1 / tr)
-            if (a(i, i) /= 0) c(i, i) = c(i, i) + a(i, i) * nd1 / (tr * (1 - fm))
-            do j = i+1, ng
-                if (rs(j) > 0) then
-                    a(i, j) = -fb * t1 * rs(j) / (skmm(j) * tr)
-                    if (a(i, j) /= 0) c(i, j) = c(i, j) + a(i, j) * nd1 / (tr * (1 - fm))
-                end if
-            end do
-        end if
-    end do
-
-    ! Symmetrize matrices
-    do i = 2, ng
-        k = i - 1
-        do j = 1, k
-            a(i, j) = a(j, i)
-            c(i, j) = c(j, i)
-        end do
-    end do
-
-    ! Update s and v
-    do i = 1, ng1
-        if (rs(i) > 0) then
-            s(i) = s(i) + fb * (d(1, i) - nd1 * rs(i) * (1 - f1m(i)) / (skmm(i) * tq))
-        end if
-    end do
-
-    if (nd1 > 0) then
-        do k = 1, ng
-            if (rs(k) > 0) then
-                t4 = 1
-                if (skm(k) > 0) t4 = 1 - (1 - f) / skm(k)
-                t5 = 1
-                if (nd1 > 1) t5 = 1 - (nd1 - 1) / (tr * skmm(k) - 1)
-                t3 = t5 * skmm(k) * nd1 / (tr * rs(k))
-                v3(k) = v3(k) + t4**2 * t3
-                do i = 1, ng1
-                    t1 = a(i, k) - t4 * c(i, k)
-                    v2(i, k) = v2(i, k) + t1 * t4 * t3
-                    do j = 1, i
-                        l = i * (i - 1) / 2 + j
-                        t2 = a(j, k) - t4 * c(j, k)
-                        v(l) = v(l) + t1 * t2 * t3
-                    end do
-                end do
-            end if
-        end do
-    end if
-
-    if (nd2 > 0) then
-        do k = 1, ng
-            if (skm(k) > 0 .and. d(2, k) > 0) then
-                t4 = (1 - f) / skm(k)
-                t5 = 1
-                if (d(2, k) > 1) t5 = 1 - (d(2, k) - 1) / (rs(k) - 1.0d0)
-                t6 = rs(k)
-                t3 = t5 * (skmm(k)**2) * d(2, k) / (t6**2)
-                v3(k) = v3(k) + t4**2 * t3
-                do i = 1, ng1
-                    t1 = t4 * c(i, k)
-                    v2(i, k) = v2(i, k) - t1 * t4 * t3
-                    do j = 1, i
-                        l = i * (i - 1) / 2 + j
-                        t2 = t4 * c(j, k)
-                        v(l) = v(l) + t1 * t2 * t3
-                    end do
-                end do
-            end if
-        end do
-    end if
-
-90  if (lu >= n) goto 30
-    do i = ll, lu
-        j = ig(i)
-        rs(j) = rs(j) - 1
-    end do
-
-    fm = f
-    f1m = f1
-    skmm = skm
-
-    ll = lu + 1
-    lu = ll
-    goto 50
-
-30  l = 0
-    do i = 1, ng1
-        do j = 1, i
-            l = l + 1
-            do k = 1, ng
-                v(l) = v(l) + c(i, k) * c(j, k) * v3(k)
-                v(l) = v(l) + c(i, k) * v2(j, k)
-                v(l) = v(l) + c(j, k) * v2(i, k)
-            end do
-        end do
-    end do
-
-    return
-end subroutine crst
