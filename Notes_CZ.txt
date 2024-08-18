@@ -2,3 +2,21 @@ Notes to Self:
 
 Location in longleaf: /nas/longleaf/home/cwzhou/Dissertation/itrSurv
 Location local: /Users/zhou/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv
+
+If you add parameters for fortran (setUpInners for example), must modify the number of arguments in itrSurv_init.c.
+
+Updated July 2024:
+Now incorporating a second endpoint, recurrent event.
+
+Updated 1/17/24:
+
+To install in cluster (linux):
+First, build source .tar.gz file from .RProj on local machine, then copy to cluster location. Then, unzip the file by doing the following:
+1) go to the folder that has the R scripts you want to run
+2) open R by typing R (make sure you module load r/X.X.X the right version)
+3) type: install.packages('[location of .tar.gz file]/itrSurv_0.1.0.tar.gz', repos = NULL, type='source')
+4) library(itrSurv)
+5) exit and run bash CR_S2run.sh
+
+! If package is ONLY binary and not source, then go to DESCRIPTION and delete the line with "BUILT" and "PACKAGED"
+

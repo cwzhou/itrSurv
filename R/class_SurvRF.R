@@ -933,8 +933,8 @@ setMethod(f = ".PredictAll",
     # print("test5")
     tol_V_star = (1-eps0_ratio)*V_star
 
-    if (!(Phase %in% c(1, "Survival", 2, "CR"))) {
-      stop("Phase must be either 1, 'Survival', 2, or 'CR'.")
+    if (!(Phase %in% c(1, "Survival", 2, "CR", "RE"))) {
+      stop("Phase must be either 1, 'Survival', 2, or 'CR', or 'RE'.")
     }
     if (Phase == 1 | Phase == "Survival"){
       # for each subject, compare all trt survival prob/means to V_star (aka argmax) and see if its within eps0_ratio
@@ -1004,8 +1004,8 @@ setMethod(f = ".PredictAll",
     eps0_diff_mean = eps0[3]
     eps0_diff_prob = eps0[4]
 
-    if (!(Phase %in% c(1, "Survival", 2, "CR"))) {
-      stop("Phase must be either 1, 'Survival', 2, or 'CR'.")
+    if (!(Phase %in% c(1, "Survival", 2, "CR", "RE"))) {
+      stop("Phase must be either 1, 'Survival', 2, or 'CR' or 'RE'.")
     }
 
     if (Phase == 1 | Phase == "Survival"){
@@ -1065,7 +1065,7 @@ setMethod(f = ".PredictAll",
   }
 
   # print("test7")
-  if (Phase == 2 | Phase == "CR"){
+  if (Phase == 2 | Phase == "CR" | Phase == "RE"){
     # dont care about going to another phase
     num_trts = rep(99, length(optTx))
     stop_ind = rep(99, length(optTx))

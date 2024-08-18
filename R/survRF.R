@@ -39,9 +39,9 @@
 # sampleSize = sampleSize)
 
 .survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
-                    pr, params, mTry, sampleSize) {
-  # message("---------- starting .survRF function from survRF.R ----------------")
-  # print(Phase)
+                    pr, pr2, params, mTry, sampleSize) {
+  message("---------- starting .survRF function from survRF.R ----------------")
+  print(Phase)
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -60,8 +60,18 @@
   # nSamples = params@nSamples
   message('number of individuals in training data: ', nSamples)
 
+  # View(pr)
+  # View(pr2)
+  # message("dim pr:", dim(pr))
+  # if (endPoint == "RE"){
+  #   message("dim pr2:", dim(pr2))
+  # }
+
   # number of time points
   nTimes <- nrow(x = pr)
+  if (is.null(nTimes)){
+    nTimes = length(x = pr)
+  }
   message('number of time points: ', nTimes)
 
   # total number of trees to be grown in the forest
@@ -80,15 +90,23 @@
   # convert factors to integers
   x = data.matrix(frame = x)
   nr = nrow(x = x) # number of individuals based on covariate length
-  # message("number of individuals, nr: ", nr)
+  message("number of individuals, nr: ", nr)
 
-  # message("setUpInners: Send info to Fortran")
+  message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
+  rownames(pr) = tp.tmp
+  rownames(pr2) = tp.tmp
+  print(pr)
+  print(pr2)
+  print("hi")
+  print(delta)
+  print(delta_endpoint)
   res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x), # covariates
                  t_pr = as.double(x = t(x = pr)), # pr
+                 t_pr2 = as.double(x = t(x = pr2)), # pr2 for recurrent event
                  t_delta = as.integer(x = delta), # delta failure
                  t_delta_m = as.integer(x = delta_endpoint), # endpoint delta
                  t_mTry = as.integer(x = mTry),
@@ -98,7 +116,7 @@
                  t_nrNodes = as.integer(x = maxNodes),
                  PACKAGE = "itrSurv")
 
-  # message("================= Phase: ", Phase)
+  message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
     # print("survTree: survTree in Fortran")

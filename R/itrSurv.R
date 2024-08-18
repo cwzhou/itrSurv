@@ -136,7 +136,8 @@
 #'   logrankre = 5
 #'   meanre = 6
 #'   if splitRule <=2 then Phase 1 survival
-#'   if splitRule >=3 then Phase 2 endpoint (CR)
+#'   if splitRule 3-4 then Phase 2 endpoint (CR)
+#'   if splitRule >4 then Phase 2 endpoint (RE)
 #'
 #' @param ERT A logical object. If TRUE, the Extremely Randomized Trees
 #'   algorithm is used to select the candidate variable.
@@ -492,8 +493,6 @@ itrSurv <- function(data,
                         nSamples = nSamples,
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)
-  # View(params)
-  # message("End of params.")
 
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -533,6 +532,14 @@ itrSurv <- function(data,
   # message("FJDSD;JF: as.integer(x = .NTimes(object = params1)):", as.integer(.NTimes(object = params1)))
   # print(.NTimes(object = params1))
   # View(params1)
+
+  tmp.z<<- .Fortran("temporary",
+                 s = as.double(x = 10),
+                 vs = as.double(x = 2),
+                 z = as.double(1),
+                 PACKAGE = "itrSurv")
+  print(tmp.z)
+  stop("TESTING FORTRAN")
   res1 = .Fortran("setUpBasics",
                  t_nt = as.integer(x = .NTimes(object = params1)),
                  t_dt = as.double(x = .TimeDiff(object = params1)),
@@ -601,7 +608,6 @@ itrSurv <- function(data,
   # View(Phase1Results)
   assign("Phase1Results_survival", Phase1Results, envir = .GlobalEnv)
   phaseResults[[1]] <- Phase1Results
-stop("TMP STOP")
 
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")

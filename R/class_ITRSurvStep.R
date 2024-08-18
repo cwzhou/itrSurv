@@ -297,7 +297,7 @@ setMethod(f = ".Predict",
                          txName,
                          mTry,
                          sampleSize) {
-  # print("---STARTING ITRSURVSTEP---")
+  print("---STARTING ITRSURVSTEP---")
 
   ###########################################################################
   ############################ PHASE 1: SURVIVAL ############################
@@ -352,9 +352,11 @@ setMethod(f = ".Predict",
     ###########################################################################
   } else{ # endpoint Phase 2
     dataset = data[[2]]
+    # print(0)
 
     mod <- model_ep$models # for endpoint model
     mod_surv <- model_surv$models
+    # print(1)
 
     # identify order 1 terms in formula
     order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
@@ -363,13 +365,14 @@ setMethod(f = ".Predict",
     } else {
       stop("problem in identifying covariates, verify formula\n", call. = FALSE)
     }
+    # print(3)
 
     # warn about order > 1
     orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
     if (any(orderHigh)) message("interaction terms are ignored")
 
     # extract model frame
-    x_endpoint <- stats::model.frame(formula = mod,
+    x_endpoint <<- stats::model.frame(formula = mod,
                                      data = dataset, # data_ep (endpoint dataset)
                                      na.action = na.pass)
     message("model_endpoint ", appendLF = FALSE)
@@ -380,188 +383,41 @@ setMethod(f = ".Predict",
     elig <- stats::complete.cases(x_endpoint)
 
     # extract response and delta from model frame
-    response_tmp <- stats::model.response(data = x_endpoint)
-    delta_endpoint <- response_tmp[,2L] # endpoint delta
-    response_endpoint <- response_tmp[,1L]
-    x_surv <- stats::model.frame(formula = mod_surv,
-                            data = data[[1]], # we want to Phase 1 Dataset
-                            na.action = na.pass)
-    response_surv <- stats::model.response(data = x_surv)
-    delta <- response_surv[,2L] # survival delta
-    x = x_surv # covariates of survival dataset
-    response = response_endpoint # response of endpoint dataset
+    response_tmp <<- stats::model.response(data = x_endpoint)
+    if (endPoint == "CR"){
+      delta_endpoint <<- response_tmp[,2L] # priority cause delta
+      response_endpoint <<- response_tmp[,1L]
+      response = response_endpoint # response of endpoint dataset
+    }
+    if (endPoint == "RE"){
+      delta_endpoint <<- response_tmp[,3L] # RE delta
+      response_endpoint_start <<- response_tmp[,1L]
+      response_endpoint_stop <<- response_tmp[,2L]
+      response = response_endpoint_stop
+    }
+    x_surv <<- stats::model.frame(formula = mod_surv,
+                                  # we want to Phase 2 Dataset because multiple records per person for RE; and for CR they are the same dataset
+                                  data = data[[2]],
+                                  na.action = na.pass)
+    response_surv <<- stats::model.response(data = x_surv)
+    delta <<- response_surv[,2L] # survival delta
+    x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
+
+    # stop("tmp")
   }
 
 
-  # #########################################################################
-  # ############################## PHASE 2: RE ##############################
-  # #########################################################################
-  #
-  # if (endPoint == "RE" & Phase == toString(endPoint)){
-  #   # this is RE Phase 2
-  #   mod <- model_ep$models # for RE (endpoint model)
-  #   mod_surv <- model_surv$models
-  #
-  #   # identify order 1 terms in formula
-  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
-  #   if (any(order1)) {
-  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
-  #   } else {
-  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
-  #   }
-  #
-  #   # warn about order > 1
-  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
-  #   if (any(orderHigh)) message("interaction terms are ignored")
-  #
-  #   # extract model frame
-  #   x_endpoint <- stats::model.frame(formula = mod,
-  #                                 data = data[[2]], # same dataset as Phase 1 so doesn't matter here
-  #                                 na.action = na.pass)
-  #   message("model_endpoint ", appendLF = FALSE)
-  #   tm <- as.character(mod)
-  #   message(tm[2], " ~ ", tm[3])
-  #
-  #   # identify individuals with complete data
-  #   elig <- stats::complete.cases(x_endpoint)
-  #
-  #   # extract response and delta from model frame
-  #   response_tmp <- stats::model.response(data = x_endpoint)
-  #   delta_endpoint <- response_tmp[,2L] # competing risk delta
-  #   response_endpoint <- response_tmp[,1L]
-  #   x <- stats::model.frame(formula = mod_surv,
-  #                           data = data[[1]], # we want to Phase 1 Dataset
-  #                           na.action = na.pass)
-  #   response_surv <- stats::model.response(data = x)
-  #   delta <- response_surv[,2L] # survival delta
-  # }
-  #
-  # #########################################################################
-  # ############################## PHASE 2: CR ##############################
-  # #########################################################################
-  #
-  # if (endPoint == "CR" & Phase == toString(endPoint)){
-  #   # this is CR Phase 2
-  #   mod <- model_ep$models # for CR (endpoint model)
-  #   mod_surv <- model_surv$models
-  #
-  #   # identify order 1 terms in formula
-  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
-  #   if (any(order1)) {
-  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
-  #   } else {
-  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
-  #   }
-  #
-  #   # warn about order > 1
-  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
-  #   if (any(orderHigh)) message("interaction terms are ignored")
-  #
-  #   # extract model frame
-  #   x_cause <- stats::model.frame(formula = mod,
-  #                                 data = data[[1]], # same dataset as Phase 1 so doesn't matter here
-  #                                 na.action = na.pass)
-  #   message("model_cause ", appendLF = FALSE)
-  #   tm <- as.character(mod)
-  #   message(tm[2], " ~ ", tm[3])
-  #
-  #   # identify individuals with complete data
-  #   elig <- stats::complete.cases(x_cause)
-  #
-  #   # extract response and delta from model frame
-  #   response_tmp <- stats::model.response(data = x_cause)
-  #   delta_cause <- response_tmp[,2L] # competing risk delta
-  #   response <- response_tmp[,1L]
-  #   x <- stats::model.frame(formula = mod_surv,
-  #                           data = data[[1]], # we want to Phase 1 Dataset
-  #                           na.action = na.pass)
-  #   response_surv <- stats::model.response(data = x)
-  #   delta <- response_surv[,2L] # survival delta
-  # }
-
-# BELOW IS OLD STUFF FROM BEFORE ADDING RE
-  # if (endPoint == "CR" & Phase == toString(endPoint)){
-  #   # stop("EndPoint is CR and the model_cause is specified")
-  #   # message("EndPoint is CR and Phase is CR")
-  #   if (!is.null(model_cause)){
-  #     mod <- model_cause
-  #   } else{
-  #     stop("Please identify priority cause of interest.")
-  #   }
-  #   # identify order 1 terms in formula
-  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
-  #   if (any(order1)) {
-  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
-  #   } else {
-  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
-  #   }
-  #
-  #   # warn about order > 1
-  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
-  #   if (any(orderHigh)) message("interaction terms are ignored")
-  #
-  #   # extract model frame
-  #   x_cause <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
-  #   message("model_cause ", appendLF = FALSE)
-  #   tm <- as.character(mod)
-  #   message(tm[2], " ~ ", tm[3])
-  #
-  #   # identify individuals with complete data
-  #   elig <- stats::complete.cases(x_cause)
-  #
-  #   # extract response and delta from model frame
-  #   response_tmp <- stats::model.response(data = x_cause)
-  #   delta_cause <- response_tmp[,2L]
-  #   response <- response_tmp[,1L]
-  #   x <- stats::model.frame(formula = model, data = data, na.action = na.pass)
-  #   response00 <- stats::model.response(data = x)
-  #   delta <- response00[,2L]
-  #   }
-  # else {
-  #   # message("Either NOT CR endpoint or, CR endpoint but survival stage")
-  #   mod <- model
-  #   # print(mod)
-  #
-  #   # identify order 1 terms in formula
-  #   order1 <- attr(x = stats::terms(x = mod), which = "order") == 1L
-  #   if (any(order1)) {
-  #     stageCov <- attr(x = stats::terms(x = mod), which = "term.labels")[order1]
-  #   } else {
-  #     stop("problem in identifying covariates, verify formula\n", call. = FALSE)
-  #   }
-  #
-  #   # warn about order > 1
-  #   orderHigh <- attr(x = stats::terms(x = mod), which = "order") > 1L
-  #   if (any(orderHigh)) message("interaction terms are ignored")
-  #
-  #   # extract model frame
-  #   x <- stats::model.frame(formula = mod, data = data, na.action = na.pass)
-  #   message("model ", appendLF = FALSE)
-  #   tm <- as.character(mod)
-  #   message(tm[2], " ~ ", tm[3])
-  #
-  #   # identify individuals with complete data
-  #   elig <- stats::complete.cases(x)
-  #
-  #   # extract response and delta from model frame
-  #   response <- stats::model.response(data = x)
-  #   delta <- response[,2L]
-  #   response <- response[,1L]
-  #   # print('setting delta_cause = delta but we wont use it for survival part Phase1')
-  #   delta_cause = delta
-  # }
-
-
+ # old stuff located in scratch: old itrsurvstep code.R
 
   # remove response from x TO JSUT GET COVARIATES
   if (attr(x = terms(x = mod), which = "response") == 1L) {
     x <- x[,-1L,drop = FALSE]
   }
 
-  # responses that are zero indicate censored at a previous stage
-  zeroed <- abs(x = response) < 1e-8
-
-  elig <- elig & !zeroed
+  # we aren't doing multistage.
+  # # responses that are zero indicate censored at a previous stage
+  # zeroed <- abs(x = response) < 1e-8
+  # elig <- elig & !zeroed
 
   if (sum(elig) == 0L) stop("no cases have complete data", call. = FALSE)
   # message("cases in stage: ", sum(elig))
@@ -590,31 +446,66 @@ setMethod(f = ".Predict",
                   FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk; 1 means NOT at risk
                   tp = .TimePoints(object = params)) # tp = sort(unique(timePointsEndpoint1)))
   tSurv.tmp<<-tSurv
-  # time point nearest the response without going over
-  # {nTimes x nElig}
-  pr <- {rbind(tSurv[-1L,],1)-tSurv}
+  # time point nearest the status change (response (death), censoring, recurrent event, CR,etc) without going over
+  # for RE: pr based on TStop times; pr2 based on the interval [TStart, TStop)
+
+  # pr is the first time a person changes from being at risk (0) to not being at risk (1)
+  # for pr: 1 indicates there was some sort of status change BEFORE the next tp
+  # doesn't matter if it's censoring or death or a recurrent event
   # pr gives the indicator for the time of at-risk status change (either failure or censoring)
   # the time point at which they become not at risk anymore
-  # message("tSurv")
-  # print(tSurv)
-  # message("tSurv[-1] : delete first row")
-  # print(tSurv[-1,])
-  # message("rbind(tSurv[-1],1)")
-  # print(rbind(tSurv[-1],1))
-  # message("pr")
-  # print(pr)
-  # # pr.tmp <<- pr
-  # stop("tmp stop")
-  # message('Phase: ', Phase, '. pr: nTimes x nElig: ')
-  # print(dim(pr))
-  # View(pr)
+  # in FORTRAN, we further modify to calculate at-risk or # events by multiplying by indicators of events of interest
+  # and use pr2 for RE to get subjects at-risk
+  # We also transpose before sending to Fortran
 
-  if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
+  # pr: {nTimes x nElig}
+  pr <- {rbind(tSurv[-1L,],1)-tSurv}
+  pr.tmp <- pr
+  # colnames(pr.tmp) = tp.tmp
+  # rownames(pr.tmp) = response_surv[,1]
+  pr.tmp <<- pr.tmp
+
+    if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
                                call. = FALSE)
-
   if (any(pr > 1.0) || any(pr < 0.0)) {
     stop("pr must obey 0 <= pr <= 1 -- contact maintainer", call. = FALSE)
   }
+
+  if (Phase == "RE" & endPoint == "RE"){
+    message(Phase)
+    # FOR RECURRENT EVENTS ONLY:
+    # obtain pr2 to obtain number of people at risk for recurrent event set-up
+    # pr2 shows 'at risk' to 'not at risk' for people in recurrent event set-up
+    response_re <<- cbind(response_endpoint_start, response_endpoint_stop)
+    elig<<-elig
+    # print(elig)
+    # print(response_re[elig,])
+    # Apply function to each row of response_re
+    pr2 <- apply(response_re[elig,], 1, function(row) {
+      # start-stop interval is OPEN-CLOSED: (start, stop]
+      # THIS IS TO IDENTIFY # AT RISK FOR RECORDS
+      # row[1] is the start, row[2] is the stop
+      sapply(.TimePoints(object = params), function(tp) {
+        # 1 means at risk; 0 means NOT at risk (opposite of tSurv)
+        as.integer(row[1] < tp & row[2] >= tp)
+      })
+    })
+    pr2.tmp<<-pr2
+
+    # {nTimes x nElig} # should be same dimensions as pr
+    if (any(is.na(x = pr2))) stop("NA not permitted in pr2 -- contact maintainer",
+                                  call. = FALSE)
+    if (any(pr2 > 1.0) || any(pr2 < 0.0)) {
+      stop("pr2 must obey 0 <= pr2 <= 1 -- contact maintainer", call. = FALSE)
+    }
+  } else{
+    message("we set pr2=pr since we don't use pr in this setting")
+    pr2 = pr
+  }
+  print("pr")
+  print(pr)
+  print("pr2")
+  print(pr2)
 
   # identify tx levels in limited data
   if (is.factor(x = dataset[,txName])) {
@@ -622,8 +513,6 @@ setMethod(f = ".Predict",
   } else {
     txLevels <- sort(x = unique(x = dataset[elig, txName]))
   }
-  # print("txLevels")
-  # print(txLevels)
 
   if (length(x = txLevels) == 1L) {
     message("***only one treatment level in dataset***")
@@ -637,6 +526,7 @@ setMethod(f = ".Predict",
                         x = x[elig,,drop=FALSE],
                         y = response[elig],
                         pr = pr,
+                        pr2 = pr2,
                         delta = delta[elig],
                         delta_endpoint = delta_endpoint[elig],
                         params = params,
@@ -668,6 +558,7 @@ setMethod(f = ".Predict",
                                  x = x[use,,drop=FALSE], # subset of covariates for the current treatment level
                                  y = response[use],
                                  pr = pr[,di],
+                                 pr2 = pr2[,di],
                                  delta = delta[use],
                                  delta_endpoint = delta_endpoint[use],
                                  params = params,

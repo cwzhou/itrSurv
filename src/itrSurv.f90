@@ -26,15 +26,15 @@ MODULE INNERS
 
   ! censoring indicator 1 = event from any cause (not censored; 0 = censored)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: deltaAll
-  ! censoring indicator 1 = event from cause m (not censored; 0 = censored)
+  ! censoring indicator 1 = event from cause m (not censored; 0 = censored) for CR
+  ! recurrent event indicator for RE
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: deltaAll_m
   ! event indicator 1 = event from any cause (not censored; 0 = censored)
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta
   ! COMPETING RISKS: event indicator 1 = event from cause m (not censored for cause m for CR)
-  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_m
   ! RECURRENT EVENTS: event indicator 1 = RECURRENT EVENT (0 = not a recurrent event (could be death or censoring))
-  !INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_RE
- ! number of categories in each np covariate
+  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_m
+  ! number of categories in each np covariate
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: nCat
 
   ! the probability for a random split
@@ -46,10 +46,14 @@ MODULE INNERS
 
   ! time differences
   REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: dt
+
   ! probability mass vector of survival function for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr
+  ! at risk vector for sampled cases in recurrent event setting
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2
   ! probability mass vector of survival function for all cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prAll
+
   ! covariates to be considered for split for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: x
   ! covariates to be considered for split for all cases
@@ -64,6 +68,7 @@ MODULE INNERS
   LOGICAL, SAVE :: isCIF = .FALSE.
   LOGICAL, SAVE :: isPhase1 = .FALSE.
   LOGICAL, SAVE :: isPhase2CR = .FALSE.
+  LOGICAL, SAVE :: isPhase2RE = .FALSE.
   LOGICAL, SAVE :: isPhase2 = .FALSE.
 
   TYPE NODE
@@ -687,6 +692,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         PRINT *, "&&&&&&& gray's test &&&&&&&&&"
         CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
         & atRiskRight, eventsRight_m, valuej)
+        CALL temporary(s, vs, valuej)
       END IF
       ! PRINT *, "test statistic: ", valuej
 
@@ -930,7 +936,7 @@ SUBROUTINE meanSplit(N1j, N2j, O1j, O2j, Z)
   ! PRINT *, "Kaplan Meier Estimate for Group 1: ", E1
 
   CALL kaplan(nt, N2j, O2j, E2)
-  ! PRINT *, "Kaplan Meier Estimate for Group 2: ", E1
+  ! PRINT *, "Kaplan Meier Estimate for Group 2: ", E2
 
   Z = sum((E1 - E2) * dt)
   Z = Z*Z
@@ -1166,7 +1172,7 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
 
 
   Gray_CIF = 0.d0
-  CALL CIF_mk(ns1, N1j, O1j, CIFm1, JumpCIFm1) ! cause m group 1 
+  CALL CIF_mk(ns1, N1j, O1j, CIFm1, JumpCIFm1) ! cause m group k=1 
   CALL CIF_mk(ns2, N2j, O2j, CIFm2, JumpCIFm2) ! cause m group 2 
   
   DO time = 1, ns1
@@ -2009,7 +2015,8 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
 
   isPhase1 = t_rule < 3
   isPhase2CR = t_rule > 2
-  isPhase2 = isPhase2CR
+  !isPhase2RE = t_rule
+  isPhase2 = t_rule > 2
 
   ! PRINT *, "isPhase1:", isPhase1
   ! PRINT *, "isPhase2CR:", isPhase2CR
@@ -2045,6 +2052,7 @@ END SUBROUTINE setUpBasics
 ! t_np, integer, the number of covariates
 ! t_x, real(:), the covariates
 ! t_pr, real(:), the probability mass vector of survival function
+! t_pr2, real(:), the at-risk vector for subjects in recurrent event setting (ignore for Phase 1 OS, or Phase 2 CR)
 ! t_delta, integer(:), the indicator of censoring
 ! t_delta_m, integer(:), the indicator of censoring for cause m (for CR endpoint)
 ! t_mTry, integer, the maximum number of covariates to try for splitting
@@ -2052,7 +2060,7 @@ END SUBROUTINE setUpBasics
 ! t_sampleSize, integer, the number of cases to sample for each tree
 ! t_ntree, integer, the number of trees in the forest
 ! t_nrNodes, integer, the maximum number of nodes
-SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_delta, t_delta_m, t_mTry, t_nCat, &
+SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_delta, t_delta_m, t_mTry, t_nCat, &
                       & t_sampleSize, t_nTree, t_nrNodes)
 
   USE INNERS
@@ -2063,8 +2071,9 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_delta, t_delta_m, t_mTry, t_nCat,
   INTEGER, INTENT(IN) :: t_np
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr
+  REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr2 ! for RE only
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta
-  INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta_m
+  INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta_m ! endpoint delta
   INTEGER, INTENT(IN) :: t_mTry
   INTEGER, DIMENSION(1:t_np), INTENT(IN) :: t_nCat
   INTEGER, INTENT(IN) :: t_sampleSize
@@ -2075,7 +2084,7 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_delta, t_delta_m, t_mTry, t_nCat,
   LOGICAL :: are_equal
   
 
-  ! PRINT *, "******************** setUpInners ********************"
+  PRINT *, "******************** setUpInners ********************"
   nAll = t_n
   np = t_np
 
@@ -2094,6 +2103,9 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_delta, t_delta_m, t_mTry, t_nCat,
 
   PRINT *, "t_pr"
   PRINT *, t_pr
+
+  PRINT *, "t_pr2"
+  PRINT *, t_pr2
 
   xAll = reshape(t_x, (/nAll,np/))
   prAll = reshape(t_pr, (/nAll,nt/))
@@ -2222,3 +2234,289 @@ END SUBROUTINE getTree
 !  CALL random_number(dRes)
 !END FUNCTION
 ! =================================================================================
+
+! delete this later
+SUBROUTINE temporary(s,vs,z)
+USE INNERS
+IMPLICIT NONE
+
+double precision, intent(in) :: s, vs
+double precision, intent(out) :: z
+
+! CALL crstm()
+
+z = s/sqrt(vs)
+z = z*z
+
+END SUBROUTINE temporary
+
+
+! Copyright (C) 2000 Robert Gray
+! Distributed under the terms of the GNU public license
+
+SUBROUTINE crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk,z)
+    implicit none
+
+    ! Input variables  
+        integer, intent(in) :: ig(no), ist(no), m(no), no, nst, ng
+    double precision, intent(in) :: y(no), rho
+    double precision, intent(inout) :: ys(no)
+    integer, intent(inout) :: igs(no), ms(no)
+  
+    ! Output variables
+    double precision, intent(out) :: s(ng-1), vs(ng-1, ng-1)
+    double precision, intent(out) :: v(ng*(ng-1)/2), st(ng-1), vt(ng*(ng-1)/2)
+    double precision, intent(out) :: z
+
+    ! Temporary arrays and variables
+    double precision, dimension(ng*(4+3*ng)) :: wk
+    integer, dimension(4*ng) :: iwk
+    integer :: i, j, l, ks, ng1, ng2, n
+    integer :: ng3, ng4
+
+    ng1 = ng - 1
+    ng2 = ng * ng1 / 2
+    l = 0
+    
+    ! Initialize s and v
+    s = 0.0d0
+    v = 0.0d0
+
+    ! Loop over strata
+    do ks = 1, nst
+        n = 0
+        do i = 1, no
+            if (ist(i) == ks) then
+                n = n + 1
+                ys(n) = y(i)
+                ms(n) = m(i)
+                igs(n) = ig(i)
+            end if
+        end do
+        
+        ! Call subroutine crst
+        ng3 = 4 * ng + 1
+        ng4 = ng * ng
+        call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
+                  wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
+                  wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
+                  wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
+        
+        ! Update s and v
+        do i = 1, ng1
+            s(i) = s(i) + st(i)
+            do j = 1, i
+                l = l + 1
+                v(l) = v(l) + vt(l)
+            end do
+        end do
+    end do
+
+    ! Populate vs matrix
+    l = 0
+    do i = 1, ng1
+        do j = 1, i
+            l = l + 1
+            vs(i, j) = v(l)
+            vs(j, i) = vs(i, j)
+        end do
+    end do
+
+    PRINT *, "vs"
+    PRINT *, vs
+    
+    z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups.
+    PRINT *, "z", z
+
+    return
+end subroutine crstm
+
+
+
+ !           call crst(y = ys(1), m = ms(1), ig =igs(1), n = n, ng = ng, rho = rho, s = st, v = vt, ng1 = ng1, nv = ng2, &
+ !                f1m = wk(1), f1 = wk(ng+1), skmm = wk(2*ng+1), skm = wk(3*ng+1), &
+ !                 c= wk(ng3), a= wk(ng3+ng4), v3 = wk(ng3+2*ng4), &
+ !                 v2 = wk(ng3+2*ng4+ng), rs=iwk(1), d=iwk(ng+1))
+
+!    crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk)
+
+
+subroutine crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v3, v2, rs, d)
+    implicit none
+
+    ! Input variables
+    integer, intent(in) :: m(n), ig(n), n, ng, ng1, nv
+    integer, intent(inout) :: rs(ng), d(0:2,ng)
+    double precision, intent(in) :: y(n), rho
+    double precision, intent(inout) :: f1m(ng), f1(ng), skmm(ng), skm(ng), s(ng1), v(nv), c(ng,ng), a(ng,ng), v3(ng), v2(ng1,ng)
+!    integer, intent(in) :: n, ng, ng1, nv
+ !   double precision, intent(in) :: rho
+ !   double precision, intent(in) :: y(n), m(n)
+ !   integer, intent(in) :: ig(n)
+ !   integer, intent(inout) :: f1m(ng), f1(ng), skmm(ng), skm(ng)
+ !   double precision, intent(inout) :: s(ng1)
+ !   integer, intent(inout) :: c(ng, ng)
+ !   double precision, intent(inout) :: a(ng, ng), v(nv), v3(ng)
+ !   double precision, intent(inout) :: v2(ng1, ng)
+ !   integer, intent(inout) :: rs(ng), d(0:2, ng)
+
+    ! Temporary variables
+    double precision :: fm, f, fb, tr, tq, t1, t2, t3, t4, t5, t6, td
+    integer :: i, j, k, l, ll, lu, nd1, nd2
+
+    ! Initialize risk set sizes and other variables
+    rs = 0
+    f1m = 0.0d0
+    f1 = 0.0d0
+    skmm = 1.0d0
+    skm = 1.0d0
+    v3 = 0.0d0
+    v2 = 0.0d0
+    c = 0.0d0
+    a = 0.0d0
+
+    ! Loop over unique times
+    ll = 1
+    lu = ll
+50  lu = lu + 1
+    if (lu > n) goto 55
+    if (y(lu) > y(ll)) goto 55
+    goto 50
+55  lu = lu - 1
+    nd1 = 0
+    nd2 = 0
+
+    ! Compute d matrix
+    d = 0
+    do i = ll, lu
+        j = ig(i)
+        k = m(i)
+        d(k, j) = d(k, j) + 1
+    end do
+
+    ! Calculate nd1 and nd2
+    nd1 = sum(d(1, :))
+    nd2 = sum(d(2, :))
+
+    if (nd1 == 0 .and. nd2 == 0) goto 90
+
+    tr = 0
+    tq = 0
+
+    ! Calculate f1 and s
+    do i = 1, ng
+        if (rs(i) > 0) then
+            td = d(1, i) + d(2, i)
+            skm(i) = skmm(i) * (rs(i) - td) / rs(i)
+            f1(i) = f1m(i) + (skmm(i) * d(1, i)) / rs(i)
+            tr = tr + rs(i) / skmm(i)
+            tq = tq + rs(i) * (1 - f1m(i)) / skmm(i)
+        end if
+    end do
+
+    f = fm + nd1 / tr
+    fb = (1 - fm)**rho
+
+    ! Update matrix a and c
+    do i = 1, ng
+        if (rs(i) > 0) then
+            t1 = rs(i) / skmm(i)
+            a(i, i) = fb * t1 * (1 - t1 / tr)
+            if (a(i, i) /= 0) c(i, i) = c(i, i) + a(i, i) * nd1 / (tr * (1 - fm))
+            do j = i+1, ng
+                if (rs(j) > 0) then
+                    a(i, j) = -fb * t1 * rs(j) / (skmm(j) * tr)
+                    if (a(i, j) /= 0) c(i, j) = c(i, j) + a(i, j) * nd1 / (tr * (1 - fm))
+                end if
+            end do
+        end if
+    end do
+
+    ! Symmetrize matrices
+    do i = 2, ng
+        k = i - 1
+        do j = 1, k
+            a(i, j) = a(j, i)
+            c(i, j) = c(j, i)
+        end do
+    end do
+
+    ! Update s and v
+    do i = 1, ng1
+        if (rs(i) > 0) then
+            s(i) = s(i) + fb * (d(1, i) - nd1 * rs(i) * (1 - f1m(i)) / (skmm(i) * tq))
+        end if
+    end do
+
+    if (nd1 > 0) then
+        do k = 1, ng
+            if (rs(k) > 0) then
+                t4 = 1
+                if (skm(k) > 0) t4 = 1 - (1 - f) / skm(k)
+                t5 = 1
+                if (nd1 > 1) t5 = 1 - (nd1 - 1) / (tr * skmm(k) - 1)
+                t3 = t5 * skmm(k) * nd1 / (tr * rs(k))
+                v3(k) = v3(k) + t4**2 * t3
+                do i = 1, ng1
+                    t1 = a(i, k) - t4 * c(i, k)
+                    v2(i, k) = v2(i, k) + t1 * t4 * t3
+                    do j = 1, i
+                        l = i * (i - 1) / 2 + j
+                        t2 = a(j, k) - t4 * c(j, k)
+                        v(l) = v(l) + t1 * t2 * t3
+                    end do
+                end do
+            end if
+        end do
+    end if
+
+    if (nd2 > 0) then
+        do k = 1, ng
+            if (skm(k) > 0 .and. d(2, k) > 0) then
+                t4 = (1 - f) / skm(k)
+                t5 = 1
+                if (d(2, k) > 1) t5 = 1 - (d(2, k) - 1) / (rs(k) - 1.0d0)
+                t6 = rs(k)
+                t3 = t5 * (skmm(k)**2) * d(2, k) / (t6**2)
+                v3(k) = v3(k) + t4**2 * t3
+                do i = 1, ng1
+                    t1 = t4 * c(i, k)
+                    v2(i, k) = v2(i, k) - t1 * t4 * t3
+                    do j = 1, i
+                        l = i * (i - 1) / 2 + j
+                        t2 = t4 * c(j, k)
+                        v(l) = v(l) + t1 * t2 * t3
+                    end do
+                end do
+            end if
+        end do
+    end if
+
+90  if (lu >= n) goto 30
+    do i = ll, lu
+        j = ig(i)
+        rs(j) = rs(j) - 1
+    end do
+
+    fm = f
+    f1m = f1
+    skmm = skm
+
+    ll = lu + 1
+    lu = ll
+    goto 50
+
+30  l = 0
+    do i = 1, ng1
+        do j = 1, i
+            l = l + 1
+            do k = 1, ng
+                v(l) = v(l) + c(i, k) * c(j, k) * v3(k)
+                v(l) = v(l) + c(i, k) * v2(j, k)
+                v(l) = v(l) + c(j, k) * v2(i, k)
+            end do
+        end do
+    end do
+
+    return
+end subroutine crst
