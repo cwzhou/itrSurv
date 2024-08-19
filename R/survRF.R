@@ -11,6 +11,16 @@
 # @param pr A matrix object {nt x n}. Probability mass vector of survival
 #   function
 #
+# @param pr2 A matrix object {nt x n}. Used to calculate at-risk subjects for RE
+#   which has multiple records per subject
+#
+# @param ord_causeind A response-ordered vector of cause status (for CR). Needed for
+#   Gray's Test for node-splitting. 0 = censored, 1 = priority cause, 2 = any other causes.
+#   Vector of 0s for RE or CR where test is not Gray's test.
+#
+# @param ord_response An ordered vector of response (for CR). Needed for
+#   Gray's Test for node-splitting. Vector of 0s for RE or CR where test is not Gray's test.
+#
 # @param params A Parameters object. All information that regulates tree and
 #   specifies analysis preferences.
 #
@@ -39,7 +49,7 @@
 # sampleSize = sampleSize)
 
 .survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
-                    pr, pr2, params, mTry, sampleSize) {
+                    pr, pr2, ord_causeind, ord_response, params, mTry, sampleSize) {
   message("---------- starting .survRF function from survRF.R ----------------")
   print(Phase)
   # if x_i is an unordered factor, nCat_i is the number of levels
@@ -92,21 +102,23 @@
   nr = nrow(x = x) # number of individuals based on covariate length
   message("number of individuals, nr: ", nr)
 
-  message("setUpInners: Send info to Fortran")
+  # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
-  rownames(pr) = tp.tmp
-  rownames(pr2) = tp.tmp
-  print(pr)
-  print(pr2)
-  print("hi")
-  print(delta)
-  print(delta_endpoint)
+  # rownames(pr) = tp.tmp
+  # rownames(pr2) = tp.tmp
+  # print(pr)
+  # print(pr2)
+  # print("hi")
+  # print(delta)
+  # print(delta_endpoint)
   res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x), # covariates
                  t_pr = as.double(x = t(x = pr)), # pr
                  t_pr2 = as.double(x = t(x = pr2)), # pr2 for recurrent event
+                 t_ord_causeind = as.double(x = ord_causeind), # CR: response-ordered cause status #RE: vec of 0s
+                 t_ord_response = as.double(x = ord_response), # CR: ordered response #RE: vec of 0s
                  t_delta = as.integer(x = delta), # delta failure
                  t_delta_m = as.integer(x = delta_endpoint), # endpoint delta
                  t_mTry = as.integer(x = mTry),
@@ -116,7 +128,7 @@
                  t_nrNodes = as.integer(x = maxNodes),
                  PACKAGE = "itrSurv")
 
-  message(" dfgdfgd ================= Phase: ", Phase)
+  # message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
     # print("survTree: survTree in Fortran")

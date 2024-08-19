@@ -293,6 +293,8 @@ setMethod(f = ".Predict",
                          # model_cause,
                          endPoint,
                          data,
+                         ord_causeind,
+                         ord_response,
                          params,
                          txName,
                          mTry,
@@ -502,10 +504,10 @@ setMethod(f = ".Predict",
     message("we set pr2=pr since we don't use pr in this setting")
     pr2 = pr
   }
-  print("pr")
-  print(pr)
-  print("pr2")
-  print(pr2)
+  # print("pr")
+  # print(pr)
+  # print("pr2")
+  # print(pr2)
 
   # identify tx levels in limited data
   if (is.factor(x = dataset[,txName])) {
@@ -527,6 +529,8 @@ setMethod(f = ".Predict",
                         y = response[elig],
                         pr = pr,
                         pr2 = pr2,
+                        ord_causeind = ord_causeind[elig],
+                        ord_response = ord_response[elig],
                         delta = delta[elig],
                         delta_endpoint = delta_endpoint[elig],
                         params = params,
@@ -559,6 +563,8 @@ setMethod(f = ".Predict",
                                  y = response[use],
                                  pr = pr[,di],
                                  pr2 = pr2[,di],
+                                 ord_causeind = ord_causeind[use],
+                                 ord_response = ord_response[use],
                                  delta = delta[use],
                                  delta_endpoint = delta_endpoint[use],
                                  params = params,

@@ -40,10 +40,10 @@ setMethod(f = ".VerifyData",
               idName <- .VerifyIdName(idName = idName, data = data)
 
               # ensure that 'epName' is provided as a character or character vector and
-              # that the provided names are present in 'data'. This input defines the
-              # dataset for the endpoint Phase analysis. If 'epName' is appropriate,
-              # the object returned is the original input without modification.
-              epName <- .VerifyEpName(epName = epName, data = data)
+              # that the provided names are present in 'data'. For RE: this input defines the
+              # dataset for the endpoint Phase analysis. For CR: this is needed for 'gray_cr' test.
+              # If 'epName' is appropriate, the object returned is the original input without modification.
+              epName <- .VerifyEpName(epName = epName, data = data, endPoint = endPoint)
 
               # Determining Phase 1 and Phase 2 Datasets (in case they differ like in RE)
               # message("First, we identify failure dataset")
@@ -65,7 +65,6 @@ setMethod(f = ".VerifyData",
               }
 
               } else{ # CR
-                epName = NULL
                 idName = NULL
                 # for CR, the dataset is the same for both phase 1 and phase 2
                 message("Phase 1 and Phase 2 datasets are the same.")

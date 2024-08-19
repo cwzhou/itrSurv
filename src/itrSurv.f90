@@ -55,6 +55,9 @@ MODULE INNERS
   ! probability mass vector of survival function for all cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prAll
 
+  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: ord_responseAll
+  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: ord_causeindAll
+
   ! covariates to be considered for split for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: x
   ! covariates to be considered for split for all cases
@@ -208,32 +211,31 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   REAL(dp) :: rnd, random1
   
 ! for crstm  ! rho_set0, nst_set1, and ng_set2 defined in modules inners
-  REAL(dp) :: rho_set0, y_set(nAll), ys_set(nAll), ms_set(nAll), igs_set(nAll)
-  INTEGER :: ig_setSplit(nAll), ist_set1(nAll), m_set(nAll)
-  REAL(dp) :: s_set(ng_set2-1), vs_set(ng_set2-1, ng_set2-1)
-  REAL(dp) :: v_set(ng_set2*(ng_set2-1)/2), st_set(ng_set2-1), vt_set(ng_set2*(ng_set2-1)/2)
+  REAL(dp) :: rho_set0, y_set(nAll)
+  INTEGER :: ig_setSplit(nAll), m_set(nAll)
+  INTEGER :: ist_set1(nAll)
+  REAL(dp) :: ys_set(nAll)
+  REAL(dp) :: ms_set(nAll)
+  REAL(dp) :: igs_set(nAll)
+  REAL(dp) :: s_set(ng_set2-1)
+  REAL(dp) :: vs_set(ng_set2-1, ng_set2-1)
+  REAL(dp) :: v_set(ng_set2*(ng_set2-1)/2)
+  REAL(dp) :: st_set(ng_set2-1)
+  REAL(dp) :: vt_set(ng_set2*(ng_set2-1)/2)
   REAL(dp), DIMENSION(ng_set2*(4+3*ng_set2)) :: wk_set
-  integer, dimension(4*ng_set2) :: iwk_set
-  
-  
-  EXTERNAL :: rnd
+  INTEGER, DIMENSION(4*ng_set2) :: iwk_set
 
+  ! below is old code that doesn't initialize
+  ! REAL(dp) :: s_set(ng_set2-1), vs_set(ng_set2-1, ng_set2-1)
+  ! REAL(dp) :: v_set(ng_set2*(ng_set2-1)/2), st_set(ng_set2-1), vt_set(ng_set2*(ng_set2-1)/2)
+  ! REAL(dp), DIMENSION(ng_set2*(4+3*ng_set2)) :: wk_set
+  ! integer, dimension(4*ng_set2) :: iwk_set
+
+  EXTERNAL :: rnd
   are_equal = .TRUE.
 
-  write(*,'(/,A)') '============================ tfindSplit ============================'
+  !write(*,'(/,A)') '============================ tfindSplit ============================'
   ! PRINT *, "******************** tfindSplit ********************"
-
-  ! set up for crstm
-  IF (isPhase2CR) THEN
-    IF (rule == 3) THEN
-      PRINT *, "CR: Gray's Test Set-Up to split nodes"
-      rho_set0 = 0
-    ELSE IF (rule == 4) THEN
-      PRINT *, "CR: Using CSH to split nodes"
-    ELSE 
-      PRINT *, "ERROR: CR setting but Rule is not Defined/Appropriate!!"
-    END IF
-  END IF
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -319,7 +321,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
     ! ******************** splitBoundaries ********************
     ! identify minimum cases for left and right splits based on minimum uncensored cases, minimum node size, and assurance that all equal valued cases are included in the minimum nodes
-    PRINT *, "******************** splitBoundaries ********************"
+    !PRINT *, "******************** splitBoundaries ********************"
 
     rUnif = 0.d0
     rUnif_m = 0.d0
@@ -431,7 +433,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       !! extremely randomized tree methods used
 
       IF (uniformSplit .EQ. 0) THEN
-      	PRINT *, "TESTER_UNIF1"
+      	! PRINT *, "TESTER_UNIF1"
 
         ! if the cutoff is not determined from a uniform distribution
         ! randomly sample available indices to identify the last case
@@ -463,7 +465,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         ! END IF
 
       ELSE IF (uniformSplit .EQ. 1) THEN
-      	PRINT *, "TESTER_UNIF2"
+      	! PRINT *, "TESTER_UNIF2"
         ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
         random1 = rnd(0.d0, 1.d0)
         rUnif = random1 * (xSorted(splitLeftFinal+1) - &
@@ -499,7 +501,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
     END IF
 
-    PRINT *, "TESTER_UNIF-END"
+    ! PRINT *, "TESTER_UNIF-END"
 
     ! -1 is returned if cannot satisfy minimum requirements for nodes
     ! cycle to next covariate
@@ -509,7 +511,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! increment the number of covariates that have been explored
     variablesTried = variablesTried + 1
 
-    write(*,'(A)') '********************************* maxValue *********************************'
+    !write(*,'(A)') '********************************* maxValue *********************************'
     !***************** maxValue ***************
 
     ! set initial values for outputs
@@ -527,10 +529,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     eventsRight = sum(prr * &
                     & spread(dSorted(splitLeft:nCases), 2, nt), DIM = 1)
 
-    PRINT *, "eventsLeft", eventsLeft
-    PRINT *, "prl", prl
-
-    ! PRINT *, "tt1"
     ! IF (isPhase2CR) THEN 
       leftCases_m = cases(1:(splitLeft_m-1))
       rightCases_m = cases(splitLeft_m:nCases)
@@ -555,10 +553,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 		END IF
 	END IF
 
-    ! PRINT *, "tt2"
     ! looking at "at risk" set now (we want overall failure for both Step1 and Step2CR)
-    ! PRINT *, "prl: ", prl
-    ! PRINT *, "prr: ", prr
     pd1 = sum(prl, DIM = 1) ! for group 1
     pd2 = sum(prr, DIM = 1) ! for group 2
     ! PRINT *, "group1: pd1 = sum(prl, DIM = 1): ", pd1
@@ -589,14 +584,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     END IF
   END DO
 
-  ! IF (are_equal) THEN
-  !  PRINT *, "tfindSplit: Arrays delta and delta_m are equal."
-  ! ELSE
-  !  PRINT *, "tfindSplit: Arrays delta and delta_m are not equal."
-  ! END IF
-
     cnt = 1
     cnt_m = 1
+    PRINT *, "splitLeft"
+    PRINT *, splitLeft
+    PRINT *, "splitLeftFinal"
+    PRINT *, splitLeftFinal
+
     DO j = splitLeft, splitLeftFinal
       ! PRINT *, "j: ", j, "/ncnt: ", cnt, "/ncnt_m: ", cnt_m
 
@@ -669,33 +663,45 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       ! PRINT *, "denJ:", denJ
       ! write(*,'(/,/)')
 
-      ! PRINT *, "RULE IS:", rule
-
       ! calculate test statistic
       IF (rule == 1) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 1: logrank test ^^^^^"
         CALL logrank(atRiskLeft, atRiskRight, eventsLeft, numJ, &
                    & denJ, valuej)
-        ! PRINT *, "logrank statistic valuej = ", valuej
+        PRINT *, "logrank test statistic valuej = ", valuej
       ELSE IF (rule == 2) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 1: truncated mean test ^^^^^"
         CALL meanSplit(atRiskLeft, atRiskRight, eventsLeft, eventsRight, valuej)
+        PRINT *, "mean test statistic valuej = ", valuej
       ELSE IF (rule == 3) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test ^^^^^"
+        ! set up for crstm
+        IF (isPhase2CR) THEN 
+          PRINT *, "CR: Gray's Test Set-Up to split nodes"
+          y_set = ord_responseAll ! import observed ordered times
+          m_set = ord_causeindAll ! ordered failure status (0 = censored, 1 = pc, 2 = other cause)
+          ig_setSplit = 1; ! put in splitting indicator aka group membership
+          ! below are placeholder/initial values
+          rho_set0 = 0;
+          ist_set1 = 1
+        END IF
         !CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
         !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
+        valuej = 99
+        PRINT *, "Gray's test statistic valuej = ", valuej
       ELSE IF (rule == 4) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test (kaplan way - CSH) ^^^^^"
         CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
         & atRiskRight, eventsRight_m, valuej)
+        PRINT *, "CSH test statistic valuej = ", valuej
       ELSE IF (rule == 5) THEN 
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ^^^^^"
+        valuej = 99
+        PRINT *, "Q_LR test statistic valuej = ", valuej
       END IF
-      PRINT *, "test statistic: ", valuej
-
+      PRINT *, "Test DONE // test statistic: ", valuej
+        
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
-        ! PRINT *, "^^^^^ TEST 5 ^^^^^"
-
         ! if first value or value > current max, save
         IF (rUnifSet .EQ. 1) THEN
           ! PRINT *, "rUnifSet: ", rUnifSet
@@ -1322,14 +1328,9 @@ IMPLICIT NONE
             vs(j, i) = vs(i, j)
         end do !332
     end do !31
-    
-    PRINT *, "vs"
-    PRINT *, vs
-    PRINT *, "s"
-    PRINT *, s
 
     z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups (priority cause is first cause)
-    PRINT *, "z", z
+    ! PRINT *, "z", z
     ! return
 
 END SUBROUTINE crstm
@@ -2367,6 +2368,8 @@ END SUBROUTINE setUpBasics
 ! t_x, real(:), the covariates
 ! t_pr, real(:), the probability mass vector of survival function
 ! t_pr2, real(:), the at-risk vector for subjects in recurrent event setting (ignore for Phase 1 OS, or Phase 2 CR)
+! t_ord_causeind, real(:), status indicator for subjects (ordered by response) (vector of 0 for RE)
+! t_ord_response, real(:), ordered response for subjects (vector of 0 for RE)
 ! t_delta, integer(:), the indicator of censoring
 ! t_delta_m, integer(:), the indicator of censoring for cause m (for CR endpoint)
 ! t_mTry, integer, the maximum number of covariates to try for splitting
@@ -2374,7 +2377,8 @@ END SUBROUTINE setUpBasics
 ! t_sampleSize, integer, the number of cases to sample for each tree
 ! t_ntree, integer, the number of trees in the forest
 ! t_nrNodes, integer, the maximum number of nodes
-SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_delta, t_delta_m, t_mTry, t_nCat, &
+SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_response, &
+                      & t_delta, t_delta_m, t_mTry, t_nCat, &
                       & t_sampleSize, t_nTree, t_nrNodes)
 
   USE INNERS
@@ -2386,6 +2390,8 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_delta, t_delta_m, t_mTry, 
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr2 ! for RE only
+  REAL(dp), DIMENSION(1:t_n), INTENT(IN) :: t_ord_causeind ! for CR gray's test only
+  REAL(dp), DIMENSION(1:t_n), INTENT(IN) :: t_ord_response ! for CR gray's test only
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta_m ! endpoint delta
   INTEGER, INTENT(IN) :: t_mTry
@@ -2398,8 +2404,12 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_delta, t_delta_m, t_mTry, 
   LOGICAL :: are_equal
   
 
-  PRINT *, "******************** setUpInners ********************"
+  ! PRINT *, "******************** setUpInners ********************"
   nAll = t_n
+  
+  ord_causeindAll = t_ord_causeind
+  ord_responseAll = t_ord_response
+
   np = t_np
 
   IF (isAllocated) THEN
@@ -2415,16 +2425,8 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_delta, t_delta_m, t_mTry, 
 
   isAllocated = .TRUE.
 
-  PRINT *, "t_pr"
-  PRINT *, t_pr
-
-  PRINT *, "t_pr2"
-  PRINT *, t_pr2
-
   xAll = reshape(t_x, (/nAll,np/))
   prAll = reshape(t_pr, (/nAll,nt/))
-  PRINT *, "prAll"
-  PRINT *, prAll
   deltaAll = t_delta
   deltaAll_m = t_delta_m
 

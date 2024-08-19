@@ -25,10 +25,12 @@
 #'
 #' @param txName A character object. The treatment variable name.
 #'
-#' @param epName A character object. The endpoint indicator variable name. Only required for endpoint RE.
-#'   Primarily for "RE" endpoint. Refers to indicator if row is recurrent event (1) or not (0).
+#' @param epName A character object. The endpoint variable name of interest.
+#'   For "RE" endpoint: Refers to indicator if row is recurrent event (1) or not (0).
 #'   Later used to subset Phase 1 survival dataset (one row per subject).
-#'   For CR endpoint, this variable does not matter and can be left blank.
+#'   For "CR" endpoint: Refers to status indicator for causes: 0 = censored, 1 = priority cause, 2 = any other cause.
+#'   Should be inputted as one row per person for CR data.
+#'   If doing csh_cr test for "CR" endpoint, then epName is not needed.
 #'
 #' @param models A list containing formulas defining the response as a Surv() object
 #'   and the covariate structure of the model.
@@ -421,7 +423,7 @@ itrSurv <- function(data,
   del <- models_surv$delta
   models <- models_surv$models
 
-  response1 <- models_ep$response # 2-column vector for RE
+  response2 <- models_ep$response # 2-column vector for RE
   del1 <- models_ep$delta
   # for CR: del1 is priority event indicator
   # for RE: del1 is recurrent event indicator
@@ -487,7 +489,7 @@ itrSurv <- function(data,
                         tau = tau,
                         nTimes = nTimes,
                         response = response,
-                        response_endpoint = response1,
+                        response_endpoint = response2,
                         nTree = nTree,
                         ERT = ERT,
                         uniformSplit = uniformSplit,
@@ -505,6 +507,35 @@ itrSurv <- function(data,
                         nSamples = nSamples,
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)
+
+  if (endPoint == "CR" & params@endpointparam@splitRule == "gray_cr"){
+    # ensure that 'epName' is provided as a character or character vector and
+    # that the provided names are present in 'data'. For RE: this input defines the
+    # dataset for the endpoint Phase analysis. For CR: this is needed for 'gray_cr' test.
+    # If 'epName' is appropriate, the object returned is the original input without modification.
+    epName <- .VerifyEpName(epName = epName, data = data, endPoint = endPoint)
+    d0 = data
+    sym(epName)
+    cencode = 0 # this is non-negotiable
+    d <- d0[order(response),]
+    # Extract the column specified by epName
+    ord_cause_dat <- d %>% dplyr::pull(!!sym(epName))
+    censind <- ifelse(ord_cause_dat == cencode, 0, 1)
+    # we do it this way JUST IN CASE there are more than 2 causes specified in data
+    # priority cause is always first cause.
+    if (is.factor(ord_cause_dat)) {
+      uc <- table(ord_cause_dat[censind==1])
+      uclab <- names(uc)[uc>0]
+    } else {
+      uclab <- sort(unique(ord_cause_dat[censind==1])) # as.numeric(names(uc)[uc>0])
+    }
+    causeind0 <- ifelse(ord_cause_dat==uclab[1],1,0)
+    ord_causeind <<- 2*censind-causeind0
+    ord_response <<- sort(response)
+  } else{
+    ord_causeind <- rep(0, nrow(data))
+    ord_response <- rep(0, nrow(data))
+  }
 
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
   print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -593,6 +624,8 @@ itrSurv <- function(data,
                                 # model_cause = NULL, #discontinued July 2024 after adding in RE endpoint
                                 endPoint = endPoint,
                                 data = data_list, # list of data_surv and data_ep
+                                ord_causeind = ord_causeind, # only needed for CR when using grays test
+                                ord_response = ord_response, # only needed for CR when using grays test
                                 priorStep = NULL,
                                 params = params1,
                                 txName = txName[nDP],
