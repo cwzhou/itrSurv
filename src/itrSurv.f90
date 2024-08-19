@@ -187,7 +187,11 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER, INTENT(OUT) :: nCuts
   INTEGER, INTENT(OUT) :: lft
 
-  INTEGER :: cnt, cnt_m, i, ikv, j, jj, k, kv, l, nUncensored, nUncensored_m, ptr, rightNode, rightNode_m
+
+  LOGICAL, DIMENSION(nCases) :: mk
+
+  INTEGER :: cnt, cnt_m, i, cc, ikv, j, jj, k, kv, l, nUncensored, nUncensored_m, ptr, rightNode, rightNode_m
+  INTEGER :: nnn, iii, jjj, count_nonzero, ix
   INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
   INTEGER :: splitLeft_m, splitLeftFinal_m
   INTEGER :: tieValue, variablesTried
@@ -195,6 +199,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER, DIMENSION(1:nv) :: variables
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, ind_m, indSingles, indSingles_m, leftCases, leftCases_m, rightCases, rightCases_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: uncensoredIndices, uncensoredIndices_m
+
+  INTEGER, DIMENSION(1:nAll) :: group_cr
+  INTEGER, DIMENSION(:), ALLOCATABLE :: group_cr2, cases2
 
   REAL(dp) :: cutoff, maxValueSplit, maxValueXm, rUnif, rUnif_m, valuej, tester3a, tester3b
   REAL(dp), DIMENSION(1:nt) :: atRiskLeft, atRiskRight, D, D_m, denJ
@@ -234,8 +241,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   EXTERNAL :: rnd
   are_equal = .TRUE.
 
-  !write(*,'(/,A)') '============================ tfindSplit ============================'
+  write(*,'(/,A)') '============================ tfindSplit ============================'
   ! PRINT *, "******************** tfindSplit ********************"
+  PRINT *, "casesIn"
+  PRINT *, casesIn
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -318,6 +327,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     dSorted = delta(cases) ! Phase 1: overall survival (delta = event indicator from any cause)
     dSorted_m = delta_m(cases) ! Phase 2 for competing risks (delta_m = indicator for event from cause m)
     !dSorted_RE = delta_RE(cases) ! Phase 2 for recurrent events (delta_RE = indicator for recurrent events)
+
+    !PRINT *, "cases"
+    !PRINT *, cases
 
     ! ******************** splitBoundaries ********************
     ! identify minimum cases for left and right splits based on minimum uncensored cases, minimum node size, and assurance that all equal valued cases are included in the minimum nodes
@@ -518,8 +530,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     set = 0
     maxValueXm = 0.d0
     cutOff = 0.d0
-
+    
+    !**********************************************************************************************************
+    !**********************************************************************************************************
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
+    !**********************************************************************************************************
+    !**********************************************************************************************************
     leftCases = cases(1:(splitLeft-1))
     rightCases = cases(splitLeft:nCases)
     prl = pr(leftCases,:)
@@ -528,6 +544,50 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
                    & spread(dSorted(1:(splitLeft-1)), 2, nt), DIM = 1)
     eventsRight = sum(prr * &
                     & spread(dSorted(splitLeft:nCases), 2, nt), DIM = 1)
+
+    IF (isPhase2CR) THEN
+      ! Initialize the group vector with zeros
+      group_cr = 0
+      ! Assign 1 to the indices in leftCases
+      group_cr(leftCases) = 1
+      ! Assign 2 to the indices in rightCases
+      group_cr(rightCases) = 2
+
+      !PRINT *, qsort4(cases)
+      !PRINT *, "~~~~~~~~~~~~~~~~~~~"
+      !PRINT *, 'Group(cases):'
+      !PRINT *, group_cr(cases)
+      !PRINT *, 'ord_causeindAll(cases)'
+      !PRINT *, ord_causeindAll(cases)
+      !PRINT *, 'ord_responseAll(cases)'
+      !PRINT *, ord_responseAll(cases)
+      !PRINT *, "==========================="
+      mk = .TRUE.
+      DO ix = 1, nCases
+        cases2(ix) = MINVAL(cases,mk)
+        mk(MINLOC(cases,mk)) = .FALSE.
+      END DO
+
+      PRINT *, "cases2"
+      PRINT *, cases2
+
+      ! does not work rn 
+      ! CALL sort_and_subset(group_cr, cases, group_cr2)
+      ! Output the result
+      ! print *, "group_cr2: ", group_cr2
+
+    END IF
+    
+    ! Print the result
+   
+    !PRINT *, "leftCases"
+    !PRINT *, leftCases
+    !PRINT *, "rightCases"
+    !PRINT *, rightCases
+    !PRINT *, "nCases", nCases
+    !PRINT *, "cases"
+    !PRINT *, cases
+
 
     ! IF (isPhase2CR) THEN 
       leftCases_m = cases(1:(splitLeft_m-1))
@@ -880,6 +940,36 @@ END DO
 
 END SUBROUTINE kaplan
 ! =================================================================================
+
+ SUBROUTINE sort_and_subset(og, cases, subset_vector)
+    implicit none
+    integer, dimension(:), intent(in) :: og
+    integer, dimension(:), intent(in) :: cases
+    integer, dimension(:), intent(out) :: subset_vector
+    integer :: i, j, temp
+
+    ! Sort the cases array in ascending order
+    !do i = 1, size(cases)
+    !    do j = i + 1, size(cases)
+    !        if (cases(i) > cases(j)) then
+    !            temp = cases(i)
+    !            cases(i) = cases(j)
+    !            cases(j) = temp
+    !        end if
+    !    end do
+    !end do
+
+    PRINT *, "og(cases)"
+    PRINT *, og(cases)
+    
+
+    ! Initialize subset_vector with values based on the sorted cases
+    !do i = 1, size(cases)
+    !    subset_vector(i) = og(cases(i))
+    !end do
+    subset_vector = 0
+END SUBROUTINE sort_and_subset
+
 
 SUBROUTINE nelsonAalenRecurrent(ns, nj, oj, h)
   IMPLICIT NONE
@@ -1868,6 +1958,8 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       ! indices for cases contained in node
       ind = jdex(stm(k,1):stm(k,2))
+      PRINT *, "ind"
+      PRINT *, ind
 
       ! if there are deficient variables, use only these variables
       cand = cstat(:,k) .LT. floor(srs * sum(cStat(:,k)))

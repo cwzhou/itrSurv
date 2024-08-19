@@ -482,7 +482,7 @@ itrSurv <- function(data,
     }
   }
 
-  params <- .parameters(endPoint = endPoint,
+  params <<- .parameters(endPoint = endPoint,
                         timePointsSurvival = timePointsSurvival,
                         timePointsEndpoint = timePointsEndpoint,
                         timePoints = timePoints,
@@ -509,6 +509,7 @@ itrSurv <- function(data,
                         stratifiedSplit = stratifiedSplit)
 
   if (endPoint == "CR" & params@endpointparam@splitRule == "gray_cr"){
+    print("TESLFJKLSFJDKLSFJKLS")
     # ensure that 'epName' is provided as a character or character vector and
     # that the provided names are present in 'data'. For RE: this input defines the
     # dataset for the endpoint Phase analysis. For CR: this is needed for 'gray_cr' test.
@@ -624,8 +625,8 @@ itrSurv <- function(data,
                                 # model_cause = NULL, #discontinued July 2024 after adding in RE endpoint
                                 endPoint = endPoint,
                                 data = data_list, # list of data_surv and data_ep
-                                ord_causeind = ord_causeind, # only needed for CR when using grays test
-                                ord_response = ord_response, # only needed for CR when using grays test
+                                ord_causeind = ord_causeind, # only needed for Phase2 CR when using grays test
+                                ord_response = ord_response, # only needed for Phase2 CR when using grays test
                                 priorStep = NULL,
                                 params = params1,
                                 txName = txName[nDP],
@@ -731,6 +732,8 @@ itrSurv <- function(data,
                                  # model_cause = get(sprintf("models%s", cause)), #discontinued July 2024 after adding in RE endpoint
                                  endPoint = endPoint,
                                  data = data_list,  # list of data_surv and data_ep
+                                 ord_causeind = ord_causeind, # only needed for CR when using grays test
+                                 ord_response = ord_response, # only needed for CR when using grays test
                                  params = params2,
                                  txName = txName[nDP],
                                  mTry = mTry[nDP],
