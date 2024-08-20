@@ -108,8 +108,20 @@
   # rownames(pr2) = tp.tmp
   # print(pr)
   # print(pr2)
-  # print("hi")
+
+  dd <<- delta
+  oo <<- ord_causeind
+  rr <<- ord_response
+  # print('response ordered')
+  # print(ord_response)
+  # print('delta')
+  # print(length(delta))
   # print(delta)
+  # print("ord_causeind")
+  # print(length(ord_causeind))
+  # print(ord_causeind)
+
+
   # print(delta_endpoint)
   res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects
@@ -117,7 +129,7 @@
                  t_x = as.double(x = x), # covariates
                  t_pr = as.double(x = t(x = pr)), # pr
                  t_pr2 = as.double(x = t(x = pr2)), # pr2 for recurrent event
-                 t_ord_causeind = as.double(x = ord_causeind), # CR: response-ordered cause status #RE: vec of 0s
+                 t_ord_causeind = as.integer(x = ord_causeind), # CR: response-ordered cause status #RE: vec of 0s
                  t_ord_response = as.double(x = ord_response), # CR: ordered response #RE: vec of 0s
                  t_delta = as.integer(x = delta), # delta failure
                  t_delta_m = as.integer(x = delta_endpoint), # endpoint delta

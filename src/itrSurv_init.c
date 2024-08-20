@@ -15,7 +15,7 @@ extern void F77_NAME(survtree)(double *tSurvFunc, double *mean, double *survProb
 extern void F77_NAME(ciftree)(double *tFunc, double *mean, double *Prob);
 extern void F77_NAME(treedim)(int *iTree, int *nr, int *nc);
 extern void F77_NAME(temporary)(double *s, double *vs, double *z);
-/*extern void F77_NAME(crstm)(double *y, int *m, int *ig, int *ist, int *no, double *rho, int *nst, int *ng, double *s, double *vs, double *ys, int *ms, int *igs, double *v, double *st, double *vt, double *wk, int *iwk, double *z);*/
+extern void F77_NAME(crstm)(double *y, int *m, int *ig, int *ist, int *no, double *rho, int *nst, int *ng, double *s, double *vs, double *ys, int *ms, int *igs, double *v, double *st, double *vt, double *wk, int *iwk, double *z);
 
 static const R_FortranMethodDef FortranEntries[] = {
     {"gettree",         (DL_FUNC) &F77_NAME(gettree),          7},
@@ -26,7 +26,7 @@ static const R_FortranMethodDef FortranEntries[] = {
     {"ciftree",         (DL_FUNC) &F77_NAME(ciftree),         3},
     {"treedim",         (DL_FUNC) &F77_NAME(treedim),          3},
     {"temporary",       (DL_FUNC) &F77_NAME(temporary),        3},
-/*    {"crstm",           (DL_FUNC) &F77_NAME(crstm),            18},*/
+    {"crstm",           (DL_FUNC) &F77_NAME(crstm),            18},
     {NULL, NULL, 0}
 };
 

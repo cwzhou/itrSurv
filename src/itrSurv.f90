@@ -55,8 +55,8 @@ MODULE INNERS
   ! probability mass vector of survival function for all cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prAll
 
-  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: ord_responseAll
-  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: ord_causeindAll
+  REAL, DIMENSION(:), ALLOCATABLE, SAVE :: ord_responseAll
+  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: ord_causeindAll
 
   ! covariates to be considered for split for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: x
@@ -216,14 +216,14 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER :: index_delta
   LOGICAL :: notEqual
   REAL(dp) :: rnd, random1
-  
+
 ! for crstm  ! rho_set0, nst_set1, and ng_set2 defined in modules inners
   REAL(dp) :: rho_set0, y_set(nAll)
   INTEGER :: ig_setSplit(nAll), m_set(nAll)
   INTEGER :: ist_set1(nAll)
   REAL(dp) :: ys_set(nAll)
-  REAL(dp) :: ms_set(nAll)
-  REAL(dp) :: igs_set(nAll)
+  INTEGER :: ms_set(nAll)
+  INTEGER :: igs_set(nAll)
   REAL(dp) :: s_set(ng_set2-1)
   REAL(dp) :: vs_set(ng_set2-1, ng_set2-1)
   REAL(dp) :: v_set(ng_set2*(ng_set2-1)/2)
@@ -241,10 +241,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   EXTERNAL :: rnd
   are_equal = .TRUE.
 
-  write(*,'(/,A)') '============================ tfindSplit ============================'
+  !write(*,'(/,A)') '============================ tfindSplit ============================'
   ! PRINT *, "******************** tfindSplit ********************"
-  PRINT *, "casesIn"
-  PRINT *, casesIn
+  !PRINT *, "casesIn"
+  !PRINT *, casesIn
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -344,27 +344,27 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! Do below for both isPhase1 and isPhase2CR
     ! cases that are not-censored
     IF (isPhase1) THEN
-    	! PRINT *, "PHASE 1"
-    	uncensoredIndices = pack(tcases, dSorted .EQ. 1)
-    	! PRINT *, "uncensoredIndices: ", uncensoredIndices
-    	nUncensored = size(uncensoredIndices)
-    	! PRINT *, "nUncensored: ", nUncensored
+      PRINT *, "PHASE 1"
+      uncensoredIndices = pack(tcases, dSorted .EQ. 1)
+      ! PRINT *, "uncensoredIndices: ", uncensoredIndices
+      nUncensored = size(uncensoredIndices)
+      ! PRINT *, "nUncensored: ", nUncensored
     END IF
 
     IF (isPhase2CR) THEN
-    	! PRINT *, "PHASE 2 CR"
-    	uncensoredIndices = pack(tcases, dSorted_m .EQ. 1)
-    	! PRINT *, "uncensoredIndices: ", uncensoredIndices
-    	nUncensored = size(uncensoredIndices)
-    	! PRINT *, "nUncensored: ", nUncensored
+      PRINT *, "PHASE 2 CR"
+      uncensoredIndices = pack(tcases, dSorted_m .EQ. 1)
+      ! PRINT *, "uncensoredIndices: ", uncensoredIndices
+      nUncensored = size(uncensoredIndices)
+      ! PRINT *, "nUncensored: ", nUncensored
     END IF
 
     ! PRINT *, "test2a"
-    ! PRINT *, "minEvent: ", minEvent 
+    ! PRINT *, "minEvent: ", minEvent
 
     ! if too few cases to meet minimum number of uncensored cases, CYCLE
     IF (nUncensored .LT. (minEvent * 2)) CYCLE
-   
+
     !! able to split and satisfy minimum number of events in each node
 
     ! cases to left include all indices up to and including minEvent case
@@ -386,7 +386,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! move rightNode down to include cases with equivalent values of x
     ! splitLeftFinal is the last possible case for the left node
     splitLeftFinal = count(xSorted .LT. xSorted(rightNode))
-    
+
     ! if the splitLeft index is above the splitLeftFinal index cycle,
     ! split is not possible
     IF (splitLeft .GT. splitLeftFinal) CYCLE
@@ -400,7 +400,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
       ! if too few cases to meet minimum number of uncensored cases, CYCLE
       IF (nUncensored_m .LT. (minEvent * 2)) CYCLE
-     
+
       !! able to split and satisfy minimum number of events in each node
 
       ! cases to left include all indices up to and including minEvent case
@@ -445,7 +445,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       !! extremely randomized tree methods used
 
       IF (uniformSplit .EQ. 0) THEN
-      	! PRINT *, "TESTER_UNIF1"
+        ! PRINT *, "TESTER_UNIF1"
 
         ! if the cutoff is not determined from a uniform distribution
         ! randomly sample available indices to identify the last case
@@ -477,7 +477,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         ! END IF
 
       ELSE IF (uniformSplit .EQ. 1) THEN
-      	! PRINT *, "TESTER_UNIF2"
+        ! PRINT *, "TESTER_UNIF2"
         ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
         random1 = rnd(0.d0, 1.d0)
         rUnif = random1 * (xSorted(splitLeftFinal+1) - &
@@ -502,12 +502,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
          ! tester3a = rUnif
          ! tester3b = rUnif_m
          ! PRINT *, "TESTER CHECKING: splitLeft_m: ", splitLeft_m, "splitLeft: ", splitLeft
-      	 ! PRINT *, "tester3a:", tester3a, "tester3b", tester3b
+         ! PRINT *, "tester3a:", tester3a, "tester3b", tester3b
          ! IF (tester3a /= tester3b) THEN
-			! PRINT *, "ERROR: TESTER: SPLITLEFT NEQ SPLITLEFT_M"
-			! PRINT *, tester3b
-			! PRINT *, tester3a
-		! END IF
+      ! PRINT *, "ERROR: TESTER: SPLITLEFT NEQ SPLITLEFT_M"
+      ! PRINT *, tester3b
+      ! PRINT *, tester3a
+    ! END IF
 
       END IF
 
@@ -530,7 +530,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     set = 0
     maxValueXm = 0.d0
     cutOff = 0.d0
-    
+
     !**********************************************************************************************************
     !**********************************************************************************************************
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
@@ -545,6 +545,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     eventsRight = sum(prr * &
                     & spread(dSorted(splitLeft:nCases), 2, nt), DIM = 1)
 
+PRINT *, "isPhase2CR:", isPhase2CR
     IF (isPhase2CR) THEN
       ! Initialize the group vector with zeros
       group_cr = 0
@@ -552,44 +553,46 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       group_cr(leftCases) = 1
       ! Assign 2 to the indices in rightCases
       group_cr(rightCases) = 2
+      PRINT *, "~~~~~~~~~~~~~~~~~~~"
+      PRINT *, 'Group'
+      PRINT *, group_cr
+      PRINT *, 'ord_causeindAll'
+      PRINT *, ord_causeindAll
+      PRINT *, 'Group(cases):'
+      PRINT *, group_cr(cases)
+      PRINT *, 'ord_causeindAll(cases)'
+      PRINT *, ord_causeindAll(cases)
+      PRINT *, 'ord_responseAll(cases)'
+      PRINT *, ord_responseAll(cases)
+      PRINT *, "==========================="
+      !mk = .TRUE.
+      !DO ix = 1, nCases
+      !  cases2(ix) = MINVAL(cases,mk)
+      !  mk(MINLOC(cases,mk)) = .FALSE.
+      !END DO
 
-      !PRINT *, qsort4(cases)
-      !PRINT *, "~~~~~~~~~~~~~~~~~~~"
-      !PRINT *, 'Group(cases):'
-      !PRINT *, group_cr(cases)
-      !PRINT *, 'ord_causeindAll(cases)'
-      !PRINT *, ord_causeindAll(cases)
-      !PRINT *, 'ord_responseAll(cases)'
-      !PRINT *, ord_responseAll(cases)
-      !PRINT *, "==========================="
-      mk = .TRUE.
-      DO ix = 1, nCases
-        cases2(ix) = MINVAL(cases,mk)
-        mk(MINLOC(cases,mk)) = .FALSE.
-      END DO
+      !PRINT *, "cases2"
+      !PRINT *, cases2
 
-      PRINT *, "cases2"
-      PRINT *, cases2
-
-      ! does not work rn 
+      ! does not work rn
       ! CALL sort_and_subset(group_cr, cases, group_cr2)
       ! Output the result
       ! print *, "group_cr2: ", group_cr2
 
     END IF
-    
+
     ! Print the result
-   
-    !PRINT *, "leftCases"
-    !PRINT *, leftCases
-    !PRINT *, "rightCases"
-    !PRINT *, rightCases
-    !PRINT *, "nCases", nCases
-    !PRINT *, "cases"
-    !PRINT *, cases
+
+    PRINT *, "leftCases"
+    PRINT *, leftCases
+    PRINT *, "rightCases"
+    PRINT *, rightCases
+    PRINT *, "nCases", nCases
+    PRINT *, "cases"
+    PRINT *, cases
 
 
-    ! IF (isPhase2CR) THEN 
+    ! IF (isPhase2CR) THEN
       leftCases_m = cases(1:(splitLeft_m-1))
       rightCases_m = cases(splitLeft_m:nCases)
       prl_m = pr(leftCases_m,:)
@@ -602,16 +605,16 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! END IF
 
     IF (isPhase1) THEN
-		IF (ANY(leftCases_m /= leftCases)) THEN
-		    PRINT *, "LEFTCASES NEQ LEFTCASES_M"
-		END IF
-		IF (ANY(rightCases_m /= rightCases)) THEN
-		    PRINT *, "rightCASES NEQ rightCASES_M"
-		END IF
-		IF (ANY(dSorted_m /= dSorted)) THEN
-		    PRINT *, "dSorted NEQ dSorted_M"
-		END IF
-	END IF
+    IF (ANY(leftCases_m /= leftCases)) THEN
+        PRINT *, "LEFTCASES NEQ LEFTCASES_M"
+    END IF
+    IF (ANY(rightCases_m /= rightCases)) THEN
+        PRINT *, "rightCASES NEQ rightCASES_M"
+    END IF
+    IF (ANY(dSorted_m /= dSorted)) THEN
+        PRINT *, "dSorted NEQ dSorted_M"
+    END IF
+  END IF
 
     ! looking at "at risk" set now (we want overall failure for both Step1 and Step2CR)
     pd1 = sum(prl, DIM = 1) ! for group 1
@@ -621,7 +624,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! pd1_m = sum(prl_m, DIM = 1) ! for group 1
     ! pd2_m = sum(prr_m, DIM = 1) ! for group 2
 
-    ! PRINT *, "tt3"
+    PRINT *, "tt3"
     atRiskLeft(1) = splitLeft - 1
     atRiskRight(1) = nCases - splitLeft + 1
     ! PRINT *, "tt4"
@@ -658,15 +661,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       ! number of events for jth case
       pd1 = prr(cnt,:) ! at risk set for group 1 for overall survival
       ! PRINT *, "pd1: ", pd1
-      
+
       cnt = cnt + 1
       cnt_m = cnt_m + 1
-      
+
       D = pd1*delta(cases(j))
       ! PRINT *, "D: ", D
       D_m = pd1*delta_m(cases(j))
       ! PRINT *, "D_m: ", D_m
-      
+
       Rcum(1) = 0.0
       Rcum(2) = pd1(1)
       ! PRINT *, "Rcum for timepoints 1 and 2: ", Rcum
@@ -736,17 +739,41 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       ELSE IF (rule == 3) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test ^^^^^"
         ! set up for crstm
-        IF (isPhase2CR) THEN 
+        IF (isPhase2CR) THEN
           PRINT *, "CR: Gray's Test Set-Up to split nodes"
-          y_set = ord_responseAll ! import observed ordered times
-          m_set = ord_causeindAll ! ordered failure status (0 = censored, 1 = pc, 2 = other cause)
-          ig_setSplit = 1; ! put in splitting indicator aka group membership
+          
+  ! Manually input values
+  y_set = (/ 1.1_dp, 2.2_dp, 3.3_dp /)
+  ig_setSplit = (/ 0, 2, 1 /)
+  m_set = (/ 1, 2, 1 /)
+  
+  ! Print values to verify
+  print *, 'y_set:', y_set
+  print *, 'ig_setSplit:', ig_setSplit
+  print *, 'm_set:', m_set
+
+          !y_set = ord_responseAll(cases) ! import observed ordered times
+          !m_set = ord_causeindAll(cases) ! ordered failure status (0 = censored, 1 = pc, 2 = other cause)
+          !ig_setSplit = group_cr(cases); ! put in splitting indicator aka group membership
           ! below are placeholder/initial values
           rho_set0 = 0;
           ist_set1 = 1
-        END IF
-        !CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
+          PRINT *, "(((((((((((((((((( DOES THIS WORK???????? ))))))))))))))))))"
+          PRINT *, y_set(1:3)
+          print *, 'm_set(1:3):'
+          PRINT *, m_set(1:3)
+          print *, 'ig_setSplit(1:3):'
+          PRINT *, ig_setSplit(1:3)
+          PRINT *, "rho"
+          PRINT *, rho_set0
+          PRINT *, ist_set1(1:3)
+          !CALL crstm(y_set(1:3), ms_set(1:3), ig_setSplit(1:3), ist_set1(1:3), 3, rho_set0, nst_set1, ng_set2, &
         !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
+          !CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
+        !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
+          PRINT *, "end crstm"
+          PRINT *, "(((((((((((((((((( DOES THIS WORK???????? ))))))))))))))))))"
+        END IF
         valuej = 99
         PRINT *, "Gray's test statistic valuej = ", valuej
       ELSE IF (rule == 4) THEN
@@ -754,13 +781,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
         & atRiskRight, eventsRight_m, valuej)
         PRINT *, "CSH test statistic valuej = ", valuej
-      ELSE IF (rule == 5) THEN 
+      ELSE IF (rule == 5) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ^^^^^"
         valuej = 99
         PRINT *, "Q_LR test statistic valuej = ", valuej
       END IF
       PRINT *, "Test DONE // test statistic: ", valuej
-        
+
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
         ! if first value or value > current max, save
         IF (rUnifSet .EQ. 1) THEN
@@ -883,7 +910,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   ! PRINT *, "nCuts: ", nCuts
   ! PRINT *, "lft: ", lft
 
-  ! PRINT *, "============================END OF tfindSplit============================"
+  PRINT *, "============================END OF tfindSplit============================"
 
   RETURN
 
@@ -932,7 +959,7 @@ SUBROUTINE kaplan(ns, nj, oj, z)
         PRINT *, "oj(i): ", oj(i)
         PRINT *, "delta", delta
         PRINT *, "delta_m", delta_m
-        STOP  ! Terminate the entire program if any element        
+        STOP  ! Terminate the entire program if any element
     END IF
 END DO
 
@@ -961,7 +988,7 @@ END SUBROUTINE kaplan
 
     PRINT *, "og(cases)"
     PRINT *, og(cases)
-    
+
 
     ! Initialize subset_vector with values based on the sorted cases
     !do i = 1, size(cases)
@@ -969,7 +996,6 @@ END SUBROUTINE kaplan
     !end do
     subset_vector = 0
 END SUBROUTINE sort_and_subset
-
 
 SUBROUTINE nelsonAalenRecurrent(ns, nj, oj, h)
   IMPLICIT NONE
@@ -1065,9 +1091,9 @@ SUBROUTINE logRankSetUp(N1j, N2j, O1j, O2j, numJ, denJ)
   denJ = 0.d0
 
   DO i = 1, nt
-  	! if number at risk in group1 is equal to 0, then skip to next time point index (i)
-    IF (N1j(i) .LT. 1d-8) CYCLE 
-    ! if number at risk in group2 is equal to 0, then skip to next time point index (i) 
+    ! if number at risk in group1 is equal to 0, then skip to next time point index (i)
+    IF (N1j(i) .LT. 1d-8) CYCLE
+    ! if number at risk in group2 is equal to 0, then skip to next time point index (i)
     IF (N2j(i) .LT. 1d-8) CYCLE
     ! time points for which both groups have individuals at risk
 
@@ -1157,14 +1183,14 @@ SUBROUTINE CIF_mk(nsk, Nkj, Okj, CIF, JumpCIF)
   REAL(dp), DIMENSION(1:nsk) :: Zk
 
   ! Zk = KM estimator for group k at failure time from any cause
-  call kaplan(nsk, Nkj, Okj, Zk) 
+  call kaplan(nsk, Nkj, Okj, Zk)
 
   ! if failure due to cause m in group k, then contribute Nkj(1), otherwise 0 for time point 1. ! this is Z=1 b/c time point 1 is always 0 here.
   CIF(1) = 1/Nkj(1) ! * Okj(1)
   JumpCIF(1) = CIF(1)
 
   ! if nsk = 1 then CIF = CIF(1)
-  IF (nsk .LT. 2) RETURN 
+  IF (nsk .LT. 2) RETURN
 
   DO i = 2, nsk
       IF (Nkj(i) > 1d-8) THEN
@@ -1191,11 +1217,11 @@ SUBROUTINE CIF_mk(nsk, Nkj, Okj, CIF, JumpCIF)
 
 
 END SUBROUTINE CIF_mk
-!  CALL CIF_mk(nt1, delta_11j, N1j, O1j, CIF11, JumpCIF11) ! cause 1 group 1 
-!  CALL CIF_mk(nt2, delta_12j, N2j, O2j, CIF12, JumpCIF12) ! cause 1 group 2 
+!  CALL CIF_mk(nt1, delta_11j, N1j, O1j, CIF11, JumpCIF11) ! cause 1 group 1
+!  CALL CIF_mk(nt2, delta_12j, N2j, O2j, CIF12, JumpCIF12) ! cause 1 group 2
 !-----
-!  CALL CIF_mk(nt1, delta_21j, N1j, O1j, CIF21, JumpCIF21) ! cause 2 group 1 
-!  CALL CIF_mk(nt2, delta_22j, N2j, O2j, CIF22, JumpCIF22) ! cause 2 group 2 
+!  CALL CIF_mk(nt1, delta_21j, N1j, O1j, CIF21, JumpCIF21) ! cause 2 group 1
+!  CALL CIF_mk(nt2, delta_22j, N2j, O2j, CIF22, JumpCIF22) ! cause 2 group 2
 ! =================================================================================
 
 ! Gray's Test for cause m between groups 1 and 2
@@ -1237,7 +1263,7 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
     END DO
 
     ! Check and print negative values in O1j
-    
+
     DO i = 1, ns1
         IF (O1j(i) < 0.0) THEN
             PRINT *, "Negative values in O1j:"
@@ -1246,7 +1272,7 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
     END DO
 
     ! Check and print negative values in N2j
-    
+
     DO j = 1, ns2
         IF (N2j(j) < 0.0) THEN
             PRINT *, "Negative values in N2j:"
@@ -1255,7 +1281,7 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
     END DO
 
     ! Check and print negative values in O2j
-    
+
     DO j = 1, ns2
         IF (O2j(j) < 0.0) THEN
             PRINT *, "Negative values in O2j:"
@@ -1265,9 +1291,9 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
 
 
   Gray_CIF = 0.d0
-  CALL CIF_mk(ns1, N1j, O1j, CIFm1, JumpCIFm1) ! cause m group k=1 
-  CALL CIF_mk(ns2, N2j, O2j, CIFm2, JumpCIFm2) ! cause m group 2 
-  
+  CALL CIF_mk(ns1, N1j, O1j, CIFm1, JumpCIFm1) ! cause m group k=1
+  CALL CIF_mk(ns2, N2j, O2j, CIFm2, JumpCIFm2) ! cause m group 2
+
   DO time = 1, ns1
     IF (JumpCIFm1(time) <0.0 .OR. JumpCIFm1(time) > 1.0) THEN
       PRINT *, "******************** Gray_m (test statistic for m cause) ********************"
@@ -1288,7 +1314,7 @@ SUBROUTINE Gray_m(ns1, ns2, N1j, O1j, N2j, O2j, Gray_CIF)
       IF (1-CIFm1(i) .LT. 1d-8) CYCLE
 
       sum1 = sum1 + 1/(1-CIFm1(i-1))*JumpCIFm1(i)*O1j(i) !only want those from group1 cause m
-      
+
   END DO
 
   DO i = 2, ns2
@@ -1310,7 +1336,7 @@ END SUBROUTINE Gray_m
 
 
 ! =================================================================================
-! USING A MODIFIED VERSION OF CMPRSK CRSTM AND CRST 
+! USING A MODIFIED VERSION OF CMPRSK CRSTM AND CRST
 ! Copyright (C) 2000 Robert Gray
 ! Distributed under the terms of the GNU public license
 SUBROUTINE crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk,z)
@@ -1340,7 +1366,7 @@ IMPLICIT NONE
 !  Length of vs must be at least (ng-1)^2
 !  Length of wk must be at least ng*(4+3*ng)
 !  Length of iwk must be at least 4*ng
-!  
+!
 !  On output:
 !    s gives the scores for the first ng-1 groups, and
 !    vs the estimated variance covariance matrix of these scores
@@ -1348,12 +1374,12 @@ IMPLICIT NONE
 ! double precision: a,b,c,d,e,f,g,h, o,p,q,r,s,t,u,v,w,x,y,z
 ! integer: i,j,k,l,m,n
 
-    ! Input variables  
+    ! Input variables
     integer, intent(in) :: ig(no), ist(no), m(no), no, nst, ng
     double precision, intent(in) :: y(no), rho
     double precision, intent(inout) :: ys(no)
     integer, intent(inout) :: igs(no), ms(no)
-  
+
     ! Output variables
     double precision, intent(out) :: s(ng-1), vs(ng-1, ng-1)
     double precision, intent(out) :: v(ng*(ng-1)/2), st(ng-1), vt(ng*(ng-1)/2)
@@ -1365,10 +1391,11 @@ IMPLICIT NONE
     integer :: i, j, l, ks, ng1, ng2, n
     integer :: ng3, ng4
 
+    PRINT *, "STARTING CRSTM0"
     ng1 = ng - 1
     ng2 = ng * ng1 / 2
     l = 0
-    
+
     ! Initialize s and v
     s = 0.0d0
     v = 0.0d0
@@ -1380,7 +1407,8 @@ IMPLICIT NONE
         v(l) = 0
       END DO
     END DO
-    
+
+PRINT *, "STARTING CRSTM1"
     ! Loop over strata
     do ks = 1, nst !do 20
       n = 0
@@ -1393,11 +1421,16 @@ IMPLICIT NONE
       end do !21
       ng3 = 4 * ng + 1
       ng4 = ng * ng
+      PRINT *, "STARTING CRSTM2"
+      PRINT *, "ys(1)"
+      PRINT *, ys(1)
+      PRINT *, "n", n
       ! Call subroutine crst
       call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
                 & wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
                 & wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
                 & wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
+      PRINT *, "STARTING CRSTM3"
       l = 0
       ! Update s and v
       do i = 1, ng1 !do 23
@@ -1406,9 +1439,10 @@ IMPLICIT NONE
           l = l + 1
           v(l) = v(l) + vt(l)
         end do !24
-      end do !23 
+      end do !23
     end do !20
-    
+    PRINT *, "STARTING CRSTM4"
+
     ! Populate vs matrix
     l = 0
     do i = 1, ng1 !do 31
@@ -1418,10 +1452,12 @@ IMPLICIT NONE
             vs(j, i) = vs(i, j)
         end do !332
     end do !31
+    PRINT *, "STARTING CRSTM5"
 
     z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups (priority cause is first cause)
-    ! PRINT *, "z", z
+    PRINT *, "z", z
     ! return
+    PRINT *, "========= end of CRSTM====="
 
 END SUBROUTINE crstm
 ! =================================================================================
@@ -1449,6 +1485,15 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
     integer :: i, j, k, l, ll, lu, nd1, nd2
     real(dp) :: fm, f, tr, tq, td, t1, t2, t3, t4, t5, t6, fb
 
+    PRINT *, "STARTING CRST====="
+
+    PRINT *, "y"
+    PRINT *, y
+    PRINT *, "m"
+    PRINT *, m
+    PRINT *, "ig"
+    PRINT *, ig
+
     ! Initialize rs array
     rs(:) = 0
 
@@ -1475,19 +1520,22 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
     f = 0.0
     ll = 1
     lu = ll
-
+    
+    PRINT *, "STARTING CRST=====1"
 50  do
         lu = lu + 1
         if (lu > n) exit
         if (y(lu) > y(ll)) exit
     end do
-
+    PRINT *, "STARTING CRST=====2"
+    
     lu = lu - 1
     nd1 = 0
     nd2 = 0
     ! d will contain the # in each group censored, failed from
     ! cause 1, and failing from cause 2, at this time
     d(:, :) = 0
+    PRINT *, "STARTING CRST=====3"
 
     do i = ll, lu
         j = ig(i)
@@ -1495,10 +1543,13 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
         d(k, j) = d(k, j) + 1
     end do
 
+    PRINT *, "STARTING CRST=====4"
     nd1 = sum(d(1, :))
     nd2 = sum(d(2, :))
 
+    if (nd1 == 0 .and. nd2 == 0) PRINT *, "LINE 1539: goto 90"
     if (nd1 == 0 .and. nd2 == 0) goto 90
+    PRINT *, "STARTING CRST=====5"
 
     tr = 0.0
     tq = 0.0
@@ -1514,12 +1565,14 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
         tr = tr + rs(i) / skmm(i)
         tq = tq + rs(i) * (1.0 - f1m(i)) / skmm(i)
     end do
+    PRINT *, "STARTING CRST=====6"
 
     f = fm + nd1 / tr
     fb = (1.0 - fm)**rho
 
     a(:, :) = 0.0
 
+PRINT *, "STARTING CRST=====7"
     do i = 1, ng
         if (rs(i) <= 0) cycle
         t1 = rs(i) / skmm(i)
@@ -1533,6 +1586,7 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
         end do
     end do
 
+    PRINT *, "STARTING CRST=====8"
     ! Make a symmetric matrix
     do i = 2, ng
         k = i - 1
@@ -1568,6 +1622,7 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
         end do
     end if
 
+PRINT *, "STARTING CRST=====4"
     if (nd2 > 0) then
         do k = 1, ng
             if (skm(k) <= 0.0 .or. d(2, k) <= 0) cycle
@@ -1618,6 +1673,7 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
         end do
     end do
 
+PRINT *, "========= end of CRST====="
     return
 END SUBROUTINE crst
 ! =================================================================================
@@ -1670,19 +1726,19 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
     !PRINT *, "((((((((((((( CHECKING OJ_m(i) ))))))))))))): ", Oj_m(i)
 
     IF (isPhase1) THEN
-	    IF (Oj_m(i) /= Oj(i)) THEN
-	      PRINT *, "ERROR: LINE 1146"
-	      PRINT *, "time: ", i
-	      PRINT *, "pr(casesIn, i): ", pr(casesIn, i)
-	      PRINT *, "pr(casesIn, i)*delta_m(casesIn): ", pr(casesIn, i)*delta_m(casesIn)
-	      PRINT *, "pr(casesIn, i)*delta(casesIn): ", pr(casesIn, i)*delta(casesIn)     
-	      PRINT *, "casesIn", casesIn
-	      PRINT *, "delta_m(casesIn): ", delta_m(casesIn)
-	      PRINT *, "delta(casesIn): ", delta(casesIn)
-	      PRINT *, "Oj_m(i) = ", Oj_m(i)
-	      PRINT *, "Oj(i) = ", Oj(i)
-	    END IF
-	END IF
+      IF (Oj_m(i) /= Oj(i)) THEN
+        PRINT *, "ERROR: LINE 1146"
+        PRINT *, "time: ", i
+        PRINT *, "pr(casesIn, i): ", pr(casesIn, i)
+        PRINT *, "pr(casesIn, i)*delta_m(casesIn): ", pr(casesIn, i)*delta_m(casesIn)
+        PRINT *, "pr(casesIn, i)*delta(casesIn): ", pr(casesIn, i)*delta(casesIn)
+        PRINT *, "casesIn", casesIn
+        PRINT *, "delta_m(casesIn): ", delta_m(casesIn)
+        PRINT *, "delta(casesIn): ", delta(casesIn)
+        PRINT *, "Oj_m(i) = ", Oj_m(i)
+        PRINT *, "Oj(i) = ", Oj(i)
+      END IF
+  END IF
 
   END DO
 
@@ -1691,10 +1747,10 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
     ! Kaplan-Meier estimate survival function
     ! {nt}
     ! PRINT *, "Number of Events at Each Time Point: Oj", Oj
-  	! PRINT *, "Number of Events at Each Time Point for Cause M: Oj_m", Oj_m
-  	! PRINT *, "Number of time points: nt", nt
-  	! PRINT *, "Number at Risk: Nj", Nj
-    
+    ! PRINT *, "Number of Events at Each Time Point for Cause M: Oj_m", Oj_m
+    ! PRINT *, "Number of time points: nt", nt
+    ! PRINT *, "Number at Risk: Nj", Nj
+
     CALL kaplan(nt, Nj, Oj, Func)
     ! PRINT *, "Kaplan Meier Estimate Survival Function: ", Func
     ! mean survival time
@@ -1958,8 +2014,8 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       ! indices for cases contained in node
       ind = jdex(stm(k,1):stm(k,2))
-      PRINT *, "ind"
-      PRINT *, ind
+      !PRINT *, "ind"
+      !PRINT *, ind
 
       ! if there are deficient variables, use only these variables
       cand = cstat(:,k) .LT. floor(srs * sum(cStat(:,k)))
@@ -1972,7 +2028,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       ! PRINT *, "################# Line 1441"
       CALL tfindSplit(size(ind), ind, size(pind), pind, splitVar, cutoffBest, &
-                    & splitFound, indOut, nc, lft) 
+                    & splitFound, indOut, nc, lft)
 
       IF (splitFound .EQ. 0 ) THEN
         ! if no split available, set node k as terminal node
@@ -2275,13 +2331,13 @@ SUBROUTINE predictSurvTree(n, np, xt, nCat, nt, nNodes, tFunc, mean, &
 
   ! PRINT *, "******************** predictSurvTree ********************"
   ! PRINT *, "size of (mean survival of each node) is: ", SIZE(mean)
-  ! PRINT *, mean 
+  ! PRINT *, mean
   x = reshape(xt, (/n, np/))
   nodes = reshape(tnodes, (/nNodes, nCols/))
   Func = reshape(tFunc, (/nt, nNodes/))
 
   tsurv = 0.d0
-  
+
   ! column 1 is indicator of interior/terminal
   ! column 2 is the index of left
   ! column 3 is the index of right
@@ -2296,7 +2352,7 @@ SUBROUTINE predictSurvTree(n, np, xt, nCat, nt, nNodes, tFunc, mean, &
   ! PRINT *, "nNodes:", nNodes
 
   DO i = 1, nNodes
-    ! PRINT *, "NODE #: ", i 
+    ! PRINT *, "NODE #: ", i
     ! PRINT *, "TESTING1 stat: ", stat
 
     ! if terminal cycle
@@ -2362,7 +2418,7 @@ SUBROUTINE predictSurvTree(n, np, xt, nCat, nt, nNodes, tFunc, mean, &
    !  do i = 1, 5
     !     PRINT *, predFunc(i)
     ! end do
-  
+
   ! PRINT *, "TESTING100 stat: ", stat
   ! PRINT *, "size(stat):", size(stat)
   ! PRINT *, "mean(stat) which is terminal node mean surv time for each person:"
@@ -2460,7 +2516,7 @@ END SUBROUTINE setUpBasics
 ! t_x, real(:), the covariates
 ! t_pr, real(:), the probability mass vector of survival function
 ! t_pr2, real(:), the at-risk vector for subjects in recurrent event setting (ignore for Phase 1 OS, or Phase 2 CR)
-! t_ord_causeind, real(:), status indicator for subjects (ordered by response) (vector of 0 for RE)
+! t_ord_causeind, integer(:), status indicator for subjects (ordered by response) (vector of 0 for RE)
 ! t_ord_response, real(:), ordered response for subjects (vector of 0 for RE)
 ! t_delta, integer(:), the indicator of censoring
 ! t_delta_m, integer(:), the indicator of censoring for cause m (for CR endpoint)
@@ -2482,7 +2538,7 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr2 ! for RE only
-  REAL(dp), DIMENSION(1:t_n), INTENT(IN) :: t_ord_causeind ! for CR gray's test only
+  INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_ord_causeind ! for CR gray's test only
   REAL(dp), DIMENSION(1:t_n), INTENT(IN) :: t_ord_response ! for CR gray's test only
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta_m ! endpoint delta
@@ -2494,12 +2550,18 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
 
   INTEGER :: i
   LOGICAL :: are_equal
-  
 
-  ! PRINT *, "******************** setUpInners ********************"
+
+  PRINT *, "******************** setUpInners ********************"
   nAll = t_n
-  
+
   ord_causeindAll = t_ord_causeind
+  !PRINT *, "t_ord_causeind"
+  !PRINT *, t_ord_causeind
+  !PRINT *, "t_delta"
+  !PRINT *, t_delta
+  !PRINT *, "t_ord_response"
+  !PRINT *, t_ord_response
   ord_responseAll = t_ord_response
 
   np = t_np
@@ -2659,3 +2721,492 @@ z = z*z
 END SUBROUTINE temporary
 
 
+! =================================================================================
+! USING A MODIFIED VERSION OF CMPRSK CRSTM AND CRST
+! Copyright (C) 2000 Robert Gray
+! Distributed under the terms of the GNU public license
+SUBROUTINE crstm(y, m, ig, ist, no, rho, nst, ng, s, vs, ys, ms, igs, v, st, vt, wk, iwk,z)
+IMPLICIT NONE
+
+! subroutine to calculate score and variance matrix for comparing
+! cumulative incidence curves for a specific cause among groups.
+!  test statistic given by s' inv(vs) s, dist approx chi-square(ng-1)
+!
+!  everything starting with i-n is integer, all others double precision
+!
+!  On input:
+!    y is the failure times (sorted in increasing order)
+!    m is coded 0 if censored, 1 if failed from the cause of interest
+!       2 if failed from some other cause.
+!    ig denotes group membership, must be coded 1,2,...,ng (ie
+!       consecutive integers from 1 to ng), where ng is the number of groups
+!    ist denotes strata membership, must be coded 1,2,...,nst, where nst
+!       is the number of strata (code all 1's if only 1 strata)
+!    no is the # of observations (length of y,m,ig,ist)
+!    rho is the power used in the weight function in the test statistic
+!    nst and ng are the # strata and # groups
+!  Length of ys, ms, and igs must be at least as long as the size of the
+!    largest strata
+!  Length of s and st must be at least ng-1
+!  Length of v and vt must be at least ng*(ng-1)/2
+!  Length of vs must be at least (ng-1)^2
+!  Length of wk must be at least ng*(4+3*ng)
+!  Length of iwk must be at least 4*ng
+!
+!  On output:
+!    s gives the scores for the first ng-1 groups, and
+!    vs the estimated variance covariance matrix of these scores
+
+! double precision: a,b,c,d,e,f,g,h, o,p,q,r,s,t,u,v,w,x,y,z
+! integer: i,j,k,l,m,n
+
+    ! Input variables
+    integer, intent(in) :: ig(no), ist(no), m(no), no, nst, ng
+    double precision, intent(in) :: y(no), rho
+    double precision, intent(inout) :: ys(no)
+    integer, intent(inout) :: igs(no), ms(no)
+
+    ! Output variables
+    double precision, intent(out) :: s(ng-1), vs(ng-1, ng-1)
+    double precision, intent(out) :: v(ng*(ng-1)/2), st(ng-1), vt(ng*(ng-1)/2)
+    double precision, intent(out) :: z
+
+    ! Temporary arrays and variables
+    double precision, dimension(ng*(4+3*ng)) :: wk
+    integer, dimension(4*ng) :: iwk
+    integer :: i, j, l, ks, ng1, ng2, n
+    integer :: ng3, ng4
+
+    PRINT *, "CRSTM0"
+    ng1 = ng - 1
+    ng2 = ng * ng1 / 2
+    l = 0
+
+    ! Initialize s and v
+    s = 0.0d0
+    v = 0.0d0
+
+    DO i = 1, ng1
+      s(i) = 0
+      DO j = 1, i
+        l = l + 1
+        v(l) = 0
+      END DO
+    END DO
+
+PRINT *, "CRSTM1"
+    ! Loop over strata
+    do ks = 1, nst !do 20
+      n = 0
+      do i = 1, no !do 21
+        if (ist(i).ne.ks) EXIT ! go to 21
+        n = n + 1
+        ys(n) = y(i)
+        ms(n) = m(i)
+        igs(n) = ig(i)
+      end do !21
+      ng3 = 4 * ng + 1
+      ng4 = ng * ng
+      PRINT *, "CRSTM2"
+      PRINT *, "----------------------------"
+      PRINT *, "ys"
+      PRINT *, ys
+      PRINT *, "ys(1)"
+      PRINT *, ys(1)
+      PRINT *, "----------------------------"
+      PRINT *, "ms"
+      PRINT *, ms
+      PRINT *, "ms(1)"
+      PRINT *, ms(1)
+      PRINT *, "----------------------------"
+      PRINT *, "igs"
+      PRINT *, igs
+      PRINT *, "igs(1)"
+      PRINT *, igs(1)
+      PRINT *, "----------------------------"
+      PRINT *, "n", n
+      PRINT *, "ng", ng
+      PRINT *, "rho", rho
+      PRINT *, "st", st
+      PRINT *, "vt", vt
+      PRINT *, "ng1", ng1
+      PRINT *, "ng2", ng2
+      PRINT *, "----------------------------"
+      PRINT *, "wk"
+      PRINT *, wk
+      PRINT *, "wk(1)", wk(1)
+      PRINT *, "----------------------------"
+      PRINT *, "iwk"
+      PRINT *, iwk
+      PRINT *, "iwk(1)", iwk(1)
+      ! Call subroutine crst
+      call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
+                & wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
+                & wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
+                & wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
+
+PRINT *, "***************************************************************"
+PRINT *, "* PRINT: CRST OUTPUT after CRST is over*"
+PRINT *, "ys:"
+PRINT *, ys(1:n)
+
+PRINT *, "ms:"
+PRINT *, ms(1:n)
+
+PRINT *, "igs:"
+PRINT *, igs(1:n)
+
+PRINT *, "st:"
+PRINT *, st
+
+PRINT *, "wk(1:ng):"
+PRINT *, wk(1:ng)
+
+PRINT *, "wk(ng+1:2*ng):"
+PRINT *, wk(ng+1:2*ng)
+
+PRINT *, "wk(2*ng+1:3*ng):"
+PRINT *, wk(2*ng+1:3*ng)
+
+PRINT *, "wk(3*ng+1:4*ng):"
+PRINT *, wk(3*ng+1:4*ng)
+
+PRINT *, "wk(ng3:ng3+ng4-1):"
+PRINT *, wk(ng3:ng3+ng4-1)
+
+PRINT *, "wk(ng3+ng4:ng3+2*ng4-1):"
+PRINT *, wk(ng3+ng4:ng3+2*ng4-1)
+
+PRINT *, "wk(ng3+2*ng4:ng3+2*ng4+ng-1):"
+PRINT *, wk(ng3+2*ng4:ng3+2*ng4+ng-1)
+
+PRINT *, "vt:"
+PRINT *, vt
+
+PRINT *, "iwk(1:ng):"
+PRINT *, iwk(1:ng)
+
+PRINT *, "iwk(ng+1:2*ng):"
+PRINT *, iwk(ng+1:2*ng)
+PRINT *, "* END OF CRST OUTPUT *"
+PRINT *, "***************************************************************"
+
+      l = 0
+      ! Update s and v
+      do i = 1, ng1 !do 23
+        s(i) = s(i) + st(i)
+        do j = 1, i !do 24
+          l = l + 1
+          v(l) = v(l) + vt(l)
+        end do !24
+      end do !23
+    end do !20
+    PRINT *, "CRSTM3"
+
+    ! Populate vs matrix
+    l = 0
+    do i = 1, ng1 !do 31
+        do j = 1, i !do 332
+            l = l + 1
+            vs(i, j) = v(l)
+            vs(j, i) = vs(i, j)
+        end do !332
+    end do !31
+    PRINT *, "CRSTM4"
+
+    z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups (priority cause is first cause)
+    PRINT *, "z", z
+    ! return
+    PRINT *, "========= end of CRSTM ========="
+
+END SUBROUTINE crstm
+! =================================================================================
+
+ !           call crst(y = ys(1), m = ms(1), ig =igs(1), n = n, ng = ng, rho = rho, s = st, v = vt, ng1 = ng1, nv = ng2, &
+ !                f1m = wk(1), f1 = wk(ng+1), skmm = wk(2*ng+1), skm = wk(3*ng+1), &
+ !                 c= wk(ng3), a= wk(ng3+ng4), v3 = wk(ng3+2*ng4), &
+ !                 v2 = wk(ng3+2*ng4+ng), rs=iwk(1), d=iwk(ng+1))
+SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v3, v2, rs, d)
+    IMPLICIT NONE
+
+    ! Declare variables with explicit types and dimensions
+    integer, intent(in) :: n, ng, ng1, nv
+    double precision, intent(in) :: rho
+    double precision, dimension(n), intent(inout) :: y
+    double precision, dimension(ng1), intent(inout) :: s
+    double precision, dimension(ng), intent(inout) :: f1m, f1, skmm, skm, v3
+    double precision, dimension(ng, ng), intent(inout) :: c, a
+    double precision, dimension(nv), intent(inout) :: v
+    double precision, dimension(ng1, ng), intent(inout) :: v2
+    integer, dimension(n), intent(inout) :: m, ig
+    integer, dimension(ng), intent(inout) :: rs
+    integer, dimension(0:2, ng), intent(inout) :: d
+
+    integer :: i, j, k, l, ll, lu, nd1, nd2
+    double precision :: fm, f, tr, tq, td, t1, t2, t3, t4, t5, t6, fb
+
+    PRINT *, "***************************************************************"
+    PRINT *, "********************* STARTING CRST *********************"
+    PRINT *, "***************************************************************"
+
+PRINT *, "y", y
+PRINT *, "m", m
+PRINT *, "ig", ig
+PRINT *, "n", n
+PRINT *, "ng", ng
+PRINT *, "rho", rho
+PRINT *, "s", s
+PRINT *, "v", v
+PRINT *, "ng1", ng1
+PRINT *, "nv", nv
+PRINT *, "f1m", f1m
+PRINT *, "f1", f1
+PRINT *, "skmm", skmm
+PRINT *, "skm", skm
+PRINT *, "c", c
+PRINT *, "a", a
+PRINT *, "v3", v3
+PRINT *, "v2", v2
+PRINT *, "rs", rs
+PRINT *, "d", d
+
+    ! Initialize rs array
+    rs(:) = 0
+
+    ! Populate rs array based on ig
+    do i = 1, n
+        j = ig(i)
+        rs(j) = rs(j) + 1
+    end do
+
+    ! Initialize arrays
+    s(:) = 0.0
+    f1m(:) = 0.0
+    f1(:) = 0.0
+    skmm(:) = 1.0
+    skm(:) = 1.0
+    v3(:) = 0.0
+    v(:) = 0.0
+    v2(:, :) = 0.0
+    c(:, :) = 0.0
+    a(:, :) = 0.0
+
+    ! Begin looping over unique times
+    fm = 0.0
+    f = 0.0
+    ll = 1
+    lu = ll
+    
+    PRINT *, "STARTING CRST=====1"
+50  do
+        lu = lu + 1
+        if (lu > n) exit
+        if (y(lu) > y(ll)) exit
+    end do
+    PRINT *, "STARTING CRST=====2"
+    
+    lu = lu - 1
+    nd1 = 0
+    nd2 = 0
+    ! d will contain the # in each group censored, failed from
+    ! cause 1, and failing from cause 2, at this time
+    d(:, :) = 0
+    PRINT *, "STARTING CRST=====3"
+
+    do i = ll, lu
+        j = ig(i)
+        k = m(i)
+        d(k, j) = d(k, j) + 1
+    end do
+
+    PRINT *, "STARTING CRST=====4"
+    nd1 = sum(d(1, :))
+    nd2 = sum(d(2, :))
+
+    if (nd1 == 0 .and. nd2 == 0) PRINT *, "LINE 1539: goto 90"
+    if (nd1 == 0 .and. nd2 == 0) goto 90
+    PRINT *, "STARTING CRST=====5"
+
+    tr = 0.0
+    tq = 0.0
+
+    do i = 1, ng
+        if (rs(i) <= 0) cycle
+        td = d(1, i) + d(2, i)
+        ! skmm is left continuous, and skm right continuous, km est.
+        skm(i) = skmm(i) * (rs(i) - td) / rs(i)
+        ! f1m is left continuous, and f1 right continuous, cuminc est.
+        f1(i) = f1m(i) + (skmm(i) * d(1, i)) / rs(i)
+        ! in notation of the Gray 1988 paper, tr is \sum_r\hat{h}_r, and tq is \sum_r R_r
+        tr = tr + rs(i) / skmm(i)
+        tq = tq + rs(i) * (1.0 - f1m(i)) / skmm(i)
+    end do
+    PRINT *, "STARTING CRST=====6"
+
+    f = fm + nd1 / tr
+    fb = (1.0 - fm)**rho
+
+    a(:, :) = 0.0
+
+PRINT *, "STARTING CRST=====7"
+    do i = 1, ng
+        if (rs(i) <= 0) cycle
+        t1 = rs(i) / skmm(i)
+        a(i, i) = fb * t1 * (1.0 - t1 / tr)
+        if (a(i, i) /= 0.0) c(i, i) = c(i, i) + a(i, i) * nd1 / (tr * (1.0 - fm))
+
+        do j = i + 1, ng
+            if (rs(j) <= 0) cycle
+            a(i, j) = -fb * t1 * rs(j) / (skmm(j) * tr)
+            if (a(i, j) /= 0.0) c(i, j) = c(i, j) + a(i, j) * nd1 / (tr * (1.0 - fm))
+        end do
+    end do
+
+    PRINT *, "STARTING CRST=====8"
+    ! Make a symmetric matrix
+    do i = 2, ng
+        k = i - 1
+        a(i, 1:k) = a(1:k, i)
+        c(i, 1:k) = c(1:k, i)
+    end do
+
+    do i = 1, ng1
+        if (rs(i) <= 0) cycle
+        s(i) = s(i) + fb * (d(1, i) - nd1 * rs(i) * (1.0 - f1m(i)) / (skmm(i) * tq))
+    end do
+
+    if (nd1 > 0) then
+        do k = 1, ng
+            if (rs(k) <= 0) cycle
+            t4 = 1.0
+            if (skm(k) > 0.0) t4 = 1.0 - (1.0 - f) / skm(k)
+            t5 = 1.0
+            if (nd1 > 1) t5 = 1.0 - (nd1 - 1) / (tr * skmm(k) - 1.0)
+            t3 = t5 * skmm(k) * nd1 / (tr * rs(k))
+            v3(k) = v3(k) + t4 * t4 * t3
+
+            do i = 1, ng1
+                t1 = a(i, k) - t4 * c(i, k)
+                v2(i, k) = v2(i, k) + t1 * t4 * t3
+
+                do j = 1, i
+                    l = i * (i - 1) / 2 + j
+                    t2 = a(j, k) - t4 * c(j, k)
+                    v(l) = v(l) + t1 * t2 * t3
+                end do
+            end do
+        end do
+    end if
+
+PRINT *, "STARTING CRST=====4"
+    if (nd2 > 0) then
+        do k = 1, ng
+            if (skm(k) <= 0.0 .or. d(2, k) <= 0) cycle
+            t4 = (1.0 - f) / skm(k)
+            t5 = 1.0
+            if (d(2, k) > 1) t5 = 1.0 - (d(2, k) - 1.0) / (rs(k) - 1.0)
+            t6 = rs(k)
+            t3 = t5 * ((skmm(k)**2) * d(2, k)) / (t6**2)
+            v3(k) = v3(k) + t4 * t4 * t3
+
+            do i = 1, ng1
+                t1 = t4 * c(i, k)
+                v2(i, k) = v2(i, k) - t1 * t4 * t3
+
+                do j = 1, i
+                    l = i * (i - 1) / 2 + j
+                    t2 = t4 * c(j, k)
+                    v(l) = v(l) + t1 * t2 * t3
+                end do
+            end do
+        end do
+    end if
+
+90  if (lu >= n) goto 30
+
+    do i = ll, lu
+        j = ig(i)
+        rs(j) = rs(j) - 1
+    end do
+
+    fm = f
+    f1m(:) = f1(:)
+    skmm(:) = skm(:)
+
+    ll = lu + 1
+    lu = ll
+    goto 50
+
+30  l = 0
+    do i = 1, ng1
+        do j = 1, i
+            l = l + 1
+            do k = 1, ng
+                v(l) = v(l) + c(i, k) * c(j, k) * v3(k)
+                v(l) = v(l) + c(i, k) * v2(j, k)
+                v(l) = v(l) + c(j, k) * v2(i, k)
+            end do
+        end do
+    end do
+PRINT *, "***************************************************************"
+PRINT *, "========= end of CRST====="
+PRINT *, "...printing outputs..."
+
+PRINT *, "y:"
+PRINT *, y
+
+PRINT *, "m:"
+PRINT *, m
+
+PRINT *, "ig:"
+PRINT *, ig
+
+PRINT *, "s:"
+PRINT *, s
+
+PRINT *, "f1m:"
+PRINT *, f1m
+
+PRINT *, "f1:"
+PRINT *, f1
+
+PRINT *, "skmm:"
+PRINT *, skmm
+
+PRINT *, "skm:"
+PRINT *, skm
+
+PRINT *, "v:"
+PRINT *, v
+
+PRINT *, "c:"
+DO i = 1, ng
+    PRINT *, c(i, :)
+END DO
+
+PRINT *, "a:"
+DO i = 1, ng
+    PRINT *, a(i, :)
+END DO
+
+PRINT *, "v3:"
+PRINT *, v3
+
+PRINT *, "v2:"
+DO i = 1, ng1
+    PRINT *, v2(i, :)
+END DO
+
+PRINT *, "rs:"
+PRINT *, rs
+
+PRINT *, "d:"
+DO i = 0, 2
+    PRINT *, d(i, :)
+END DO
+
+PRINT *, "***************************************************************"
+
+    return
+END SUBROUTINE crst
+! =================================================================================

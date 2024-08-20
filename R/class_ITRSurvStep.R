@@ -299,7 +299,7 @@ setMethod(f = ".Predict",
                          txName,
                          mTry,
                          sampleSize) {
-  print("---STARTING ITRSURVSTEP---")
+  # print("---STARTING ITRSURVSTEP---")
 
   ###########################################################################
   ############################ PHASE 1: SURVIVAL ############################
@@ -520,6 +520,22 @@ setMethod(f = ".Predict",
     message("***only one treatment level in dataset***")
   }
 
+
+  # print('delta[elig]')
+  # print(length(delta[elig]))
+  # print(delta[elig])
+  # print("ord_causeind[elig]")
+  # print(length(ord_causeind[elig]))
+  # print(ord_causeind[elig])
+  #
+  # print('delta')
+  # print(length(delta))
+  # print(delta)
+  # print("ord_causeind")
+  # print(length(ord_causeind))
+  # print(ord_causeind)
+
+
   if (.Pooled(object = params)) {
       message("pooled analysis; treatments ", paste(txLevels,collapse=" "))
       # this will be a SurvRF object
@@ -547,7 +563,7 @@ setMethod(f = ".Predict",
     # print(txLevels)
     for (i in 1L:length(x = txLevels)) {
       # message("-----------")
-      # message("  treatment level ", txLevels[i])
+      message("  treatment level ", txLevels[i])
       nms <- as.character(x = txLevels[i])
       # Creates a logical vector di that checks if the treatment level in the dataset dataframe matches the current treatment level.
       # This is used for subsetting the dataset.
@@ -557,6 +573,7 @@ setMethod(f = ".Predict",
       # This is used to subset the dataset for the current treatment level.
       use <- elig & {dataset[,txName] == txLevels[i]}
       # print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))
+
       result[[ nms ]] <- .survRF(Phase = Phase,
                                  eps0 = eps0,
                                  x = x[use,,drop=FALSE], # subset of covariates for the current treatment level
@@ -577,12 +594,16 @@ setMethod(f = ".Predict",
     result <- new(Class = "SurvRFStratified", "strat" = result)
   }
 
-  # print("====================================== end of forest =================================")
+  print("====================================== end of forest =================================")
 
   # calculate the estimated values for all treatment levels
   # .PredictAll() is a method; called here for objects of class SurvRF, which
   # is defined in file class_SurvRF.R
   # print("WHAT2")
+
+  # stop("testing")
+
+
   resV <- .PredictAll(Phase = Phase,
                       eps0 = eps0,
                       object = result,
