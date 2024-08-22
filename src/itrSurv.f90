@@ -195,7 +195,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
   INTEGER :: splitLeft_m, splitLeftFinal_m
   INTEGER :: tieValue, variablesTried
-  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases !dSorted_RE,
+  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases !dSorted_RE
+  REAL(dp), DIMENSION(1:nCases) :: sorted_cases
   INTEGER, DIMENSION(1:nv) :: variables
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, ind_m, indSingles, indSingles_m, leftCases, leftCases_m, rightCases, rightCases_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: uncensoredIndices, uncensoredIndices_m
@@ -313,15 +314,27 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       xSorted = x(casesIn,kv)
     END IF
 
-    ! PRINT *, "xSorted"
-    ! PRINT *, SIZE(xSorted)
-    ! PRINT *, xSorted
+    PRINT *, "old xSorted"
+    !PRINT *, SIZE(xSorted)
+    PRINT *, xSorted
+    PRINT *, "first cases"
+    PRINT *, cases
+    PRINT *, "caseseIn"
+    PRINT *, casesIn
+    PRINT *, "nCases", nCases
 
     cases = casesIn
+
+    PRINT *, "second cases"
+    PRINT *, cases
 
     ! sort the covariate and track the indices
     CALL qsort4(xSorted, cases, 1, nCases)
 !    CALL hpsort_eps_epw(nCases, xSorted, cases, 1d-8)
+
+    PRINT *, "sorted xSorted"
+    !PRINT *, SIZE(xSorted)
+    PRINT *, xSorted
 
     ! sort event indicator data accordingly
     dSorted = delta(cases) ! Phase 1: overall survival (delta = event indicator from any cause)
@@ -741,45 +754,37 @@ PRINT *, "isPhase2CR:", isPhase2CR
         ! set up for crstm
         IF (isPhase2CR) THEN
           PRINT *, "CR: Gray's Test Set-Up to split nodes"
-          
-  ! Manually input values
-  y_set = (/ 1.1_dp, 2.2_dp, 3.3_dp /)
-  ig_setSplit = (/ 0, 2, 1 /)
-  m_set = (/ 1, 2, 1 /)
-  
-  ! Print values to verify
-  print *, 'y_set:', y_set
-  print *, 'ig_setSplit:', ig_setSplit
-  print *, 'm_set:', m_set
-
-          !y_set = ord_responseAll(cases) ! import observed ordered times
-          !m_set = ord_causeindAll(cases) ! ordered failure status (0 = censored, 1 = pc, 2 = other cause)
-          !ig_setSplit = group_cr(cases); ! put in splitting indicator aka group membership
           ! below are placeholder/initial values
           rho_set0 = 0;
           ist_set1 = 1
-          PRINT *, "(((((((((((((((((( DOES THIS WORK???????? ))))))))))))))))))"
-          PRINT *, y_set(1:3)
-          print *, 'm_set(1:3):'
-          PRINT *, m_set(1:3)
-          print *, 'ig_setSplit(1:3):'
-          PRINT *, ig_setSplit(1:3)
-          PRINT *, "rho"
-          PRINT *, rho_set0
-          PRINT *, ist_set1(1:3)
-          !CALL crstm(y_set(1:3), ms_set(1:3), ig_setSplit(1:3), ist_set1(1:3), 3, rho_set0, nst_set1, ng_set2, &
-        !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
-          !CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
-        !& s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
+          sorted_cases = cases
+          PRINT *, "cases"
+          PRINT *, cases
+          !PRINT *, "old sorted_cases"
+          !PRINT *, sorted_cases
+          CALL qsort4(sorted_cases, cases, 1, size(cases))
+          PRINT *, "testinggg qsort: sorted sorted_cases"
+          PRINT *, sorted_cases
+          y_set = ord_responseAll(sorted_cases) ! import observed ordered times
+          m_set = ord_causeindAll(sorted_cases) ! ordered failure status (0 = censored, 1 = pc, 2 = other cause)
+          ig_setSplit = group_cr(sorted_cases); ! put in splitting indicator aka group membership
+          PRINT *, "----------------"
+          ! Print values to verify
+          print *, 'y_set:', y_set
+          print *, 'ig_setSplit:', ig_setSplit
+          print *, 'm_set:', m_set
+          PRINT *, ">>>>>>>>>>> DOES THIS WORK???????? <<<<<<<<<<<"
+          CALL crstm(y_set, ms_set, ig_setSplit, ist_set1, nAll, rho_set0, nst_set1, ng_set2, &
+        & s_set, vs_set, ys_set, ms_set, igs_set, v_set, st_set, vt_set, wk_set, iwk_set, valuej)
           PRINT *, "end crstm"
-          PRINT *, "(((((((((((((((((( DOES THIS WORK???????? ))))))))))))))))))"
+          PRINT *, ">>>>>>>>>>> DOES THIS WORK???????? <<<<<<<<<<<"
         END IF
-        valuej = 99
+        !valuej = 99
         PRINT *, "Gray's test statistic valuej = ", valuej
       ELSE IF (rule == 4) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (CR): gray's test (kaplan way - CSH) ^^^^^"
-        CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
-        & atRiskRight, eventsRight_m, valuej)
+        !CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
+        !& atRiskRight, eventsRight_m, valuej)
         PRINT *, "CSH test statistic valuej = ", valuej
       ELSE IF (rule == 5) THEN
         PRINT *, "^^^^^ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ^^^^^"
@@ -1391,7 +1396,7 @@ IMPLICIT NONE
     integer :: i, j, l, ks, ng1, ng2, n
     integer :: ng3, ng4
 
-    PRINT *, "STARTING CRSTM0"
+PRINT *, "CRSTM0"
     ng1 = ng - 1
     ng2 = ng * ng1 / 2
     l = 0
@@ -1408,7 +1413,7 @@ IMPLICIT NONE
       END DO
     END DO
 
-PRINT *, "STARTING CRSTM1"
+PRINT *, "CRSTM1"
     ! Loop over strata
     do ks = 1, nst !do 20
       n = 0
@@ -1421,16 +1426,90 @@ PRINT *, "STARTING CRSTM1"
       end do !21
       ng3 = 4 * ng + 1
       ng4 = ng * ng
-      PRINT *, "STARTING CRSTM2"
+      PRINT *, "CRSTM2"
+      PRINT *, "----------------------------"
+      PRINT *, "ys"
+      PRINT *, ys
       PRINT *, "ys(1)"
       PRINT *, ys(1)
+      PRINT *, "----------------------------"
+      PRINT *, "ms"
+      PRINT *, ms
+      PRINT *, "ms(1)"
+      PRINT *, ms(1)
+      PRINT *, "----------------------------"
+      PRINT *, "igs"
+      PRINT *, igs
+      PRINT *, "igs(1)"
+      PRINT *, igs(1)
+      PRINT *, "----------------------------"
       PRINT *, "n", n
+      PRINT *, "ng", ng
+      PRINT *, "rho", rho
+      PRINT *, "st", st
+      PRINT *, "vt", vt
+      PRINT *, "ng1", ng1
+      PRINT *, "ng2", ng2
+      PRINT *, "----------------------------"
+      PRINT *, "wk"
+      PRINT *, wk
+      PRINT *, "wk(1)", wk(1)
+      PRINT *, "----------------------------"
+      PRINT *, "iwk"
+      PRINT *, iwk
+      PRINT *, "iwk(1)", iwk(1)
       ! Call subroutine crst
       call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
                 & wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
                 & wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
                 & wk(ng3+2*ng4+ng), iwk(1), iwk(ng+1))
-      PRINT *, "STARTING CRSTM3"
+
+PRINT *, "***************************************************************"
+PRINT *, "* PRINT: CRST OUTPUT after CRST is over*"
+PRINT *, "ys:"
+PRINT *, ys(1:n)
+
+PRINT *, "ms:"
+PRINT *, ms(1:n)
+
+PRINT *, "igs:"
+PRINT *, igs(1:n)
+
+PRINT *, "st:"
+PRINT *, st
+
+PRINT *, "wk(1:ng):"
+PRINT *, wk(1:ng)
+
+PRINT *, "wk(ng+1:2*ng):"
+PRINT *, wk(ng+1:2*ng)
+
+PRINT *, "wk(2*ng+1:3*ng):"
+PRINT *, wk(2*ng+1:3*ng)
+
+PRINT *, "wk(3*ng+1:4*ng):"
+PRINT *, wk(3*ng+1:4*ng)
+
+PRINT *, "wk(ng3:ng3+ng4-1):"
+PRINT *, wk(ng3:ng3+ng4-1)
+
+PRINT *, "wk(ng3+ng4:ng3+2*ng4-1):"
+PRINT *, wk(ng3+ng4:ng3+2*ng4-1)
+
+PRINT *, "wk(ng3+2*ng4:ng3+2*ng4+ng-1):"
+PRINT *, wk(ng3+2*ng4:ng3+2*ng4+ng-1)
+
+PRINT *, "vt:"
+PRINT *, vt
+
+PRINT *, "iwk(1:ng):"
+PRINT *, iwk(1:ng)
+
+PRINT *, "iwk(ng+1:2*ng):"
+PRINT *, iwk(ng+1:2*ng)
+PRINT *, "* END OF CRST OUTPUT *"
+PRINT *, "***************************************************************"
+
       l = 0
       ! Update s and v
       do i = 1, ng1 !do 23
@@ -1441,7 +1520,7 @@ PRINT *, "STARTING CRSTM1"
         end do !24
       end do !23
     end do !20
-    PRINT *, "STARTING CRSTM4"
+    PRINT *, "CRSTM3"
 
     ! Populate vs matrix
     l = 0
@@ -1452,12 +1531,12 @@ PRINT *, "STARTING CRSTM1"
             vs(j, i) = vs(i, j)
         end do !332
     end do !31
-    PRINT *, "STARTING CRSTM5"
+    PRINT *, "CRSTM4"
 
     z = s(1)*s(1)/vs(1,1) ! chi-sq test statistic for 2 groups (priority cause is first cause)
     PRINT *, "z", z
     ! return
-    PRINT *, "========= end of CRSTM====="
+    PRINT *, "========= end of CRSTM ========="
 
 END SUBROUTINE crstm
 ! =================================================================================
@@ -1485,14 +1564,30 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
     integer :: i, j, k, l, ll, lu, nd1, nd2
     real(dp) :: fm, f, tr, tq, td, t1, t2, t3, t4, t5, t6, fb
 
-    PRINT *, "STARTING CRST====="
+    PRINT *, "***************************************************************"
+    PRINT *, "********************* STARTING CRST *********************"
+    PRINT *, "***************************************************************"
 
-    PRINT *, "y"
-    PRINT *, y
-    PRINT *, "m"
-    PRINT *, m
-    PRINT *, "ig"
-    PRINT *, ig
+PRINT *, "y", y
+PRINT *, "m", m
+PRINT *, "ig", ig
+PRINT *, "n", n
+PRINT *, "ng", ng
+PRINT *, "rho", rho
+PRINT *, "s", s
+PRINT *, "v", v
+PRINT *, "ng1", ng1
+PRINT *, "nv", nv
+PRINT *, "f1m", f1m
+PRINT *, "f1", f1
+PRINT *, "skmm", skmm
+PRINT *, "skm", skm
+PRINT *, "c", c
+PRINT *, "a", a
+PRINT *, "v3", v3
+PRINT *, "v2", v2
+PRINT *, "rs", rs
+PRINT *, "d", d
 
     ! Initialize rs array
     rs(:) = 0
@@ -1672,8 +1767,65 @@ PRINT *, "STARTING CRST=====4"
             end do
         end do
     end do
-
+PRINT *, "***************************************************************"
 PRINT *, "========= end of CRST====="
+PRINT *, "...printing outputs..."
+
+PRINT *, "y:"
+PRINT *, y
+
+PRINT *, "m:"
+PRINT *, m
+
+PRINT *, "ig:"
+PRINT *, ig
+
+PRINT *, "s:"
+PRINT *, s
+
+PRINT *, "f1m:"
+PRINT *, f1m
+
+PRINT *, "f1:"
+PRINT *, f1
+
+PRINT *, "skmm:"
+PRINT *, skmm
+
+PRINT *, "skm:"
+PRINT *, skm
+
+PRINT *, "v:"
+PRINT *, v
+
+PRINT *, "c:"
+DO i = 1, ng
+    PRINT *, c(i, :)
+END DO
+
+PRINT *, "a:"
+DO i = 1, ng
+    PRINT *, a(i, :)
+END DO
+
+PRINT *, "v3:"
+PRINT *, v3
+
+PRINT *, "v2:"
+DO i = 1, ng1
+    PRINT *, v2(i, :)
+END DO
+
+PRINT *, "rs:"
+PRINT *, rs
+
+PRINT *, "d:"
+DO i = 0, 2
+    PRINT *, d(i, :)
+END DO
+
+PRINT *, "***************************************************************"
+    
     return
 END SUBROUTINE crst
 ! =================================================================================
@@ -3210,3 +3362,30 @@ PRINT *, "***************************************************************"
     return
 END SUBROUTINE crst
 ! =================================================================================
+
+
+subroutine example_sort(n)
+  !use stdlib_sorting, only: sort
+  implicit none
+
+  integer, intent(in) :: n
+  integer,  allocatable :: array(:)
+
+  array = [5, 4, 3, 1, 10, 4, 9]
+  print *, "array"
+  print *, array
+  !call sort(array)
+  print *, "sorted array"
+  print *, array   !print [1, 3, 4, 4, 5, 9, 10]
+  print *, "input n", n
+
+  ! qsort(arr, n, sizeof(int), compare);
+  ! CALL qsort(xSorted, cases, 1, nCases)
+
+! base − It represents pointer to the first element of the array to be sorted.
+! nitems − It represents number of element in the array.
+! size − It represents size of each element in the array.
+! compare − It represent a function pointer to a comparison function that compares two elements.
+  !CALL qsort4(array, 7, 1, 7)
+
+end subroutine example_sort
