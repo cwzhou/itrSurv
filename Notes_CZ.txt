@@ -32,3 +32,5 @@ Open R and type: install.packages('/nas/longleaf/home/cwzhou/Dissertation/Paper_
 Edit CR00.Simulation_Parameters.R then in the cluster, go to "/nas/longleaf/home/cwzhou/Dissertation/Analyses/Simulations/Paper1_CR" and run:
 sbatch -p general -N 1 --mem=3GB -n 1 -t 1-0:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript CR01.Simulation_Run.R > Testing/cluster_output/out1.txt"
 
+/nas/longleaf/home/cwzhou/Dissertation/Analyses/Simulations/Paper1_CR/Testing/cluster_output
+
