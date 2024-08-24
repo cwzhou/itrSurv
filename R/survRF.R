@@ -50,8 +50,8 @@
 
 .survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
                     pr, pr2, ord_causeind, ord_response, params, mTry, sampleSize) {
-  message("---------- starting .survRF function from survRF.R ----------------")
-  print(Phase)
+  # message("---------- starting .survRF function from survRF.R ----------------")
+  # print(Phase)
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -68,7 +68,7 @@
   # number of individuals in training data
   nSamples <- nrow(x = x) # this is OLD code - doesnt reflect RE where nrow(x) is for RE for Phase 2 data
   # nSamples = params@nSamples
-  message('number of individuals in training data: ', nSamples)
+  # message('number of individuals in training data: ', nSamples)
 
   # View(pr)
   # View(pr2)
@@ -82,25 +82,25 @@
   if (is.null(nTimes)){
     nTimes = length(x = pr)
   }
-  message('number of time points: ', nTimes)
+  # message('number of time points: ', nTimes)
 
   # total number of trees to be grown in the forest
   # .NTree() is a getter method defined for Parameters objects
   nTree <- .NTree(object = params)
-  message("total number of trees to be grown in forest: ", nTree)
+  # message("total number of trees to be grown in forest: ", nTree)
 
   # determine the number of samples to include in each tree
   sampleSize <- ceiling(x = sampleSize * nSamples)
-  message("number of samples to include in each tree: ", sampleSize)
+  # message("number of samples to include in each tree: ", sampleSize)
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  message("maximum nodes in a tree: ", maxNodes)
+  # message("maximum nodes in a tree: ", maxNodes)
 
   # convert factors to integers
   x = data.matrix(frame = x)
   nr = nrow(x = x) # number of individuals based on covariate length
-  message("number of individuals, nr: ", nr)
+  # message("number of individuals, nr: ", nr)
 
   # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran

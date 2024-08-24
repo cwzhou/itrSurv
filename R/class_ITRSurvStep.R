@@ -594,7 +594,7 @@ setMethod(f = ".Predict",
     result <- new(Class = "SurvRFStratified", "strat" = result)
   }
 
-  print("====================================== end of forest =================================")
+  # print("====================================== end of forest =================================")
 
   # calculate the estimated values for all treatment levels
   # .PredictAll() is a method; called here for objects of class SurvRF, which

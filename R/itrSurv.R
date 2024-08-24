@@ -507,7 +507,7 @@ itrSurv <- function(data,
                         stratifiedSplit = stratifiedSplit)
 
   if (endPoint == "CR" & params@endpointparam@splitRule == "gray_cr"){
-    print("TESLFJKLSFJDKLSFJKLS")
+    # print("TESLFJKLSFJDKLSFJKLS")
     # ensure that 'epName' is provided as a character or character vector and
     # that the provided names are present in 'data'. For RE: this input defines the
     # dataset for the endpoint Phase analysis. For CR: this is needed for 'gray_cr' test.
@@ -630,8 +630,8 @@ itrSurv <- function(data,
                                 txName = txName[nDP],
                                 mTry = mTry[nDP],
                                 sampleSize = sampleSize1[nDP])
-  message("...end of .itrSurvStep...")
-  message("Phase1Results")
+  # message("...end of .itrSurvStep...")
+  # message("Phase1Results")
   # View(Phase1Results)
   assign("Phase1Results_survival", Phase1Results, envir = .GlobalEnv)
   phaseResults[[1]] <- Phase1Results
@@ -771,6 +771,8 @@ itrSurv <- function(data,
   # this is in class_ITRSurvSTEP = need to make sure it uses MIN for CIF and max for CI or something
 
 # print("itrSurv.R: Value Functions (line 607)")
+print("")
+print("")
 message("--- itrSurv: Value Functions ---")
 value1Train <- .meanValue(object = phaseResults,
                           Phase = "Survival")

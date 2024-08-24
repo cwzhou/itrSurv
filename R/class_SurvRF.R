@@ -563,7 +563,7 @@ setMethod(f = ".PredictAll",
           signature = c(object = "SurvRFStratified"),
           definition = function(Phase, eps0, object, ..., newdata, model, params, txLevels) {
             # message("class_SurvRF.R: LINE 392")
-            message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s\n", Phase))
+            # message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s\n", Phase))
             # extract new model frame
             x <- stats::model.frame(formula = model, data = newdata)
             # remove response from x
@@ -852,7 +852,7 @@ setMethod(f = ".PredictAll",
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
-  message(".optimal function with crit: ", crit, " for Phase ", Phase)
+  # message(".optimal function with crit: ", crit, " for Phase ", Phase)
 
   # initialize empty matrices for mean_trts and area_trts based on trt1
   mean_trts = area_trts = prob_trts = matrix(nrow = ncol(predicted[["Func"]][[1]]), ncol = length(txLevels))
@@ -965,6 +965,8 @@ setMethod(f = ".PredictAll",
         mutate(Stop_Ind = ifelse(NumTrts > 1, 0, 1))
       num_trts = V_df1$NumTrts
       stop_ind = V_df1$Stop_Ind
+      predd_surv[["Stopping_Ind"]] <<- stop_ind
+      # print(stop_ind)
 
     } # end of Phase = 1
   } # end of crit = mean | crit = area
@@ -1061,6 +1063,7 @@ setMethod(f = ".PredictAll",
       Stop_Ind0[!isna] <- Stop_Ind[["Prob"]][!isna]
       num_trts = Num_Trts0
       stop_ind = Stop_Ind0
+      predd_surv[["Stopping_Ind"]] <<- stop_ind
     } # end of Phase = 1
   } # end of mean.prob.combo
   else{
@@ -1069,9 +1072,11 @@ setMethod(f = ".PredictAll",
 
   # print("test7")
   if (Phase == 2 | Phase == "CR" | Phase == "RE"){
+    # message('phase 2')
     # dont care about going to another phase
     num_trts = rep(99, length(optTx))
     stop_ind = rep(99, length(optTx))
+    predd_ep[["Stopping_Ind"]] <<- stop_ind
     } # end of CIF
   # print("test8")
   # extract the survival or cumulative incidence function at optimal tx
@@ -1083,17 +1088,6 @@ setMethod(f = ".PredictAll",
     optSv[i,] <- predicted$Func[[optTx[i]]][,i]
   }
 
-  Ratio_Stopping_Ind = stop_ind
-  NumTrts = num_trts
-
-  if (Phase == 1 | grepl("surv", Phase, ignore.case = TRUE)){
-    predd_surv[["Stopping_Ind"]] <<- Ratio_Stopping_Ind
-  }
-  else{
-    predd_surv[["Stopping_Ind"]] <<- 99
-  }
-
-  View(predd_surv)
   # print("test9")
   # BELOW IS OLD STUFF.
   # # initialize empty matrices for mean_trts and area_trts based on trt1
@@ -1362,9 +1356,9 @@ setMethod(f = ".PredictAll",
               "optimalTx" = txLevels[optTx],
               "optimalY" = optSv,
               "type" = crit,
-              "NumTrts" = NumTrts,
+              "NumTrts" = num_trts, #NumTrts,
               # "NonOpt_Opt_Ratio" = Ratio,
-              "Ratio_Stopping_Ind" = Ratio_Stopping_Ind) )
+              "Ratio_Stopping_Ind" = stop_ind)) #Ratio_Stopping_Ind) )
 }
 
 ###############################################################################################
