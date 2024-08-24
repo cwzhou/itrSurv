@@ -1074,7 +1074,7 @@ setMethod(f = ".PredictAll",
     stop_ind = rep(99, length(optTx))
     } # end of CIF
   # print("test8")
-  # extract the survival or cumulative indcidence function at optimal tx
+  # extract the survival or cumulative incidence function at optimal tx
   optSv <- matrix(data = 0.0,
                   nrow = length(x = optTx),
                   ncol = .NTimes(params))
@@ -1086,7 +1086,7 @@ setMethod(f = ".PredictAll",
   Ratio_Stopping_Ind = stop_ind
   NumTrts = num_trts
 
-  if (Phase == 1 | Phase == "Survival"){
+  if (Phase == 1 | grepl("surv", Phase, ignore.case = TRUE)){
     predd_surv[["Stopping_Ind"]] <<- Ratio_Stopping_Ind
   }
   else{
