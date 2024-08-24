@@ -1092,6 +1092,8 @@ setMethod(f = ".PredictAll",
   else{
     predd_surv[["Stopping_Ind"]] <<- 99
   }
+
+  View(predd_surv)
   # print("test9")
   # BELOW IS OLD STUFF.
   # # initialize empty matrices for mean_trts and area_trts based on trt1
