@@ -28,3 +28,7 @@ Local machine: scp itrSurv_0.1.0.tar.gz cwzhou@longleaf.unc.edu:/nas/longleaf/ho
 cd /nas/longleaf/home/cwzhou/Dissertation/Analyses/Simulations/Paper1_CR
 Open R and type: install.packages('/nas/longleaf/home/cwzhou/Dissertation/Paper_1/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
+
+Edit CR00.Simulation_Parameters.R then in the cluster, go to "/nas/longleaf/home/cwzhou/Dissertation/Analyses/Simulations/Paper1_CR" and run:
+sbatch -p general -N 1 --mem=3GB -n 1 -t 1-0:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript CR01.Simulation_Run.R > Testing/cluster_output/out1.txt"
+
