@@ -13,15 +13,17 @@ Encoding: UTF-8
 Depends: methods, stats, survival
 RoxygenNote: 7.2.3
 Collate: 'VerifyEndpointTime.R' 'VerifyCriticalValue.R' 'VerifyData.R'
-        'VerifyERT.R' 'VerifyEndPoint.R' 'VerifyModels.R' 'VerifyTol1.R'
-        'VerifyRandomSplit.R' 'VerifyReplace.R' 'VerifySampleSize.R'
-        'VerifySplitRule.R' 'VerifySurvivalTime.R' 'VerifyTieMethod.R'
-        'VerifyTimePoints.R' 'VerifyTxName.R' 'VerifyIdName.R' 'VerifyEpName.R' 
-        'VerifyUniformSplit.R' 'VerifyUsePrevTime.R' 'class_CriticalValue.R' 
-        'criticalValue.R' 'class_CriticalValueMean.R' 'class_CriticalValueArea.R'
-        'class_CriticalValueSurv.R'  'class_CriticalValueEndpoint.R' 
+        'VerifyERT.R' 'VerifyEndPoint.R' 'VerifyModels.R'
+        'VerifyTol1.R' 'VerifyRandomSplit.R' 'VerifyReplace.R'
+        'VerifySampleSize.R' 'VerifySplitRule.R' 'VerifySurvivalTime.R'
+        'VerifyTieMethod.R' 'VerifyTimePoints.R' 'VerifyTxName.R'
+        'VerifyIdName.R' 'VerifyEpName.R' 'VerifyUniformSplit.R'
+        'VerifyUsePrevTime.R' 'class_CriticalValue.R' 'criticalValue.R'
+        'class_CriticalValueMean.R' 'class_CriticalValueArea.R'
+        'class_CriticalValueSurv.R' 'class_CriticalValueEndpoint.R'
         'class_TreeConditions.R' 'class_TreeType.R' 'class_TimeInfo.R'
         'class_Parameters.R' 'predictSurvTree.R' 'class_SurvRF.R'
         'survRF.R' 'shiftMat.R' 'class_Optimal.R' 'class_ITRSurvStep.R'
         'class_ITRSurv.R' 'itrSurv.R'
 NeedsCompilation: yes
+Packaged: 2024-08-24 03:32:38 UTC; zhou

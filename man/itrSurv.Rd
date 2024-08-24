@@ -2,20 +2,27 @@
 % Please edit documentation in R/itrSurv.R
 \name{itrSurv}
 \alias{itrSurv}
-\title{Dynamic Treatment Regime for Survival Analysis}
+\title{Individualized Treatment Regime for Survival Analysis}
 \usage{
 itrSurv(
   data,
+  endPoint,
+  idName,
   txName,
+  epName,
   models,
-  endPoint = "CR",
   ...,
+  timePointsSurvival,
+  timePointsEndpoint, # for CR, this is the same as timePointsSurvival
   timePoints = "quad",
   nTimes = 100L,
   tau = NULL,
-  criticalValue = "mean",
+  criticalValue1 = "mean",
+  criticalValue2 = "mean",
+  tol1 = c(0.1,0.1,0,0), # default is eps0_ratio = 0.1 and eps0_diff = 0;
   evalTime = NULL,
-  splitRule = NULL,
+  splitRule1 = NULL,
+  splitRule2 = NULL,
   ERT = TRUE,
   uniformSplit = NULL,
   sampleSize = NULL,
@@ -32,11 +39,10 @@ itrSurv(
 )
 }
 \arguments{
-\item{data}{A data.frame object. The full dataset including treatments
-received, all stage covariates, observed times, and censoring
-indicators.
-Can be provided as a matrix object if column headers are included.
-Can contain missing data coded as NA, but cannot contain NaN.}
+\item{data}{A data.frame object.
+For CR endpoint: The full dataset including treatments received, all covariates, observed times, overall failure indicator, and cause 1 failure indicator.
+For RE endpoint: The first column must be Individual ID. The full dataset including ID, treatment, covariates, start times, stop times, recurrent event indicator, death indicator.
+Can be provided as a matrix object if column headers are included. Can contain missing data coded as NA, but cannot contain NaN.}
 
 \item{txName}{A character vector object. The treatment variable name for
 each decision point. Each element corresponds to the respective decision

@@ -1085,6 +1085,13 @@ setMethod(f = ".PredictAll",
 
   Ratio_Stopping_Ind = stop_ind
   NumTrts = num_trts
+
+  if (Phase == 1 | Phase == "Survival"){
+    predd_surv[["Stopping_Ind"]] <<- Ratio_Stopping_Ind
+  }
+  else{
+    predd_surv[["Stopping_Ind"]] <<- 99
+  }
   # print("test9")
   # BELOW IS OLD STUFF.
   # # initialize empty matrices for mean_trts and area_trts based on trt1

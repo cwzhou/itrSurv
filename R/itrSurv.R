@@ -40,11 +40,11 @@
 #'    For RE endpoint: the first list should be a formula for terminal (i.e death) events
 #'    and the second should be a formula for recurrent events.
 #'    Example: CR:
-#'                 [[1]] Surv(obs_time, D.0) ~ Z1
-#'                 [[2]] Surv(obs_time, D.1) ~ Z1
+#'       Surv(obs_time, D.0) ~ Z1
+#'       Surv(obs_time, D.1) ~ Z1
 #'    Example: RE:
-#'                 [[1]] Surv(TStop, D.0) ~ Z1
-#'                 [[2]] Surv(TStart, TStop, D.1) ~ Z1
+#'       Surv(TStop, D.0) ~ Z1
+#'       Surv(TStart, TStop, D.1) ~ Z1
 #'    For RE, TStart is start time, TStop is stop time, and D.0 represents death indicator for survival dataset
 #'    D.1 represents recurrent event indicator for RE dataset (full dataset)
 #'    The inputted dataset must reflect these variable names.
@@ -202,8 +202,6 @@
 #'   Zhou, C.W. and Kosorok, M.R.
 #'   Estimating optimal individualized treatment regimes for recurrent events and terminal event in survival data.
 #'   In preparation.
-#'
-#'
 #'
 #' @include VerifyData.R VerifyTxName.R VerifyModels.R VerifySampleSize.R
 #' @include VerifyEndPoint.R VerifyUsePrevTime.R class_Parameters.R

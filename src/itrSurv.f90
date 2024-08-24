@@ -744,16 +744,16 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
       !PRINT *, "original valuej: ", valuej
       ! calculate test statistic
       IF (rule == 1) THEN
-        PRINT *, "~~~~~ SPLITTING TEST: PHASE 1: logrank test ~~~~~"
+        ! PRINT *, "~~~~~ SPLITTING TEST: PHASE 1: logrank test ~~~~~"
         CALL logrank(atRiskLeft, atRiskRight, eventsLeft, numJ, &
                    & denJ, valuej)
-        PRINT *, "logrank test statistic valuej = ", valuej
+        ! PRINT *, "logrank test statistic valuej = ", valuej
       ELSE IF (rule == 2) THEN
-        PRINT *, "~~~~~ SPLITTING TEST: PHASE 1: truncated mean test ~~~~~"
+        ! PRINT *, "~~~~~ SPLITTING TEST: PHASE 1: truncated mean test ~~~~~"
         CALL meanSplit(atRiskLeft, atRiskRight, eventsLeft, eventsRight, valuej)
-        PRINT *, "mean test statistic valuej = ", valuej
+        ! PRINT *, "mean test statistic valuej = ", valuej
       ELSE IF (rule == 3) THEN
-        PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (CR): gray's test ~~~~~"
+        ! PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (CR): gray's test ~~~~~"
         ! set up for crstm
         IF (isPhase2CR) THEN
           !!!!!!!PRINT *, "CR: Gray's Test Set-Up to split nodes"
@@ -803,9 +803,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         PRINT *, "The test statistic is NaN. Stopping the execution."
         STOP
       ELSE 
-        PRINT *, "Test Statistic: ", valuej
-        print *,""
-        print *,""
+        !PRINT *, "Test Statistic: ", valuej
+        !print *,""
+        !print *,""
 
       END IF
 
@@ -1472,7 +1472,7 @@ IMPLICIT NONE
       !PRINT *, "n", n
       !PRINT *, "ng", ng
       !PRINT *, "rho", rho
-      PRINT *, "st", st
+      !PRINT *, "st", st
       !PRINT *, "vt", vt
       !!!!!PRINT *, "ng1", ng1
       !PRINT *, "ng2", ng2
@@ -1485,7 +1485,7 @@ IMPLICIT NONE
       !PRINT *, iwk
       !PRINT *, "iwk(1)", iwk(1)
       ! Call subroutine crst
-      PRINT *, "--- calling crst ----"
+      !PRINT *, "--- calling crst ----"
       call crst(ys(1), ms(1), igs(1), n, ng, rho, st, vt, ng1, ng2, &
                 & wk(1), wk(ng+1), wk(2*ng+1), wk(3*ng+1), &
                 & wk(ng3), wk(ng3+ng4), wk(ng3+2*ng4), &
@@ -3032,28 +3032,28 @@ PRINT *, "CRSTM1"
       ng3 = 4 * ng + 1
       ng4 = ng * ng
      !!!PRINT *, "CRSTM2"
-     PRINT *, "----------------------------"
-     PRINT *, "ys"
-     PRINT *, ys
+     !PRINT *, "----------------------------"
+     !PRINT *, "ys"
+     !PRINT *, ys
      !!!PRINT *, "ys(1)"
      !!!PRINT *, ys(1)
      !!!PRINT *, "----------------------------"
-     PRINT *, "ms"
-     PRINT *, ms
+     !PRINT *, "ms"
+     !PRINT *, ms
      !!!PRINT *, "ms(1)"
      !!!PRINT *, ms(1)
      !!!PRINT *, "----------------------------"
-     PRINT *, "igs"
-     PRINT *, igs
+     !PRINT *, "igs"
+     !PRINT *, igs
      !!!PRINT *, "igs(1)"
      !!!PRINT *, igs(1)
-     PRINT *, "----------------------------"
+     !PRINT *, "----------------------------"
      !!!PRINT *, "n", n
      !!!PRINT *, "ng", ng
      !!!PRINT *, "rho", rho
      !!!PRINT *, "st", st
      !!!PRINT *, "vt", vt
-     PRINT *, "ng1", ng1
+     !PRINT *, "ng1", ng1
      !!!PRINT *, "ng2", ng2
      !!!PRINT *, "----------------------------"
      !!!PRINT *, "wk"
