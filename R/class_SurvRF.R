@@ -226,15 +226,17 @@ setMethod(f = ".PredictAll",
             res <- .Predict(object = object,
                             newdata = x,
                             params = params, ...)
-            # message('calculating AUSklj')
+            # CZ adding in AUS
+            # message('class_SurvRF.R: Pooled Line 230: calculating AUS')
             Func_res = as.matrix(res$Func)
+            new_tp0 = list()
             # id_test = 1
             # plot(Func_res[,id_test],
             #      main = sprintf("Plot Func_res for subject %s for Phase %s",
             #                     id_test,Phase))
 
             # Calculating time points so that we only keep the time point after last event
-            area_tp0 = list()
+            # area_tp0 = list() # this is old as of August 2024
             for (subj in 1:ncol(Func_res)){
               # message("for subject: ", subj)
               probabilities0 = Func_res[,subj]
@@ -247,17 +249,17 @@ setMethod(f = ".PredictAll",
               }
               # Time point (index) right after the last change in probability
               time_point_after_last_change0 <- last_change_index0 + 1
-              new_tp0 = params@timePoints[1:time_point_after_last_change0]
-              area_tp0[[subj]] = new_tp0
-
+              new_tp0[[subj]] = params@timePoints[1:time_point_after_last_change0]
+              # area_tp0[[subj]] = new_tp0 # this is old as of august 2024
             }
 
-            res$AUS_cut_tp = list(area_tp0)
             res$Func <- list(res$Func)
             res$mean <- list(res$mean)
             res$Prob <- list(res$Prob)
-            res$AUS = list(area_trt0)
+            res$AUS_cut_tp = list(new_tp0)
+            # res$AUS = list(area_trt0) # old as of August 2024
 
+            # other treatments
             i <- 2L
             # repeat this process for each tx level
             while (i <= length(x = txLevels)) {
@@ -275,8 +277,10 @@ setMethod(f = ".PredictAll",
               tt <-  .Predict(object = object,
                               newdata = x,
                               params = params, ...)
+
               Func_tt = as.matrix(tt$Func)
-              area_tp_tt = list()
+              # area_tp_tt = list() # old as of August 2024
+              new_tp_tt = list()
               # plot(Func_tt[,id_test],
               #      main = sprintf("Plot Func_tt for subject %s for Phase %s",
               #                     id_test,Phase))
@@ -293,28 +297,27 @@ setMethod(f = ".PredictAll",
                 # Time point (index) right after the last change in probability
                 time_point_after_last_change_tt <- last_change_index_tt + 1
                 # print(time_point_after_last_change_tt)
-                new_tp_tt = params@timePoints[1:time_point_after_last_change_tt]
-                area_tp_tt[[subj]] = new_tp_tt
+                new_tp_tt[[subj]] = params@timePoints[1:time_point_after_last_change_tt]
+                # area_tp_tt[[subj]] = new_tp_tt # old as of August 2024
 
               }
 
               res[[ "Func" ]][[ i ]] <- tt$Func
               res[[ "mean" ]][[ i ]] <- tt$mean
               res[[ "Prob" ]][[ i ]] <- tt$Prob
-              res[[ "AUS_cut_tp" ]][[i]] <- area_tp_tt
+              res[[ "AUS_cut_tp" ]][[i]] <- new_tp_tt # area_tp_tt is old as of August 2024
 
               i <- i + 1L
             }
-
 
             # message("%%%%%%%%%% AUS start")
             # Calculate AUS using all timepoints from params@timepoints
 
             # Initialize a list to store the areas under the curve for each treatment
-            area_trt_list <- vector("list", length = length(x = stratobject))
+            area_trt_list <- vector("list", length = length(x = txLevels))
             # Iterate over each treatment level
             treatment_index = 1L # start w/ treatment one then go through each treatment
-            while (treatment_index <= length(x = stratobject)) {
+            while (treatment_index <= length(x = txLevels)) {
               # message("treatment index: ", treatment_index)
               # Initialize variable to store the areas under the curve for the current treatment
               area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
@@ -335,7 +338,7 @@ setMethod(f = ".PredictAll",
 
             # Assign the calculated areas under the curve to the result object
             i = 1L # start w/ treatment one then go through each treatment
-            while (i <= length(x = stratobject)) {
+            while (i <= length(x = txLevels)) {
               res[["AUS"]][[i]] <- area_trt_list[[i]]
               i = i + 1L
             }
@@ -354,7 +357,7 @@ setMethod(f = ".PredictAll",
               max_tp_index_subject <- 0
 
               # Iterate over each treatment index
-              for (treatment_index in seq_along(stratobject)) {
+              for (treatment_index in seq_along(txLevels)) {
                 # Get the length of treatment data for the current subject and treatment
                 t_tp <- length(res[["AUS_cut_tp"]][[treatment_index]][[subject]])
 
@@ -370,11 +373,11 @@ setMethod(f = ".PredictAll",
             }
 
             # Initialize a list to store the areas under the curve for each treatment
-            area_trt_list <- vector("list", length = length(x = stratobject))
+            area_trt_list <- vector("list", length = length(x = txLevels))
 
             # Iterate over each treatment level
             treatment_index = 1L # start w/ treatment one then go through each treatment
-            while (treatment_index <= length(x = stratobject)) {
+            while (treatment_index <= length(x = txLevels)) {
               message("treatment index: ", treatment_index)
               # Initialize variable to store the areas under the curve for the current treatment
               area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
@@ -399,7 +402,7 @@ setMethod(f = ".PredictAll",
 
             # Assign the calculated areas under the curve to the result object
             i = 1L # start w/ treatment one then go through each treatment
-            while (i <= length(x = stratobject)) {
+            while (i <= length(x = txLevels)) {
               res[["AUS_cut"]][[i]] <- area_trt_list[[i]]
               i = i + 1L
             }
@@ -601,7 +604,7 @@ setMethod(f = ".PredictAll",
               }
               # Time point (index) right after the last change in probability
               time_point_after_last_change0 <- last_change_index0 + 1
-              new_tp0[[subj]] = testing_paramstp[1:time_point_after_last_change0] #params@timePoints
+              new_tp0[[subj]] = params@timePoints[1:time_point_after_last_change0] #testing_paramstp
             }
 
             res$Func <- list(res$Func)
@@ -633,7 +636,7 @@ setMethod(f = ".PredictAll",
                 # Time point (index) right after the last change in probability
                 time_point_after_last_change_tt <- last_change_index_tt + 1
                 # print(time_point_after_last_change_tt)
-                new_tp_tt[[subj]] = testing_paramstp[1:time_point_after_last_change_tt] #params@timePoints
+                new_tp_tt[[subj]] = params@timePoints[1:time_point_after_last_change_tt] #testing_paramstp
               }
 
               res[[ "Func" ]][[ i ]] <- tt$Func
