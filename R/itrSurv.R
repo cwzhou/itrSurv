@@ -10,6 +10,7 @@
 #' @param data A data.frame object.
 #'   For CR endpoint: The full dataset including treatments received, all covariates,
 #'   observed times, overall failure indicator, and cause 1 failure indicator.
+#'   MUST BE SORTED BY OBSERVED FAILURE TIME IN ASCENDING ORDER for CR endpoint!
 #'   For RE endpoint: The first column must be Individual ID. The full dataset including
 #'   ID, treatment, covariates, start times, stop times,
 #'   recurrent event indicator, death indicator.
@@ -20,6 +21,8 @@
 #'   \{"CR", "RE"\}. The label for the ultimate end point type.
 #'   For "CR": competing risks data to examine cumulative incidence function;
 #'   For "RE": recurrent events data to examine mean frequency function
+#'
+#' @param yName A character object. The observed failure time variable name. Only required for endpoint CR.
 #'
 #' @param idName A character object. The ID variable name. Only required for endpoint RE.
 #'
@@ -281,6 +284,7 @@
 #'
 itrSurv <- function(data,
                     endPoint,
+                    yName,
                     idName,
                     txName,
                     epName,
@@ -334,6 +338,7 @@ itrSurv <- function(data,
   # object
   # Verify epName and Verify idName are ran for RE endpoint
   data_list <- .VerifyData(data = data,
+                           yName = yName,
                            epName = epName,
                            endPoint = endPoint,
                            idName = idName)

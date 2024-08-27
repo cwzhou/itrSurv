@@ -60,7 +60,7 @@ setMethod(f = ".VerifyEpName",
                 stop("epName cannot include NaN values", call. = FALSE)
               }
 
-              # ensure tx is factor or integer-like
+              # ensure status is factor or integer-like
               for (i in 1L:ncol(x = test)) {
                 if (!is.factor(x = test[,i])) {
                   if (is.numeric(x = test[,i])) {

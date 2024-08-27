@@ -5,8 +5,8 @@
 # ensures that 'data' is provided as a data.frame or a matrix with named
 # columns and that the object does not contain NaN values.
 #
-# for CR datasets: these are one-row per subject with columns:
-#                  id, delta, delta_j, covariates, treatment assignment
+# for CR datasets: these are one-row per subject with columns, sorted in ascending order by yName:
+#                  id, delta, delta_j, covariates, treatment assignment, obs_time
 # for RE datasets: these are in andersen-gill (more than one row per id) format with the columns:
 #                  id, start, stop, delta_r, delta_d, covariates, treatment assignment
 #
@@ -18,18 +18,28 @@ setGeneric(name = ".VerifyData",
 # the default method generates an error
 setMethod(f = ".VerifyData",
           signature = c(data = "ANY"),
-          definition = function(data, ..., epName, endPoint, idName) {
+          definition = function(data, ..., yName, epName, endPoint, idName) {
               stop("data must be a data.frame or a matrix with named columns",
                    call. = FALSE)
             })
 
 setMethod(f = ".VerifyData",
           signature = c(data = "data.frame"),
-          definition = function(data, ..., epName, endPoint, idName) {
+          definition = function(data, ..., yName, epName, endPoint, idName) {
 
               if (any(sapply(X = data, FUN = is.nan))) {
                 stop("data cannot include NaN values", call. = FALSE)
               }
+
+            # 'yName' is the column name for observed time
+            if (endPoint == "CR") {
+              yName <- .VerifyYName(yName = yName, data = data)
+              vector_y = data %>% dplyr::select(!!sym(yName)) %>% unlist()
+              # sorted = sort(vector)
+              if (is.unsorted(vector_y)) {
+                stop("For CR endpoint, data is not sorted in ascending order by yName. Data must be sorted before added as an argument for itrSurv (CR).")
+              }
+            }
 
             if (endPoint == "RE"){
               message("Endpoint: RE")
@@ -76,12 +86,14 @@ setMethod(f = ".VerifyData",
 
 setMethod(f = ".VerifyData",
           signature = c(data = "matrix"),
-          definition = function(data, ..., epName, endPoint, idName) {
+          definition = function(data, ..., yName, epName, endPoint, idName) {
 
               if (is.null(x = colnames(x = data))) {
                 stop("if a matrix, data must include column headers",
                      call. = FALSE)
               }
 
-              return( .VerifyData(data = as.data.frame(x = data), epName = epName, endPoint = endPoint, idName = txName, ...) )
+              return( .VerifyData(data = as.data.frame(x = data),
+                                  yName = yName, epName = epName,
+                                  endPoint = endPoint, idName = idName, ...) )
             })
