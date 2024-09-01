@@ -634,6 +634,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! looking at "at risk" set now (we want overall failure for both Step1 and Step2CR)
     pd1 = sum(prl, DIM = 1) ! for group 1
     pd2 = sum(prr, DIM = 1) ! for group 2
+
+    if (isPhase2RE == 1)
+      pd1 = sum(pr2l, DIM = 1)
+      pd2 = sum(pr2r, DIM = 1)
+      ! this is wrong rn so make sure it works and is correct. create pr2l and pr2r based on pr2 for RE phase2 at risk
+
     !PRINT *, "group1: pd1 = sum(prl, DIM = 1): ", pd1
     !PRINT *, "group2: pd2 = sum(prr, DIM = 1) ", pd2
     ! pd1_m = sum(prl_m, DIM = 1) ! for group 1
@@ -1207,7 +1213,7 @@ SUBROUTINE CIF_mk(nsk, Nkj, Okj, CIF, JumpCIF)
   call kaplan(nsk, Nkj, Okj, Zk)
 
   ! if failure due to cause m in group k, then contribute Nkj(1), otherwise 0 for time point 1. ! this is Z=1 b/c time point 1 is always 0 here.
-  CIF(1) = 1/Nkj(1) ! * Okj(1)
+  CIF(1) = 0 ! update 9/1/24 changing to 0 from 1/Nkj(1) because we go from 0 to tau so 0 at time point 0 !old: 1/Nkj(1) ! * Okj(1)
   JumpCIF(1) = CIF(1)
 
   ! if nsk = 1 then CIF = CIF(1)
@@ -1353,8 +1359,6 @@ END SUBROUTINE Gray_m
 ! CALL Gray_m(ns1, ns2, delta_11j, N1j, O1j, delta_12j, N2j, O2j, Gray_CIF1) ! for cause 1
 ! CALL Gray_m(ns1, ns2, delta_21j, N1j, O1j, delta_22j, N2j, O2j, Gray_CIF2) ! for cause 2
 ! =================================================================================
-
-
 
 ! =================================================================================
 ! USING A MODIFIED VERSION OF CMPRSK CRSTM AND CRST
@@ -1902,6 +1906,77 @@ SUBROUTINE crst(y, m, ig, n, ng, rho, s, v, ng1, nv, f1m, f1, skmm, skm, c, a, v
 END SUBROUTINE crst
 ! =================================================================================
 
+! =================================================================================
+! Recurrent Event Phase 2: mu/dmu (Ghosh and Lin 2000)
+! assuming no ties (aka unique observed RE times)
+! Nj: real(:), at risk for RE (using RE time points) (calculated using pr2 which is the same for RE and death events)
+! Oj: real(:), events for RE (calcualted using pr and delta_RE for RE)
+! NjS: real(:), at risk for death (using death time points) (calculated using pr2 which is the same for RE and death events)
+! OjS: real(:), events for death (calculated using pr and delta for death)
+! survRE: real(:), survival for RE times
+! dRhat: real(:), nelson aalen estimator for recurrence data
+! mu: real(:), mean frequency function
+! dmu: real(:), derivative of mff
+! dtime is unique observed death times (plus 0 and tau)
+! retime is unique observed RE times (plus 0 and tau)
+
+! nt_re is the number of retime
+! nt_d is the number of dtime
+! dt_re is time diff for retime
+! dt_d is time diff for dtime
+SUBROUTINE MeanFreqFunc(Nj, Oj, NjS, OjS, survRE, dRhat, mu, dmu)
+
+  IMPLICIT NONE
+
+  REAL(dp), DIMENSION(1:nt), INTENT(IN) :: Nj
+  REAL(dp), DIMENSION(1:nt), INTENT(IN) :: Oj
+  REAL(dp), DIMENSION(1:nt_d), INTENT(IN) :: NjS
+  REAL(dp), DIMENSION(1:nt_d), INTENT(IN) :: OjS
+  REAL(dp), DIMENSION(1:nt), INTENT(INOUT) :: survRE
+  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: dRhat
+  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: mu
+  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: dmu
+
+  INTEGER :: i, j
+
+  REAL(dp), DIMENSION(1:nt) :: muTmp
+  REAL(dp), DIMESNION(1:nt_d) :: survD
+
+  PRINT *, "******************** mean frequency function ********************"
+  mu = 0.d0
+  dmu = 0.d0
+  
+  PRINT *, "******************** obtain survival KM (deaths) ********************"
+  call kaplan(nt_d, Nj, OjS, survD)
+  
+  DO i = 1, nt_re ! Loop over all elements in retime (or another array of length nt_re)
+
+    ! to get the time points that have individuals at risk
+    ! if number at risk is equal to 0, then skip to next time point index (i)
+    IF (Nj(i) .LT. 1d-8) CYCLE
+    PRINT *, "******************** dRhat ********************"
+    dRhat(i) = Oj(i) / Nj(i) ! dRhat at each timepoint
+    
+    PRINT *, "******************** Recurrent KM (using RE times) ********************"
+    DO j = 1, dtime-1  ! Loop over elements in dtime, up to dtime-1
+      IF (dtime(j) <= retime(i) .AND. retime(i) < dtime(j+1)) THEN
+        survRE(i) = survD(j) ! Assign survD(j) to survRE(i) if condition is met
+        EXIT                 ! Exit the inner loop if condition is met
+      END IF
+    END DO
+  END DO
+
+
+  END DO
+  
+  mu(1) = 0
+  if (nt .LT. 2) RETURN
+  DO i = 2, nt
+    mu(i) = mu(i-1) + survRE(i) * dRhat(i)
+  END DO
+
+
+END SUBROUTINE MeanFreqFunc
 
 ! =================================================================================
 ! estimate the survival/cif function and mean survival/cif time

@@ -493,6 +493,11 @@ setMethod(f = ".Predict",
       })
     })
     pr2.tmp<<-pr2
+    # number of ppl at risk for recurrent event and death are the same because
+    # if they are at-risk for RE then they are also at risk for death and vise versa
+    # so, we can use pr2 for both in fortran when calculating at risk, which applies to both
+    # (i.e., for KM survival and dRhat for calculating mff mu) # Ghosh and Lin, 2000
+
 
     # {nTimes x nElig} # should be same dimensions as pr
     if (any(is.na(x = pr2))) stop("NA not permitted in pr2 -- contact maintainer",
