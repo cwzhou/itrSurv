@@ -345,6 +345,7 @@ itrSurv <- function(data,
 
   data_surv = data_list[[1]]
   data_ep = data_list[[2]]
+  dlist_test<<-data_list
 
   # ensure that 'txName' is provided as a character or character vector and
   # that the provided names are present in 'data'. If 'txName' is appropriate,
@@ -507,7 +508,7 @@ itrSurv <- function(data,
                         criticalValue2 = criticalValue2,
                         survivalTime = evalTime,
                         endpointTime = evalTime, # need to change endpointTime to endpointTime in all scripts.
-                        nSamples = nSamples,
+                        nSamples = nSamples, # number of people (only people)
                         pooled = pooled,
                         stratifiedSplit = stratifiedSplit)
 
@@ -572,6 +573,7 @@ itrSurv <- function(data,
   splitR_1 = ifelse(params1@splitRule == 'logrank_surv', 1, 2) # 1 for logrank; 2 for truncated mean
   res1 = .Fortran("setUpBasics",
                  t_nt = as.integer(x = .NTimes(object = params1)),
+                 t_nt_death = as.integer(x = .NTimes(object = params1)),
                  t_dt = as.double(x = .TimeDiff(object = params1)),
                  t_rs = as.double(x = params1@randomSplit),
                  t_ERT = as.integer(x = params1@ERT),
@@ -628,8 +630,8 @@ itrSurv <- function(data,
                                 # model_cause = NULL, #discontinued July 2024 after adding in RE endpoint
                                 endPoint = endPoint,
                                 data = data_list, # list of data_surv and data_ep
-                                ord_causeind = ord_causeind, # only needed for Phase2 CR when using grays test
-                                ord_response = ord_response, # only needed for Phase2 CR when using grays test
+                                ord_causeind = ord_causeind, # only needed for Phase2CR when using grays test
+                                ord_response = ord_response, # only needed for Phase2CR when using grays test
                                 priorStep = NULL,
                                 params = params1,
                                 txName = txName[nDP],
@@ -670,6 +672,7 @@ itrSurv <- function(data,
   if (is.na(splitR_2)){stop("SPLIT RULE IS WRONG!!?")}
   res2 = .Fortran("setUpBasics",
                   t_nt = as.integer(x = .NTimes(object = params2)),
+                  t_nt_death = as.integer(x = .NTimes(object = params1)),
                   t_dt = as.double(x = .TimeDiff(object = params2)),
                   t_rs = as.double(x = params2@randomSplit),
                   t_ERT = as.integer(x = params2@ERT),
@@ -728,7 +731,15 @@ itrSurv <- function(data,
 #   # }
 # }
 
-  Phase2Results <<- .itrSurvStep(Phase = toString(endPoint),
+  Phase = toString(endPoint)
+  if (Phase == "CR"){
+    params.2 = params2
+  } else if (Phase == "RE"){
+    params.2 = params
+  } else{
+    stop(sprintf("Phase %s is not coded yet. Phase 1 should not get to Line 736 in itrSurv.R", toString(endPoint)))
+  }
+  Phase2Results <<- .itrSurvStep(Phase = Phase,
                                  eps0 = tol1, # don't really even need b/c dont use in Phase 2
                                  model_surv = models_surv,
                                  model_ep = models_ep,
@@ -737,7 +748,7 @@ itrSurv <- function(data,
                                  data = data_list,  # list of data_surv and data_ep
                                  ord_causeind = ord_causeind, # only needed for CR when using grays test
                                  ord_response = ord_response, # only needed for CR when using grays test
-                                 params = params2,
+                                 params = params.2,
                                  txName = txName[nDP],
                                  mTry = mTry[nDP],
                                  sampleSize = sampleSize2[nDP])
@@ -776,9 +787,7 @@ itrSurv <- function(data,
   # this is in class_ITRSurvSTEP = need to make sure it uses MIN for CIF and max for CI or something
 
 # print("itrSurv.R: Value Functions (line 607)")
-print("")
-print("")
-message("--- itrSurv: Value Functions ---")
+message("\n\n--- itrSurv: Value Functions ---\n\n")
 value1Train <- .meanValue(object = phaseResults,
                           Phase = "Survival")
 value2Train <- mean(phaseResults[[1]]@optimal@Ratio_Stopping_Ind == 0)

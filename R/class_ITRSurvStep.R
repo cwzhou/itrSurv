@@ -77,11 +77,14 @@ setClass(Class = "ITRSurvStep",
     optfunc = max
 
     AU_name = "AUS"
-    mean_name = "Et_surv"
+    mean_name = "Et_survival"
     prob_name = "St"
 
+    # message("OK3")
     area_dat = cbind(object_surv@valueAllTx$AUS[[1]],
                      object_surv@valueAllTx$AUS[[2]])
+
+    # message("OK3")
     mean_dat = cbind(object_surv@valueAllTx$mean[[1]],
                      object_surv@valueAllTx$mean[[2]])
     mdat1 <<- mean_dat
@@ -101,13 +104,13 @@ setClass(Class = "ITRSurvStep",
   # print(endPoint)
 
   if (!is.null(endPoint)){
-    if (endPoint == "CR" & Phase == "CR"){
+    if (endPoint == Phase){
       object = object_ep
       optfunc = min
 
       AU_name = "AUC"
-      mean_name = "Et_cif"
-      prob_name = "CIFt"
+      mean_name = "Et_endpoint" #"Et_cif"
+      prob_name = "Endpoint t" #"CIFt"
       # message("OK4")
 
       indicator_vector <- object_surv@optimal@Ratio_Stopping_Ind
@@ -301,6 +304,10 @@ setMethod(f = ".Predict",
                          sampleSize) {
   # print("---STARTING ITRSURVSTEP---")
 
+  if (Phase == "RE"){
+    phase1_params <<- params@survivalparam
+    params = params@endpointparam
+  }
   ###########################################################################
   ############################ PHASE 1: SURVIVAL ############################
   ###########################################################################
@@ -403,11 +410,16 @@ setMethod(f = ".Predict",
                                   na.action = na.pass)
     response_surv <<- stats::model.response(data = x_surv)
     delta <<- response_surv[,2L] # survival delta
+    # View(delta)
     x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
 
     # stop("tmp")
   }
 
+  # set id_vec which is needed for Phase2RE, in fortran, to calculate mff stuff with pr2 to get at risk for death in RE setting
+  id_vec = data[[3]] %>% unlist()
+  # idvec_test <<- id_vec
+  # stop(" testing id_vec ")
 
  # old stuff located in scratch: old itrsurvstep code.R
 
@@ -441,6 +453,9 @@ setMethod(f = ".Predict",
   # identify time points <= response
   # resp.tmp <<- response[elig]
   tp.tmp <<- .TimePoints(object = params)
+  if (Phase == "RE"){
+    tp.tmp.phase1<<- .TimePoints(object = phase1_params)
+  }
 
 # we use tSurv to get pr
   # tSurv shows at risk to not at risk.
@@ -474,10 +489,11 @@ setMethod(f = ".Predict",
   }
 
   if (Phase == "RE" & endPoint == "RE"){
-    message(Phase)
+    # message(Phase)
+    # print("pr2")
     # FOR RECURRENT EVENTS ONLY:
     # obtain pr2 to obtain number of people at risk for recurrent event set-up
-    # pr2 shows 'at risk' to 'not at risk' for people in recurrent event set-up
+    # pr2 shows 'at risk' to 'not at risk' for records in recurrent event set-up
     response_re <<- cbind(response_endpoint_start, response_endpoint_stop)
     elig<<-elig
     # print(elig)
@@ -493,26 +509,78 @@ setMethod(f = ".Predict",
       })
     })
     pr2.tmp<<-pr2
-    # number of ppl at risk for recurrent event and death are the same because
+    # August 2024: number of ppl at risk for recurrent event and death are the same because
     # if they are at-risk for RE then they are also at risk for death and vise versa
     # so, we can use pr2 for both in fortran when calculating at risk, which applies to both
     # (i.e., for KM survival and dRhat for calculating mff mu) # Ghosh and Lin, 2000
-
-
     # {nTimes x nElig} # should be same dimensions as pr
     if (any(is.na(x = pr2))) stop("NA not permitted in pr2 -- contact maintainer",
                                   call. = FALSE)
     if (any(pr2 > 1.0) || any(pr2 < 0.0)) {
       stop("pr2 must obey 0 <= pr2 <= 1 -- contact maintainer", call. = FALSE)
     }
+
+    # pr2_surv: September 2024: not most efficient but easier to just plug into fortran b/c tp_surv is diff from tp_end and surv should reflect correct tp
+
+    # print("pr2_surv")
+    # FOR RECURRENT EVENTS ONLY:
+    # obtain pr2_surv to obtain number of people at risk for death during recurrent event Phase
+    # pr2_surv shows 'at risk' to 'not at risk' for people in recurrent event set-up
+    # Apply function to each row of response_re
+    pr2_surv <- apply(response_re[elig,], 1, function(row) {
+      # start-stop interval is OPEN-CLOSED: (start, stop]
+      # THIS IS TO IDENTIFY # AT RISK FOR RECORDS
+      # row[1] is the start, row[2] is the stop
+      # USING SURVIVAL TIME POINTS (includes 0 and tau)
+      sapply(.TimePoints(object = phase1_params), function(tp) {
+        # 1 means at risk; 0 means NOT at risk (opposite of tSurv)
+        as.integer(row[1] < tp & row[2] >= tp)
+      })
+    })
+    pr2_surv.tmp<<-pr2_surv
+    # {nTimes_survival x nElig}
+    if (any(is.na(x = pr2_surv))) stop("NA not permitted in pr2_surv -- contact maintainer",
+                                       call. = FALSE)
+    if (any(pr2_surv > 1.0) || any(pr2_surv < 0.0)) {
+      stop("pr2_surv must obey 0 <= pr2_surv <= 1 -- contact maintainer", call. = FALSE)
+    }
+
+    # print("pr_surv")
+    # we use tSurv_surv to get pr_surv
+    tSurv_surv <- sapply(X = response[elig],
+                    FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk; 1 means NOT at risk
+                    tp = .TimePoints(object = phase1_params)) # this is phase 1 TIME POINTS!!!
+    tSurv_surv.tmp<<-tSurv_surv
+    # time point nearest the status change (response (death), censoring, recurrent event, CR,etc) without going over
+    # prsurv: {nTimes_SURVIVAL x nElig (still records not people)}
+    pr_surv <- {rbind(tSurv_surv[-1L,],1)-tSurv_surv}
+    pr_surv.tmp <- pr_surv
+    # colnames(pr_surv.tmp) = tp.tmp.phase1
+    # print("test000")
+    # rownames(pr_surv.tmp) = response_surv[,1]
+    pr_surv.tmp <<- pr_surv.tmp
+    # print("test1")
+
+    if (any(is.na(x = pr_surv))) stop("NA not permitted in pr_surv -- contact maintainer",
+                                 call. = FALSE)
+    if (any(pr_surv > 1.0) || any(pr_surv < 0.0)) {
+      stop("pr_surv must obey 0 <= pr_surv <= 1 -- contact maintainer", call. = FALSE)
+    }
+    # print("test2")
+
   } else{
-    message("we set pr2=pr since we don't use pr in this setting")
+    message("we set pr2=pr2_surv=pr_surv=pr since we don't use pr2,pr2_surv,pr_surv in this setting")
     pr2 = pr
+    pr2_surv = pr
+    pr_surv = pr
+    # print("pr")
+    # print(pr)
+    # print("pr2")
+    # print(pr2)
+    # print("pr_surv")
+    # print(pr_surv)
   }
-  # print("pr")
-  # print(pr)
-  # print("pr2")
-  # print(pr2)
+
 
   # identify tx levels in limited data
   if (is.factor(x = dataset[,txName])) {
@@ -541,6 +609,14 @@ setMethod(f = ".Predict",
   # print(ord_causeind)
 
 
+  if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
+    # print(Phase)
+    # print(id_vec)
+    id_vec = id_vec %>% unique()
+    # print(id_vec)
+    # stop()
+  }
+
   if (.Pooled(object = params)) {
       message("pooled analysis; treatments ", paste(txLevels,collapse=" "))
       # this will be a SurvRF object
@@ -548,8 +624,11 @@ setMethod(f = ".Predict",
                         eps0 = eps0,
                         x = x[elig,,drop=FALSE],
                         y = response[elig],
+                        idvec = id_vec[elig],
                         pr = pr,
                         pr2 = pr2,
+                        pr2_surv = pr2_surv,
+                        pr_surv = pr_surv,
                         ord_causeind = ord_causeind[elig],
                         ord_response = ord_response[elig],
                         delta = delta[elig],
@@ -566,6 +645,7 @@ setMethod(f = ".Predict",
     result <- list()
     # message("number of txLevels:", length(txLevels))
     # print(txLevels)
+    # print(pr_surv)
     for (i in 1L:length(x = txLevels)) {
       # message("-----------")
       message("  treatment level ", txLevels[i])
@@ -583,10 +663,13 @@ setMethod(f = ".Predict",
                                  eps0 = eps0,
                                  x = x[use,,drop=FALSE], # subset of covariates for the current treatment level
                                  y = response[use],
+                                 idvec = id_vec[use], # only matters for Phase2RE
                                  pr = pr[,di],
                                  pr2 = pr2[,di],
-                                 ord_causeind = ord_causeind[use],
-                                 ord_response = ord_response[use],
+                                 pr2_surv = pr2_surv[,di],
+                                 pr_surv = pr_surv[,di],
+                                 ord_causeind = ord_causeind[use], # only matters for Phase2CR
+                                 ord_response = ord_response[use], # only matters for Phase2CR
                                  delta = delta[use],
                                  delta_endpoint = delta_endpoint[use],
                                  params = params,

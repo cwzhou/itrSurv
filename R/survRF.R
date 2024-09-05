@@ -14,6 +14,9 @@
 # @param pr2 A matrix object {nt x n}. Used to calculate at-risk subjects for RE
 #   which has multiple records per subject
 #
+# @param pr2_surv A matrix object {nt_surv x n}. Used to calculate at-risk subjects for death during RE
+#   which has one record per subject
+#
 # @param ord_causeind A response-ordered vector of cause status (for CR). Needed for
 #   Gray's Test for node-splitting. 0 = censored, 1 = priority cause, 2 = any other causes.
 #   Vector of 0s for RE or CR where test is not Gray's test.
@@ -48,10 +51,13 @@
 # model = mod,
 # sampleSize = sampleSize)
 
-.survRF <- function(..., Phase, eps0, x, delta, delta_endpoint,
-                    pr, pr2, ord_causeind, ord_response, params, mTry, sampleSize) {
+.survRF <- function(..., Phase, eps0, x, idvec,
+                    pr, pr2, pr2_surv = NULL, pr_surv = NULL,
+                    ord_causeind, ord_response,
+                    delta, delta_endpoint,
+                    params, mTry, sampleSize) {
   # message("---------- starting .survRF function from survRF.R ----------------")
-  # print(Phase)
+
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -112,6 +118,7 @@
   dd <<- delta
   oo <<- ord_causeind
   rr <<- ord_response
+  ii <<- idvec
   # print('response ordered')
   # print(ord_response)
   # print('delta')
@@ -124,11 +131,14 @@
 
   # print(delta_endpoint)
   res = .Fortran("setUpInners",
-                 t_n = as.integer(x = nSamples), # number of subjects
+                 t_n = as.integer(x = nSamples), # number of subjects for Phase1 and Phase2CR, number of records for Phase2RE
+                 t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x), # covariates
-                 t_pr = as.double(x = t(x = pr)), # pr
-                 t_pr2 = as.double(x = t(x = pr2)), # pr2 for recurrent event
+                 t_pr = as.double(x = t(x = pr)), # transpose(pr): dim: n x nt #used to get number of events
+                 t_pr2 = as.double(x = t(x = pr2)), # pr2 to get at-risk for RE during isPhase2RE
+                 t_pr2surv = as.double(x = t(x = pr2_surv)), #to get at-risk for death during isPhase2RE
+                 t_prsurv = as.double(x = t(x = pr_surv)), # transpose(prsurv): dim: n_records x nt_death #used to get number of events
                  t_ord_causeind = as.integer(x = ord_causeind), # CR: response-ordered cause status #RE: vec of 0s
                  t_ord_response = as.double(x = ord_response), # CR: ordered response #RE: vec of 0s
                  t_delta = as.integer(x = delta), # delta failure
@@ -140,7 +150,11 @@
                  t_nrNodes = as.integer(x = maxNodes),
                  PACKAGE = "itrSurv")
 
-  # message(" dfgdfgd ================= Phase: ", Phase)
+  # if (Phase == "RE"){
+  #   stop("testing inners")
+  # }
+
+  message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
     # print("survTree: survTree in Fortran")
@@ -167,7 +181,7 @@
     # print(nr)
     Tree_Cif <<- Tree
   }
-  # message(sprintf("%s Tree for Phase %s", Phase, Phase))
+  message(sprintf("%s Tree for Phase %s", Phase, Phase))
 
   # retrieve trees from Fortran
   # message("survRF.R: Retrieving trees from Fortran")
@@ -239,6 +253,6 @@
               "nCat" = nCat,
               "xLevels" = xLevels) )
 
-  # message("Done with .survRF")
+  message("Done with .survRF")
 
 }

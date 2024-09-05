@@ -65,9 +65,13 @@ setMethod(f = ".VerifyData",
               # sample size
               nsamp = data %>% distinct(!!sym(idName)) %>% nrow()
 
+              # id vector for endpoint data
+              id_ep = data %>% dplyr::select(!!sym(idName)) #do we need this unlist? %>% unlist()
+
               if ( nrow(data_surv) != nsamp) {
                 View(data_surv)
                 View(data_ep)
+                View(id_ep)
                 print(sprintf("Sample size: %s", nsamp))
                 print(sprintf("Survival dataset sample size based on filtering to non-recurrent events (epName == 0): %s", nrow(data_surv)))
                 message("Please fix your dataset before continuing. Failure dataset and Endpoint datasets are printed for your convenience, as well as sample size based on idName variable.")
@@ -79,9 +83,10 @@ setMethod(f = ".VerifyData",
                 # for CR, the dataset is the same for both phase 1 and phase 2
                 message("Phase 1 and Phase 2 datasets are the same.")
                 data_surv = data_ep = data
+                id_ep = c(1:nrow(data_ep))
               }
 
-              return( list(data_surv, data_ep) )
+              return( list(data_surv, data_ep, id_ep) )
             })
 
 setMethod(f = ".VerifyData",

@@ -18,6 +18,7 @@ MODULE INNERS
   INTEGER, SAVE :: np ! number of covariates
   INTEGER, SAVE :: nrNodes ! maximum number of nodes in a tree
   INTEGER, SAVE :: nt ! number of time points
+  INTEGER, SAVE :: nt_death ! number of time points for survival
   INTEGER, SAVE :: nTree ! number of trees
   INTEGER, SAVE :: replace
   INTEGER, SAVE :: rule ! logrank:1; truncated mean: 2; gray: 3; gray2 (CSH): 4; Q_LR RE:5
@@ -38,6 +39,17 @@ MODULE INNERS
   ! number of categories in each np covariate
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: nCat
 
+  !INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: hehe
+    !if (isPhase1) then
+    !  hehe = delta
+    !  print *, "hehe is delta"
+    !end if
+
+    !if (isPhase2RE .OR. isPhase2CR) then
+    !  print *, "what is hehe?"
+    !  PRINT *, hehe
+    !end if
+
   ! the probability for a random split
   REAL(dp), SAVE :: rs
   ! the fraction above sIndex time that survival time lies
@@ -50,10 +62,19 @@ MODULE INNERS
 
   ! probability mass vector of survival function for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr
-  ! at risk vector for sampled cases in recurrent event setting
+  ! at risk for RE vector for sampled cases in recurrent event setting
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2
+ ! at risk for DEATH vector for sampled cases in recurrent event setting
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2surv
+  ! probability mass vector of survival function for sampled cases (time points = death in RE setting)
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prsurv
   ! probability mass vector of survival function for all cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prAll
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2All
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: prsurvAll  
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2survAll
+  ! id list for Phase2RE; used in conjunction with pr2 for death-at-risk in Phase2RE
+  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: id_RE
 
   REAL, DIMENSION(:), ALLOCATABLE, SAVE :: ord_responseAll
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: ord_causeindAll
@@ -194,7 +215,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER :: cnt, cnt_m, i, cc, ikv, j, jj, k, kv, l, nUncensored, nUncensored_m, ptr, rightNode, rightNode_m
   INTEGER :: nnn, iii, jjj, count_nonzero, ix
   INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
-  INTEGER :: splitLeft_m, splitLeftFinal_m
+  INTEGER :: splitLeft_m, splitLeftFinal_m, splitLeft_doloop, splitLeftFinal_doloop
   INTEGER :: tieValue, variablesTried
   INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases !dSorted_RE
   REAL(dp), DIMENSION(1:nCases) :: sorted_cases
@@ -206,10 +227,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER, DIMENSION(:), ALLOCATABLE :: group_cr2, cases2
 
   REAL(dp) :: cutoff, maxValueSplit, maxValueXm, rUnif, rUnif_m, valuej, tester3a, tester3b
-  REAL(dp), DIMENSION(1:nt) :: atRiskLeft, atRiskRight, D, D_m, denJ
-  REAL(dp), DIMENSION(1:nt) :: eventsLeft, eventsLeft_m, eventsRight, eventsRight_m, numJ, pd1, pd2, Rcum, pd1_m, pd2_m
+  REAL(dp), DIMENSION(1:nt_death) :: atRiskLeft, atRiskRight, D, denJ, numJ
+  REAL(dp), DIMENSION(1:nt_death) :: eventsLeft, eventsRight
+  REAL(dp), DIMENSION(1:nt) :: pd1, pd2, pd21, pd22
+  REAL(dp), DIMENSION(1:nt_death) :: Rcum ! length is number of failure time points
+  REAL(dp), DIMENSION(1:nt) :: atRiskLeft_m, atRiskRight_m, D_m
+  REAL(dp), DIMENSION(1:nt) :: eventsLeft_m, eventsRight_m, Rcum_m, pd1_m, pd2_m
   REAL(dp), DIMENSION(1:nCases) :: xSorted
-  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: prl, prr, prl_m, prr_m
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: prl, prr, prl_m, prr_m, pr2l, pr2r 
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: pr2survl, pr2survr, prsurvl, prsurvr
 
   LOGICAL :: randomSplit
   LOGICAL, DIMENSION(:), ALLOCATABLE :: singles, singles_m
@@ -339,8 +365,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     !PRINT *, xSorted
 
     ! sort event indicator data accordingly
-    dSorted = delta(cases) ! Phase 1: overall survival (delta = event indicator from any cause)
-    dSorted_m = delta_m(cases) ! Phase 2 for competing risks (delta_m = indicator for event from cause m)
+    ! Phase 1: overall survival (delta = event indicator from any cause)
+    dSorted = delta(cases) 
+    ! Phase 2: CR (delta_m = indicator for event from cause m)
+    !          RE (delta_m = indicator for recurrent event)
+    dSorted_m = delta_m(cases) 
+             
     !dSorted_RE = delta_RE(cases) ! Phase 2 for recurrent events (delta_RE = indicator for recurrent events)
 
     !PRINT *, "cases"
@@ -356,23 +386,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     rUnifSet_m = -1
     !PRINT *, "test1"
 
+    ! below is for dSorted == Phase 1
     ! Do below for both isPhase1 and isPhase2CR
     ! cases that are not-censored
-    IF (isPhase1) THEN
-      !PRINT *, "PHASE 1"
-      uncensoredIndices = pack(tcases, dSorted .EQ. 1)
-      !PRINT *, "uncensoredIndices: ", uncensoredIndices
-      nUncensored = size(uncensoredIndices)
-      !PRINT *, "nUncensored: ", nUncensored
-    END IF
-
-    IF (isPhase2CR) THEN
-      !PRINT *, "PHASE 2 CR"
-      uncensoredIndices = pack(tcases, dSorted_m .EQ. 1)
-      !PRINT *, "uncensoredIndices: ", uncensoredIndices
-      nUncensored = size(uncensoredIndices)
-      !PRINT *, "nUncensored: ", nUncensored
-    END IF
+    uncensoredIndices = pack(tcases, dSorted .EQ. 1)
+    !PRINT *, "uncensoredIndices: ", uncensoredIndices
+    nUncensored = size(uncensoredIndices)
+    !PRINT *, "nUncensored: ", nUncensored
 
     !PRINT *, "test2a"
     !PRINT *, "minEvent: ", minEvent
@@ -407,50 +427,47 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     IF (splitLeft .GT. splitLeftFinal) CYCLE
     !PRINT *, "test6a"
 
-  ! IF (isPhase2CR) THEN
-      ! cases that are not-censored
-      uncensoredIndices_m = pack(tcases, dSorted_m .EQ. 1)
-      nUncensored_m = size(uncensoredIndices_m)
-      !PRINT *, "test2b"
+    ! below is for Phase 2 (Endpoint: CR or RE)
+    ! cases that are not-censored
+    uncensoredIndices_m = pack(tcases, dSorted_m .EQ. 1)
+    nUncensored_m = size(uncensoredIndices_m)
+    
+    ! if too few cases to meet minimum number of uncensored cases, CYCLE
+    IF (nUncensored_m .LT. (minEvent * 2)) CYCLE
 
-      ! if too few cases to meet minimum number of uncensored cases, CYCLE
-      IF (nUncensored_m .LT. (minEvent * 2)) CYCLE
+    !! able to split and satisfy minimum number of events in each node
 
-      !! able to split and satisfy minimum number of events in each node
+    ! cases to left include all indices up to and including minEvent case
+    ! must have at least nodeSize cases
+    splitLeft_m = max(uncensoredIndices_m(minEvent), nodeSize)
+    !PRINT *, "test3b"
 
-      ! cases to left include all indices up to and including minEvent case
-      ! must have at least nodeSize cases
-      splitLeft_m = max(uncensoredIndices_m(minEvent), nodeSize)
-      !PRINT *, "test3b"
+    ! move splitLeft up to include cases with equivalent values of x
+    splitLeft_m = count(xSorted .LE. (xSorted(splitLeft_m) + 1e-8))
+    !PRINT *, "test4b"
 
-      ! move splitLeft up to include cases with equivalent values of x
-      splitLeft_m = count(xSorted .LE. (xSorted(splitLeft_m) + 1e-8))
-      !PRINT *, "test4b"
+    ! cases to right
+    ! include all indices down to and including nUncensored - minEvent + 1 case
+    ! must have at least nodeSize cases
+    rightNode_m = min(uncensoredIndices_m(nUncensored_m - minEvent + 1), &
+                  & nCases - nodeSize + 1)
+    !PRINT *, "test5b"
 
-      ! cases to right
-      ! include all indices down to and including nUncensored - minEvent + 1 case
-      ! must have at least nodeSize cases
-      rightNode_m = min(uncensoredIndices_m(nUncensored_m - minEvent + 1), &
-                    & nCases - nodeSize + 1)
-      !PRINT *, "test5b"
+    ! move rightNode down to include cases with equivalent values of x
+    ! splitLeftFinal is the last possible case for the left node
+    splitLeftFinal_m = count(xSorted .LT. xSorted(rightNode_m))
 
-      ! move rightNode down to include cases with equivalent values of x
-      ! splitLeftFinal is the last possible case for the left node
-      splitLeftFinal_m = count(xSorted .LT. xSorted(rightNode_m))
-
-      ! if the splitLeft index is above the splitLeftFinal index cycle,
-      ! split is not possible
-      IF (splitLeft_m .GT. splitLeftFinal_m) CYCLE
-
-    ! END IF
-
+    ! if the splitLeft index is above the splitLeftFinal index cycle,
+    ! split is not possible
+    IF (splitLeft_m .GT. splitLeftFinal_m) CYCLE
+    
     !PRINT *, "test7"
     rUnifSet = 0
     rUnifSet_m = 0
     IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1)) THEN
 
       !************* getUniformSplit *****************
-      !PRINT *, "************* getUniformSplit *****************"
+      ! PRINT *, "************* getUniformSplit *****************"
 
       !! split based on extremely randomized trees and uniform split inputs
 
@@ -479,7 +496,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         rUnif = (xSorted(splitLeftFinal) + xSorted(splitLeftFinal+1))/2.0
         rUnifSet = 1
 
-        ! IF (isPhase2CR) THEN
+        ! IF (isPhase2CR) THEN ! comment out bc true for isPhase2RE too 
           ind_m = (/ (i, i = splitLeft_m, splitLeftFinal_m) /)
           singles_m = xSorted(ind_m) .LT. xSorted(ind_m + 1)
           indSingles_m = pack(ind_m, singles_m)
@@ -549,55 +566,79 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     !**********************************************************************************************************
     !**********************************************************************************************************
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
+    PRINT *, "SPLITTING IS DONE"
     !**********************************************************************************************************
     !**********************************************************************************************************
     leftCases = cases(1:(splitLeft-1))
     rightCases = cases(splitLeft:nCases)
-    prl = pr(leftCases,:)
-    prr = pr(rightCases,:)
+    leftCases_m = cases(1:(splitLeft_m-1))
+    rightCases_m = cases(splitLeft_m:nCases)
+    !PRINT *, "TEST00"
+    !PRINT *, "prsurv"
+    !PRINT *, prsurv
+    !PRINT *, "pr"
+    !PRINT *, pr
+    !PRINT *, "isPhase2RE", isPhase2RE
+    if (isPhase1) THEN
+      prl = pr(leftCases,:) ! status change no matter what the status is (censoring, failure, cause specific failure, etc)
+      prr = pr(rightCases,:)
+      prl_m = prl
+      prr_m = prr
+    else if (isPhase2CR) THEN
+      prl = pr(leftCases_m,:) ! status change no matter what the status is (censoring, failure, cause specific failure, etc)
+      prr = pr(rightCases_m,:)
+      prl_m = pr(leftCases_m,:) ! the exact same for CR
+      prr_m = pr(rightCases_m,:) ! should be the same for CR
+    else if (isPhase2RE) THEN
+      prl = prsurv(leftCases_m,:) ! survival times
+      prr = prsurv(rightCases_m,:) 
+      prl_m = pr(leftCases_m,:) ! recurrent event times
+      prr_m = pr(rightCases_m,:)
+    END IF
+    !PRINT *, "TEST0"
+
+    IF (isPhase1) THEN
+    ! below: this gives # events for survival. 
     eventsLeft = sum(prl * &
                    & spread(dSorted(1:(splitLeft-1)), 2, nt), DIM = 1)
     eventsRight = sum(prr * &
                     & spread(dSorted(splitLeft:nCases), 2, nt), DIM = 1)
+    ELSE IF (isPhase2CR) THEN
+    ! CR: this gives # events for survival (using regular pr and failure delta, but splitLeft_m)
+    ! splitLeft_m was determined using endpoint delta to determine min # censored in each node
+    ! use splitLeft_m
+      eventsLeft = sum(prl * &
+                   & spread(dSorted(1:(splitLeft_m-1)), 2, nt), DIM = 1)
+      eventsRight = sum(prr * &
+                    & spread(dSorted(splitLeft_m:nCases), 2, nt), DIM = 1)
+    ELSE IF (isPhase2RE) THEN
+      ! for RE we need survival events to be using nt_death not nt
+      eventsLeft = sum(prl * &
+                   & spread(dSorted(1:(splitLeft_m-1)), 2, nt_death), DIM = 1)
+      eventsRight = sum(prr * &
+                    & spread(dSorted(splitLeft_m:nCases), 2, nt_death), DIM = 1)
+    END IF
+    !PRINT *, "TEST1"
 
-!PRINT *, "isPhase2CR:", isPhase2CR
+    ! use dSorted_m, which is endpoint delta (CR: cause m, RE: recurrent event)
+    eventsLeft_m = sum(prl_m * &
+                  & spread(dSorted_m(1:(splitLeft_m-1)), 2, nt), DIM = 1)
+    eventsRight_m = sum(prr_m * &
+                  & spread(dSorted_m(splitLeft_m:nCases), 2, nt), DIM = 1)
+    !PRINT *, "Test22"
+
     IF (isPhase2CR) THEN
+      !PRINT *, "isPhase2CR:", isPhase2CR
       ! Initialize the group vector with zeros
       group_cr = 0
       ! Assign 1 to the indices in leftCases
-      group_cr(leftCases) = 1
+      group_cr(leftCases_m) = 1
       ! Assign 2 to the indices in rightCases
-      group_cr(rightCases) = 2
-      !PRINT *, "~~~~~~~~~~~~~~~~~~~"
-      !PRINT *, 'Group'
-      !PRINT *, group_cr
-      !PRINT *, 'ord_causeindAll'
-      !PRINT *, ord_causeindAll
-      !PRINT *, 'Group(cases):'
-      !PRINT *, group_cr(cases)
-      !PRINT *, 'ord_causeindAll(cases)'
-      !PRINT *, ord_causeindAll(cases)
-      !PRINT *, 'ord_responseAll(cases)'
-      !PRINT *, ord_responseAll(cases)
-      !PRINT *, "==========================="
-      !mk = .TRUE.
-      !DO ix = 1, nCases
-      !  cases2(ix) = MINVAL(cases,mk)
-      !  mk(MINLOC(cases,mk)) = .FALSE.
-      !END DO
-
-      !PRINT *, "cases2"
-      !PRINT *, cases2
-
-      ! does not work rn
-      ! CALL sort_and_subset(group_cr, cases, group_cr2)
-      ! Output the result
-      ! print *, "group_cr2: ", group_cr2
-
+      group_cr(rightCases_m) = 2
     END IF
+    !PRINT *, "TEST2"
 
     ! Print the result
-
     !PRINT *, "leftCases"
     !PRINT *, leftCases
     !PRINT *, "rightCases"
@@ -605,19 +646,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     !PRINT *, "nCases", nCases
     !PRINT *, "cases"
     !PRINT *, cases
-
-
-    ! IF (isPhase2CR) THEN
-      leftCases_m = cases(1:(splitLeft_m-1))
-      rightCases_m = cases(splitLeft_m:nCases)
-      prl_m = pr(leftCases_m,:)
-      prr_m = pr(rightCases_m,:)
-
-      eventsLeft_m = sum(prl_m * &
-                   & spread(dSorted_m(1:(splitLeft_m-1)), 2, nt), DIM = 1)
-      eventsRight_m = sum(prr_m * &
-                    & spread(dSorted_m(splitLeft_m:nCases), 2, nt), DIM = 1)
-    ! END IF
 
     IF (isPhase1) THEN
     IF (ANY(leftCases_m /= leftCases)) THEN
@@ -632,29 +660,71 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   END IF
 
     ! looking at "at risk" set now (we want overall failure for both Step1 and Step2CR)
-    pd1 = sum(prl, DIM = 1) ! for group 1
-    pd2 = sum(prr, DIM = 1) ! for group 2
+    IF (isPhase1 .OR. isPhase2CR) THEN
+      pd1 = sum(prl, DIM = 1) ! for group 1
+      pd2 = sum(prr, DIM = 1) ! for group 2
+      !PRINT *, "group1: pd1 = sum(prl, DIM = 1): ", pd1
+      !PRINT *, "group2: pd2 = sum(prr, DIM = 1) ", pd2
+      ! at risk is same for Phase1 and Phase2CR because same subjects and same timepoint
+      !PRINT *, "tt3"
+      IF (isPhase1) THEN
+        atRiskLeft(1) = splitLeft - 1
+        atRiskRight(1) = nCases - splitLeft + 1
+      ELSE IF (isPhase2CR) THEN
+        atRiskLeft(1) = splitLeft_m - 1
+        atRiskRight(1) = nCases - splitLeft_m + 1
+      END IF
+      !PRINT *, "tt4"
 
-    if (isPhase2RE == 1)
-      pd1 = sum(pr2l, DIM = 1)
-      pd2 = sum(pr2r, DIM = 1)
-      ! this is wrong rn so make sure it works and is correct. create pr2l and pr2r based on pr2 for RE phase2 at risk
+      !IF (isPhase1 .OR. isPhase2CR) THEN
+      DO j = 2, nt
+        atRiskLeft(j) = atRiskLeft(j-1) - pd1(j-1)
+        atRiskRight(j) = atRiskRight(j-1) - pd2(j-1)
+      END DO
+      !END IF
+      !PRINT *, "tt5"
 
-    !PRINT *, "group1: pd1 = sum(prl, DIM = 1): ", pd1
-    !PRINT *, "group2: pd2 = sum(prr, DIM = 1) ", pd2
-    ! pd1_m = sum(prl_m, DIM = 1) ! for group 1
-    ! pd2_m = sum(prr_m, DIM = 1) ! for group 2
+    ELSE IF (isPhase2RE) THEN
+      ! because this is witihin phase2re, there are multiple records per person
+      ! we need to identify 1) at risk at survival times (using colsums pr2surv)
+      ! 2) at risk at recurrent event times (using colsums of pr2)
+      ! Earlier, we already defined:
+      ! 3) death events at survival times (using prsurv and delta)
+      ! 4) recurrent events at RE times (using pr and delta_m)
 
-    !PRINT *, "tt3"
-    atRiskLeft(1) = splitLeft - 1
-    atRiskRight(1) = nCases - splitLeft + 1
-    !PRINT *, "tt4"
+      ! only important for RE
+      pr2l = pr2(leftCases_m,:)
+      pr2r = pr2(rightCases_m,:)
+      pr2survl = pr2surv(leftCases_m,:)
+      pr2survr = pr2surv(rightCases_m,:)
 
-    DO j = 2, nt
-      atRiskLeft(j) = atRiskLeft(j-1) - pd1(j-1)
-      atRiskRight(j) = atRiskRight(j-1) - pd2(j-1)
-    END DO
-    !PRINT *, "tt5"
+      pd1_m = sum(pr2l, DIM = 1) ! RE at risk for group 1
+      pd2_m = sum(pr2r, DIM = 1) ! RE at risk for group 2
+      atRiskLeft_m = pd1_m
+      atRiskRight_m = pd2_m
+      pd1 = sum(pr2survl, DIM = 1) ! death at risk in RE setting for group 1
+      pd2 = sum(pr2survr, DIM = 1) ! death at risk in RE setting for group 2
+      atRiskLeft = pd1
+      atRiskRight = pd2
+
+      PRINT *, "leftCases_m"
+      PRINT *, leftCases_m
+      PRINT *, "rightCases_m"
+      PRINT *, rightCases_m
+      PRINT *, "nt_death", nt_death
+      PRINT *, "nt", nt
+      PRINT *, "--------------------------"
+      PRINT *, "RE: at risk left"
+      PRINT *, atRiskLeft_m
+      PRINT *, "Death in RE: at risk left"
+      PRINT *, atRiskLeft
+      PRINT *, "--------------------------"
+      PRINT *, "splitLeft"
+      PRINT *, splitLeft
+      PRINT *, "splitLeftFinal"
+      PRINT *, splitLeftFinal
+
+    END IF
 
     ! if logrank, do calculations that do not depend on node occupancy
     IF (rule == 1) THEN
@@ -670,75 +740,148 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
     cnt = 1
     cnt_m = 1
-    !PRINT *, "splitLeft"
-    !PRINT *, splitLeft
-    !PRINT *, "splitLeftFinal"
-    !PRINT *, splitLeftFinal
 
-    DO j = splitLeft, splitLeftFinal
+    if (isPhase1) then
+      splitLeft_doloop = splitLeft
+      splitLeftFinal_doloop = splitLeftFinal
+    ELSE
+      splitLeft_doloop = splitLeft_m
+      splitLeftFinal_doloop = splitLeftFinal_m
+    end if
+
+    DO j = splitLeft_doloop, splitLeftFinal_doloop
       !PRINT *, "j: ", j, "/ncnt: ", cnt, "/ncnt_m: ", cnt_m
 
-      ! at risk indicators for jth case
-      ! number of events for jth case
-      pd1 = prr(cnt,:) ! at risk set for group 1 for overall survival
-      !PRINT *, "pd1: ", pd1
+      ! status change indicators for jth case
+      pd1 = prr(cnt,:) ! to get events and at risk
+      pd1_m = prr_m(cnt_m,:) 
 
       cnt = cnt + 1
       cnt_m = cnt_m + 1
 
+      ! number of survival events for jth case
       D = pd1*delta(cases(j))
-      !PRINT *, "D: ", D
+      PRINT *, "* survival events D: ", D
+      ! number of endpoint events for jth case
+      ! number of priority cause events for jth case
+      ! number of recurrent events for jth case
       D_m = pd1*delta_m(cases(j))
-      !PRINT *, "D_m: ", D_m
-
-      Rcum(1) = 0.0
-      Rcum(2) = pd1(1)
-      !PRINT *, "Rcum for timepoints 1 and 2: ", Rcum
-      ! from time point 3 to nt
-      DO k = 3, nt
-        IF (pd1(k-1) .GT. 1d-8) THEN
-          Rcum(k) = Rcum(k-1) + pd1(k-1)
-        ELSE
-          Rcum(k) = Rcum(k-1)
-        END IF
-      END DO
-
-      !PRINT *, "Rcum:", Rcum
-
-      Rcum = 1.d0 - Rcum
-      ! number at risk
-      !PRINT *, "Rcum = 1.d0 - Rcum:", Rcum
-
-      ! add the jth case to the left node
-      atRiskLeft = atRiskLeft + Rcum
-
-      ! remove the jth case from the right node
-      atRiskRight = atRiskRight - Rcum
-
-      ! write(*,'(/,/,A)'), '######### Line 558'
-      ! number of events
-      !PRINT *, "=======TEST_R1: eventsRight:", eventsRight
-      !PRINT *, "=======TEST_R1: eventsRight for cause m:", eventsRight_m
-      !PRINT *, "=======TEST_L1: eventsLeft:", eventsLeft
-      !PRINT *, "=======TEST_L1: eventsLeft for cause m:", eventsLeft_m
-      !PRINT *, "D: ", D
-      !PRINT *, "D_m: ", D_m
-
+      PRINT *, "* endpoint events D_m: ", D_m
       !PRINT *, "! add the jth case to the left node"
       ! add the jth case to the left node
       eventsLeft = eventsLeft + D
       eventsLeft_m = eventsLeft_m + D_m
-
       !PRINT *, '! remove the jth case from the right node'
       ! remove the jth case from the right node
       eventsRight = eventsRight - D
       eventsRight_m = eventsRight_m - D_m
+      
+      ! calculating cumulative at risk!
+      IF (isPhase1 .OR. isPhase2CR) THEN
+      ! same for phase1 and phase2cr
+        Rcum(1) = 0.0
+        Rcum(2) = pd1(1)
+        !PRINT *, "Rcum for timepoints 1 and 2: ", Rcum
+        ! from time point 3 to nt
+        DO k = 3, nt
+          IF (pd1(k-1) .GT. 1d-8) THEN
+            Rcum(k) = Rcum(k-1) + pd1(k-1)
+          ELSE
+            Rcum(k) = Rcum(k-1)
+          END IF
+        END DO
+        !PRINT *, "Rcum:", Rcum
+        Rcum = 1.d0 - Rcum
+        ! number at risk
+        !PRINT *, "Rcum = 1.d0 - Rcum:", Rcum
+
+        ! add the jth case to the left node
+        atRiskLeft = atRiskLeft + Rcum
+        ! remove the jth case from the right node
+        atRiskRight = atRiskRight - Rcum
+      END IF
+
+      IF (isPhase2RE) THEN
+        ! for survival time points
+        Rcum(1) = 0.0
+        Rcum(2) = atRiskLeft(1)
+        PRINT *, "Rcum for timepoints 1 and 2: "
+        PRINT *, Rcum
+        ! from time point 3 to nt_death (number of unique observed failure times + 0 and tau)
+        DO k = 3, nt_death
+          IF (atRiskLeft(k-1) .GT. 1d-8) THEN
+            Rcum(k) = Rcum(k-1) + atRiskLeft(k-1)
+          ELSE
+            Rcum(k) = Rcum(k-1)
+          END IF
+        END DO
+        PRINT *, "Rcum:", Rcum
+        !removing below 1-rcum bc we are not using HC pr, we are using pr2
+        ! Rcum = 1.d0 - Rcum
+        ! number at risk
+        PRINT *, "printing 1.d0 - Rcum (but we removed it for RE):"
+        PRINT *, 1.d0 - Rcum
+
+        ! add the jth case to the left node
+        atRiskLeft = atRiskLeft + Rcum
+        ! remove the jth case from the right node
+        atRiskRight = atRiskRight - Rcum
+
+        Rcum_m(1) = 0.0
+        Rcum_m(2) = atRiskLeft_m(1)
+        PRINT *, "Rcum_m for timepoints 1 and 2: "
+        PRINT *, Rcum_m
+        ! from time point 3 to nt
+        DO k = 3, nt
+          IF (atRiskLeft_m(k-1) .GT. 1d-8) THEN
+            Rcum_m(k) = Rcum_m(k-1) + atRiskLeft_m(k-1)
+          ELSE
+            Rcum_m(k) = Rcum_m(k-1)
+          END IF
+        END DO
+        PRINT *, "Rcum_m:"
+        PRINT *, Rcum_m
+        !removing below 1-rcum bc we are not using HC pr, we are using pr2
+        ! Rcum = 1.d0 - Rcum
+        ! number at risk
+        PRINT *, "printing 1.d0 - Rcum_m (but we removed it for RE):"
+        PRINT *, 1.d0 - Rcum_m
+
+        ! add the jth case to the left node
+        atRiskLeft_m = atRiskLeft_m + Rcum_m
+        ! remove the jth case from the right node
+        atRiskRight_m = atRiskRight_m - Rcum_m
+
+        PRINT *, "atRiskLeft"
+        PRINT *, atRiskLeft
+        PRINT *, "atRiskLeft_m"
+        PRINT *, atRiskLeft_m
+
+      END IF 
 
       ! if the case is not the last case with this covariate value, cycle
       IF (xSorted(j) .GE. (xSorted(j+1) - 1d-8)) CYCLE
 
-      !PRINT *, "atRiskLeft:", atRiskLeft
-      !PRINT *, "atRiskRight:", atRiskRight
+
+      !write(*,'(/,/,A)'), '######### Line 836 IN FORTRAN'
+      ! number of events
+      PRINT *, "=======TEST_R1: eventsRight:"
+      PRINT *, eventsRight
+      PRINT *, "=======TEST_R1: eventsRight for endpoint:"
+      PRINT *, eventsRight_m
+      PRINT *, "=======TEST_L1: eventsLeft:" 
+      PRINT *, eventsLeft
+      PRINT *, "=======TEST_L1: eventsLeft for endpoint:"
+      PRINT *, eventsLeft_m
+      PRINT *, "D: "
+      PRINT *, D
+      PRINT *, "D_m: "
+      PRINT *, D_m
+      PRINT *, "Rcum"
+      PRINT *, Rcum
+      PRINT *, "atRiskLeft_m:"
+      PRINT *, atRiskLeft_m
+      PRINT *, "atRiskRight:", atRiskRight
       !PRINT *, "=======TEST_R2: eventsRight:", eventsRight
       !PRINT *, "=======TEST_R2: eventsRight for cause m:", eventsRight_m
       !PRINT *, "=======TEST_L2: eventsLeft:", eventsLeft
@@ -790,16 +933,20 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
           !!!PRINT *, ">>>>>>>>>>> DOES THIS WORK???????? <<<<<<<<<<<"
         ELSE
           PRINT *, "THIS IS WERID: itrSurv.f90 LINE 786: why are we in gray's test if isPhase2CR is false?"  
-          !valuej = 99
         END IF
         ! PRINT *, "Gray's test statistic valuej = ", valuej
       ELSE IF (rule == 4) THEN
         PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (CR): gray's test (kaplan way - CSH) ~~~~~"
-        !CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
-        !& atRiskRight, eventsRight_m, valuej)
+        CALL Gray_m(nt, nt, atRiskLeft, eventsLeft_m, &
+        & atRiskRight, eventsRight_m, valuej)
         PRINT *, "CSH test statistic valuej = ", valuej
       ELSE IF (rule == 5) THEN
         PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
+        ! atRisk is same for RE and survival within RE test statistic Q_LR
+        !CALL MeanFreqFunc(nt, nt_death, atRiskLeft_m, eventsLeft_m, atRiskLeft_m, eventsLeft, &
+        !& survRE_Left, dRhat_Left, mu_Left, dmu_Left)
+        !CALL MeanFreqFunc(nt, nt_death, atRiskRight_m, eventsRight_m, atRiskRight_m, eventsRight, &
+        !& survRE_Right, dRhat_Right, mu_Right, dmu_Right)
         valuej = 99
         PRINT *, "Q_LR test statistic valuej = ", valuej
       END IF
@@ -812,7 +959,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
         !PRINT *, "Test Statistic: ", valuej
         !print *,""
         !print *,""
-
       END IF
 
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
@@ -1909,74 +2055,22 @@ END SUBROUTINE crst
 ! =================================================================================
 ! Recurrent Event Phase 2: mu/dmu (Ghosh and Lin 2000)
 ! assuming no ties (aka unique observed RE times)
-! Nj: real(:), at risk for RE (using RE time points) (calculated using pr2 which is the same for RE and death events)
-! Oj: real(:), events for RE (calcualted using pr and delta_RE for RE)
-! NjS: real(:), at risk for death (using death time points) (calculated using pr2 which is the same for RE and death events)
-! OjS: real(:), events for death (calculated using pr and delta for death)
+! Nj_endpoint: real(:), at risk for RE (using RE time points) (calculated using pr2 which is the same for RE and death events)
+! Oj_endpoint: real(:), events for RE (calcualted using pr and delta_RE for RE)
+! Nj_survival: real(:), at risk for death (using death time points) (calculated using pr2 which is the same for RE and death events)
+! Oj_survival: real(:), events for death (calculated using pr and delta for death)
 ! survRE: real(:), survival for RE times
 ! dRhat: real(:), nelson aalen estimator for recurrence data
 ! mu: real(:), mean frequency function
 ! dmu: real(:), derivative of mff
-! dtime is unique observed death times (plus 0 and tau)
-! retime is unique observed RE times (plus 0 and tau)
+! tp_survival is unique observed death times (plus 0 and tau)
+! tp_endpoint is unique observed RE times (plus 0 and tau)
 
-! nt_re is the number of retime
-! nt_d is the number of dtime
-! dt_re is time diff for retime
-! dt_d is time diff for dtime
-SUBROUTINE MeanFreqFunc(Nj, Oj, NjS, OjS, survRE, dRhat, mu, dmu)
-
-  IMPLICIT NONE
-
-  REAL(dp), DIMENSION(1:nt), INTENT(IN) :: Nj
-  REAL(dp), DIMENSION(1:nt), INTENT(IN) :: Oj
-  REAL(dp), DIMENSION(1:nt_d), INTENT(IN) :: NjS
-  REAL(dp), DIMENSION(1:nt_d), INTENT(IN) :: OjS
-  REAL(dp), DIMENSION(1:nt), INTENT(INOUT) :: survRE
-  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: dRhat
-  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: mu
-  REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: dmu
-
-  INTEGER :: i, j
-
-  REAL(dp), DIMENSION(1:nt) :: muTmp
-  REAL(dp), DIMESNION(1:nt_d) :: survD
-
-  PRINT *, "******************** mean frequency function ********************"
-  mu = 0.d0
-  dmu = 0.d0
-  
-  PRINT *, "******************** obtain survival KM (deaths) ********************"
-  call kaplan(nt_d, Nj, OjS, survD)
-  
-  DO i = 1, nt_re ! Loop over all elements in retime (or another array of length nt_re)
-
-    ! to get the time points that have individuals at risk
-    ! if number at risk is equal to 0, then skip to next time point index (i)
-    IF (Nj(i) .LT. 1d-8) CYCLE
-    PRINT *, "******************** dRhat ********************"
-    dRhat(i) = Oj(i) / Nj(i) ! dRhat at each timepoint
-    
-    PRINT *, "******************** Recurrent KM (using RE times) ********************"
-    DO j = 1, dtime-1  ! Loop over elements in dtime, up to dtime-1
-      IF (dtime(j) <= retime(i) .AND. retime(i) < dtime(j+1)) THEN
-        survRE(i) = survD(j) ! Assign survD(j) to survRE(i) if condition is met
-        EXIT                 ! Exit the inner loop if condition is met
-      END IF
-    END DO
-  END DO
+! nt_endpoint is the number of tp_endpoint (RE)
+! nt_death is the number of tp_survival (death)
 
 
-  END DO
-  
-  mu(1) = 0
-  if (nt .LT. 2) RETURN
-  DO i = 2, nt
-    mu(i) = mu(i-1) + survRE(i) * dRhat(i)
-  END DO
 
-
-END SUBROUTINE MeanFreqFunc
 
 ! =================================================================================
 ! estimate the survival/cif function and mean survival/cif time
@@ -2208,8 +2302,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
   are_equal = .TRUE.
 
-  !PRINT *, "******************** tsurvTree ********************"
-  !PRINT *, "nAll: ", nAll
+  PRINT *, "******************** tsurvTree ********************"
+  PRINT *, "nAll: ", nAll
+  PRINT *, "sampleSize", sampleSize
   tforestSurvFunc = 0.d0
   forestMean = 0.d0
   forestSurvProb = 0.d0
@@ -2233,6 +2328,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       n = sampleSize
       x = xAll(xrand,:)
       pr = prAll(xrand,:)
+      pr2 = pr2All(xrand,:)
+      prsurv = prsurvAll(xrand,:)
+      pr2surv = pr2survAll(xrand,:)
       delta = deltaAll(xrand)
       delta_m = deltaAll_m(xrand)
     ELSE IF (nAll .NE. sampleSize) THEN
@@ -2241,6 +2339,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       n = sampleSize
       x = xAll(xrand,:)
       pr = prAll(xrand,:)
+      pr2 = pr2All(xrand,:)
+      prsurv = prsurvAll(xrand,:)
+      pr2surv = pr2survAll(xrand,:)
       delta = deltaAll(xrand)
       delta_m = deltaAll_m(xrand)
     ELSE
@@ -2248,9 +2349,14 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       n = sampleSize
       x = xAll
       pr = prAll
+      pr2 = pr2All
+      prsurv = prsurvAll
+      pr2surv = pr2survAll
       delta = deltaAll
       delta_m = deltaAll_m
     END IF
+
+    PRINT *, "n", sampleSize
 
     ! cutoff for identifying covariates to be explored
     srs = stratifiedSplit / REAL(np)
@@ -2269,7 +2375,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     ! IF (isPhase2CR) PRINT *, "calculate CIF function and mean CIF of the first node"
     !PRINT *, "tsurvTree: CALL calcValueSingle"
     CALL calcValueSingle(n, indices, Func(:,1), mean(1))
-    !PRINT *, "--------calcValueSingle OUTPUT mean(1): ", mean(1)
+    !PRINT *, "--------end of calcValueSingle: OUTPUT mean(1): ", mean(1)
 
     IF (isSurvival) THEN
       ! estimate survival/cif probability at SurvivalTime/CIFTime
@@ -2328,15 +2434,18 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       !PRINT *, "################# Line 1441"
       CALL tfindSplit(size(ind), ind, size(pind), pind, splitVar, cutoffBest, &
                     & splitFound, indOut, nc, lft)
+      !PRINT *, "TEST10"
 
       IF (splitFound .EQ. 0 ) THEN
         ! if no split available, set node k as terminal node
         nMatrix(k,1) = -1
         CYCLE
       END IF
+      !PRINT *, "TEST11"
 
       ! set node k to be interior (i.e. has split)
       nMatrix(k,1) = -3
+      !PRINT *, "TEST12"
 
       ! add split information to node
       nMatrix(k,4) = pindices(splitVar)
@@ -2735,7 +2844,8 @@ END SUBROUTINE predictSurvTree
 ! =================================================================================
 
 ! set up basic information for the module
-! t_nt, integer, the number of time points
+! t_nt, integer, the number of observed unique event time points including 0 and tau; death for isPhase1/isPhase2CR and recurrent events for isPhase2RE
+! t_nt_death, integer, the number of observed unique death time points including 0 and tau; needed for isPhase2RE
 ! t_dt, real(:), the time differences between time points
 ! t_rs, real, the probability for a random split
 ! t_ERT, integer, the indicator of extremely randomized trees
@@ -2750,7 +2860,7 @@ END SUBROUTINE predictSurvTree
 !   requested survival time
 ! t_stratifiedSplit, real, the coefficient for determining stratification
 ! t_replace, integer, indicator of sampling with replacement
-SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
+SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
                      & t_minEvent, t_rule, t_sIndex, t_sFraction, &
                      & t_stratifiedSplit, t_replace)
 
@@ -2759,6 +2869,7 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: t_nt
+  INTEGER, INTENT(IN) :: t_nt_death
   REAL(dp), DIMENSION(1:t_nt), INTENT(IN) :: t_dt
   REAL(dp), INTENT(IN) :: t_rs
   INTEGER, INTENT(IN) :: t_ERT
@@ -2773,12 +2884,14 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
 
   !PRINT *, "******************** setUpBasics ********************"
   nt = t_nt
+  nt_death = t_nt_death
   sIndex = t_sIndex
   sFraction = t_sFraction
 
   isSurvival = sIndex > 0
 
   ! 1: logrank; 2: mean; 3: cr gray; 4: cr csh; 5: re q_lr
+  
   isPhase1 = t_rule < 3
   isPhase2 = t_rule > 2
   isPhase2CR = (t_rule == 3 .OR. t_rule == 4)
@@ -2786,6 +2899,14 @@ SUBROUTINE setUpBasics(t_nt, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
 
  !!!PRINT *, "isPhase1:", isPhase1
  !!!PRINT *, "isPhase2CR:", isPhase2CR
+
+IF (isPhase1 .OR. isPhase2CR) THEN
+   IF (nt /= nt_death) THEN
+      PRINT *, "itrSurv.f90: Line 2888: nt should equal nt_death for Phase1 and Phase2CR"
+      STOP
+   END IF
+END IF
+
 
   IF (dtAllocated) DEALLOCATE(dt)
 
@@ -2811,10 +2932,13 @@ END SUBROUTINE setUpBasics
 
 ! set up basic information for the module that is step dependent
 ! t_n, integer, the number of cases under consideration
+! t_idvec, integer(:), the id label for Phase2 dataset (needed for MeanFreqFunc for RE endpoint to calculate at risk for death in RE setting)
 ! t_np, integer, the number of covariates
 ! t_x, real(:), the covariates
 ! t_pr, real(:), the probability mass vector of survival function
 ! t_pr2, real(:), the at-risk vector for subjects in recurrent event setting (ignore for Phase 1 OS, or Phase 2 CR)
+! t_pr2surv, real(:) for RE: death at risk during phase2 (records x nt_death)
+! t_prsurv, real(:) for RE: death pr during phase 2 (records x nt_death)
 ! t_ord_causeind, integer(:), status indicator for subjects (ordered by response) (vector of 0 for RE)
 ! t_ord_response, real(:), ordered response for subjects (vector of 0 for RE)
 ! t_delta, integer(:), the indicator of censoring
@@ -2824,7 +2948,8 @@ END SUBROUTINE setUpBasics
 ! t_sampleSize, integer, the number of cases to sample for each tree
 ! t_ntree, integer, the number of trees in the forest
 ! t_nrNodes, integer, the maximum number of nodes
-SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_response, &
+SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
+                      & t_pr, t_pr2, t_pr2surv, t_prsurv, t_ord_causeind, t_ord_response, &
                       & t_delta, t_delta_m, t_mTry, t_nCat, &
                       & t_sampleSize, t_nTree, t_nrNodes)
 
@@ -2833,10 +2958,13 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: t_n
+  INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_idvec
   INTEGER, INTENT(IN) :: t_np
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr2 ! for RE only
+  REAL(dp), DIMENSION(1:nt_death*t_n), INTENT(IN) :: t_pr2surv ! for RE only
+  REAL(dp), DIMENSION(1:nt_death*t_n), INTENT(IN) :: t_prsurv ! for RE only
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_ord_causeind ! for CR gray's test only
   REAL(dp), DIMENSION(1:t_n), INTENT(IN) :: t_ord_response ! for CR gray's test only
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_delta
@@ -2851,10 +2979,14 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
   LOGICAL :: are_equal
 
 
- !!!PRINT *, "******************** setUpInners ********************"
+ PRINT *, "******************** setUpInners ********************"
   nAll = t_n
+  print *, "nAll is:", nAll
 
   ord_causeindAll = t_ord_causeind
+  id_RE = t_idvec
+  !PRINT *, "id_RE"
+  !PRINT *, id_RE
   !PRINT *, "t_ord_causeind"
   !PRINT *, t_ord_causeind
   !PRINT *, "t_delta"
@@ -2880,6 +3012,9 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
 
   xAll = reshape(t_x, (/nAll,np/))
   prAll = reshape(t_pr, (/nAll,nt/))
+  pr2All = reshape(t_pr2, (/nAll,nt/))
+  prsurvAll = reshape(t_pr2, (/nAll,nt_death/))
+  pr2survAll = reshape(t_pr2, (/nAll,nt_death/))
   deltaAll = t_delta
   deltaAll_m = t_delta_m
 
@@ -2901,6 +3036,7 @@ SUBROUTINE setUpInners(t_n, t_np, t_x, t_pr, t_pr2, t_ord_causeind, t_ord_respon
   ALLOCATE(trees(1:nTree))
 
   nrNodes = t_nrNodes
+  !PRINT *, "End of SetupInners"
 
 END SUBROUTINE setUpInners
 ! =================================================================================
