@@ -78,7 +78,7 @@ setClass(Class = "ITRSurvStep",
 
     AU_name = "AUS"
     mean_name = "Et_survival"
-    prob_name = "St"
+    prob_name = "S(t)"
 
     # message("OK3")
     area_dat = cbind(object_surv@valueAllTx$AUS[[1]],
@@ -87,6 +87,7 @@ setClass(Class = "ITRSurvStep",
     # message("OK3")
     mean_dat = cbind(object_surv@valueAllTx$mean[[1]],
                      object_surv@valueAllTx$mean[[2]])
+
     mdat1 <<- mean_dat
     # message("OK3")
 
@@ -101,16 +102,24 @@ setClass(Class = "ITRSurvStep",
                                             FUN = optfunc))
     }
   }
-  # print(endPoint)
 
   if (!is.null(endPoint)){
     if (endPoint == Phase){
       object = object_ep
+      objep <<- object_ep
+      objs <<- object_surv
       optfunc = min
 
       AU_name = "AUC"
-      mean_name = "Et_endpoint" #"Et_cif"
-      prob_name = "Endpoint t" #"CIFt"
+
+      if (endPoint == "CR"){
+        mean_name = "Et_cif" #"Et_cif"
+        prob_name = "F_j(t)"
+      } else if (endPoint == "RE"){
+        mean_name = "Et_mff"
+        prob_name = "mu(t)"
+      }
+
       # message("OK4")
 
       indicator_vector <- object_surv@optimal@Ratio_Stopping_Ind
@@ -120,10 +129,15 @@ setClass(Class = "ITRSurvStep",
                         object_ep@valueAllTx$AUS[[2]])
       # message("Obtain mean CIF times for those who continued to Phase 2 with mean critical values.")
       mean_dat <- dat_mean[indicator_vector == 0,]
+      if (is.null(nrow(mean_dat))){
+        mean_dat = rbind(mean_dat)
+      }
       mdat2 <<- mean_dat
       # message("Obtain mean area under CIF curve for those who continued to Phase 2 with area critical values.")
       area_dat <- dat_area[indicator_vector == 0,]
-      # message("OK5")
+      if (is.null(nrow(area_dat))){
+        area_dat = rbind(area_dat)
+      }
 
       if (!is.null(object_ep@valueAllTx$Prob[[1]])) {
         # message("Obtain mean CIF curve for those who continued to Phase 2 with prob critical values.")
@@ -132,23 +146,27 @@ setClass(Class = "ITRSurvStep",
         prob_dat <- cbind(dat_prob0, dat_prob1)[indicator_vector == 0,]
         # print(typeof(prob_dat))
         # print(prob_dat)
-        res[[ prob_name ]] <-  mean(x = apply(X = prob_dat,
-                                              MARGIN = 1L,
-                                              FUN = optfunc))
+        if (nrow(prob_dat) == 1){
+          res[[prob_name]] = optfunc(prob_dat)
+        } else{
+          res[[ prob_name ]] <-  mean(x = apply(X = prob_dat,
+                                                MARGIN = 1L,
+                                                FUN = optfunc))}
       }
     }
   }
   # message("OK6")
   # print(optfunc)
   mdat3 <<- mean_dat
+  of <<- optfunc
   # returns the mean of the expected times
+  # first take the minimum across rows (trts), then take the mean of all the mins (across patients)
   res[[ mean_name ]] <-  mean(x = apply(X = mean_dat,
-                                   MARGIN = 1L,
-                                   FUN = optfunc))
+                                        MARGIN = 1L,
+                                        FUN = optfunc))
   res[[ AU_name ]] <-  mean(x = apply(X = area_dat,
                                    MARGIN = 1L,
                                    FUN = optfunc))
-  # message("OK7")
   return( res )
 }
 

@@ -761,12 +761,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
       ! number of survival events for jth case
       D = pd1*delta(cases(j))
-      PRINT *, "* survival events D: ", D
+      !PRINT *, "* survival events D: ", D
       ! number of endpoint events for jth case
       ! number of priority cause events for jth case
       ! number of recurrent events for jth case
       D_m = pd1*delta_m(cases(j))
-      PRINT *, "* endpoint events D_m: ", D_m
+      !PRINT *, "* endpoint events D_m: ", D_m
       !PRINT *, "! add the jth case to the left node"
       ! add the jth case to the left node
       eventsLeft = eventsLeft + D
@@ -865,23 +865,23 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 
       !write(*,'(/,/,A)'), '######### Line 836 IN FORTRAN'
       ! number of events
-      PRINT *, "=======TEST_R1: eventsRight:"
-      PRINT *, eventsRight
-      PRINT *, "=======TEST_R1: eventsRight for endpoint:"
-      PRINT *, eventsRight_m
-      PRINT *, "=======TEST_L1: eventsLeft:" 
-      PRINT *, eventsLeft
-      PRINT *, "=======TEST_L1: eventsLeft for endpoint:"
-      PRINT *, eventsLeft_m
-      PRINT *, "D: "
-      PRINT *, D
-      PRINT *, "D_m: "
-      PRINT *, D_m
-      PRINT *, "Rcum"
-      PRINT *, Rcum
-      PRINT *, "atRiskLeft_m:"
-      PRINT *, atRiskLeft_m
-      PRINT *, "atRiskRight:", atRiskRight
+      !PRINT *, "=======TEST_R1: eventsRight:"
+      !PRINT *, eventsRight
+      !PRINT *, "=======TEST_R1: eventsRight for endpoint:"
+      !PRINT *, eventsRight_m
+      !PRINT *, "=======TEST_L1: eventsLeft:" 
+      !PRINT *, eventsLeft
+      !PRINT *, "=======TEST_L1: eventsLeft for endpoint:"
+      !PRINT *, eventsLeft_m
+      !PRINT *, "D: "
+      !PRINT *, D
+      !PRINT *, "D_m: "
+      !PRINT *, D_m
+      !PRINT *, "Rcum"
+      !PRINT *, Rcum
+      !PRINT *, "atRiskLeft_m:"
+      !PRINT *, atRiskLeft_m
+      !PRINT *, "atRiskRight:", atRiskRight
       !PRINT *, "=======TEST_R2: eventsRight:", eventsRight
       !PRINT *, "=======TEST_R2: eventsRight for cause m:", eventsRight_m
       !PRINT *, "=======TEST_L2: eventsLeft:", eventsLeft

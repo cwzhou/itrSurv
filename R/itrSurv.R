@@ -803,6 +803,7 @@ if (endPoint == "CR" | endPoint == "RE"){
   value3Train = NULL
 }
 valueTrain = list(value1Train, list(value2Train), value3Train)
+vtrain <<- valueTrain
 names(valueTrain[[2]]) = "PropPhase2"
 message("Estimated Value:", appendLF = FALSE)
 for (i in 1L:length(valueTrain)) {
