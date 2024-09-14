@@ -23,7 +23,7 @@ First, build source .tar.gz file from .RProj on local machine, then copy to clus
 Ie can run in R: install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
 
-Local machine: scp itrSurv_0.1.0.tar.gz cwzhou@longleaf.unc.edu:/nas/longleaf/home/cwzhou/Dissertation/Paper_1/.
+Local machine: scp ~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz cwzhou@longleaf.unc.edu:/nas/longleaf/home/cwzhou/Dissertation/Paper_1/.
 ! In cluster:
 cd /nas/longleaf/home/cwzhou/Dissertation/Analyses/Simulations/Paper1_CR
 Open R and type: install.packages('/nas/longleaf/home/cwzhou/Dissertation/Paper_1/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')

@@ -308,7 +308,7 @@ itrSurv <- function(data,
                     replace = NULL,
                     randomSplit = 0.2,
                     tieMethod = "random",
-                    minEvent = 3L,
+                    minEvent = 3L, # minimum number of subjects with events
                     nodeSize = 6L,
                     nTree = 10L,
                     mTry = NULL,

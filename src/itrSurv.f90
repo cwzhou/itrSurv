@@ -311,9 +311,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   variablesTried = 0
 
   tcases = (/(i,i=1,nCases)/)
-  !PRINT *, "tcases"
-  !PRINT *, tcases
-
+  IF (isPhase2RE) THEN
+  PRINT *, "tcases"
+  PRINT *, tcases
+  END IF
+ 
+  ! terminal node criteria
   IF (nCases < 2*nodeSize) RETURN
 
   DO i = 1, nv
@@ -373,11 +376,16 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
              
     !dSorted_RE = delta_RE(cases) ! Phase 2 for recurrent events (delta_RE = indicator for recurrent events)
 
-    !PRINT *, "cases"
-    !PRINT *, cases
+IF (isPhase2RE) THEN
+    PRINT *, "cases"
+    PRINT *, cases
+    END IF
 
     ! ******************** splitBoundaries ********************
-    ! identify minimum cases for left and right splits based on minimum uncensored cases, minimum node size, and assurance that all equal valued cases are included in the minimum nodes
+    ! identify minimum cases for left and right splits 
+    ! based on minimum uncensored cases, minimum node size, 
+    ! and assurance that all equal valued cases are included 
+    ! in the minimum nodes
     !PRINT *, "******************** splitBoundaries ********************"
 
     rUnif = 0.d0
@@ -390,12 +398,14 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     ! Do below for both isPhase1 and isPhase2CR
     ! cases that are not-censored
     uncensoredIndices = pack(tcases, dSorted .EQ. 1)
-    !PRINT *, "uncensoredIndices: ", uncensoredIndices
     nUncensored = size(uncensoredIndices)
-    !PRINT *, "nUncensored: ", nUncensored
+        IF (isPhase2RE) THEN
+    PRINT *, "uncensoredIndices: ", uncensoredIndices
+    PRINT *, "nUncensored: ", nUncensored
 
-    !PRINT *, "test2a"
-    !PRINT *, "minEvent: ", minEvent
+    PRINT *, "test2a"
+    PRINT *, "minEvent: ", minEvent
+        END IF
 
     ! if too few cases to meet minimum number of uncensored cases, CYCLE
     IF (nUncensored .LT. (minEvent * 2)) CYCLE
@@ -566,7 +576,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
     !**********************************************************************************************************
     !**********************************************************************************************************
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
+    IF (isPhase2RE) THEN
     PRINT *, "SPLITTING IS DONE"
+    END IF
     !**********************************************************************************************************
     !**********************************************************************************************************
     leftCases = cases(1:(splitLeft-1))
@@ -2302,9 +2314,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
   are_equal = .TRUE.
 
-  PRINT *, "******************** tsurvTree ********************"
-  PRINT *, "nAll: ", nAll
-  PRINT *, "sampleSize", sampleSize
+  !PRINT *, "******************** tsurvTree ********************"
+  !PRINT *, "nAll: ", nAll
+  !PRINT *, "sampleSize", sampleSize
   tforestSurvFunc = 0.d0
   forestMean = 0.d0
   forestSurvProb = 0.d0
@@ -2356,7 +2368,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       delta_m = deltaAll_m
     END IF
 
-    PRINT *, "n", sampleSize
+    !PRINT *, "n", sampleSize
 
     ! cutoff for identifying covariates to be explored
     srs = stratifiedSplit / REAL(np)
@@ -2979,9 +2991,9 @@ SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
   LOGICAL :: are_equal
 
 
- PRINT *, "******************** setUpInners ********************"
+ !PRINT *, "******************** setUpInners ********************"
   nAll = t_n
-  print *, "nAll is:", nAll
+  !print *, "nAll is:", nAll
 
   ord_causeindAll = t_ord_causeind
   id_RE = t_idvec
@@ -3229,7 +3241,7 @@ IMPLICIT NONE
       END DO
     END DO
 
-PRINT *, "CRSTM1"
+!PRINT *, "CRSTM1"
     ! Loop over strata
     do ks = 1, nst !do 20
       n = 0
