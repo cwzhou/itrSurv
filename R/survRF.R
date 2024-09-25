@@ -34,9 +34,10 @@
 #    tree
 #
 #' @include class_Parameters.R
-#' @include class_CriticalValue.R class_CriticalValueMean.R
-#' @include class_CriticalValueSurvival.R class_CriticalValueSurvivalatT0.R
-#' #' @include class_CriticalValueCR.R
+#' @include class_CriticalValue.R
+#' @include class_CriticalValueArea.R class_CriticalValueMean.R
+#' @include class_CriticalValueSurv.R
+#' @include class_CriticalValueEndpoint.R
 #' @include class_SurvRF.R
 #' @import parallel
 #'
@@ -72,9 +73,15 @@
 
   # FIGURE OUT HOW TO DO WITHOUT CRASHING
   # number of individuals in training data
-  nSamples <- nrow(x = x) # this is OLD code - doesnt reflect RE where nrow(x) is for RE for Phase 2 data
-  # nSamples = params@nSamples
-  # message('number of individuals in training data: ', nSamples)
+  nSamples <- nrow(x = x) # RE: nrow(x) is for RE for Phase 2 data (# records)
+  print(nSamples)
+  if (Phase == "RE"){
+    nSamples_surv = length(unique(idvec))
+  } else{
+    nSamples_surv = nSamples
+  }
+  message('number of records in training data: ', nSamples)
+  message('number of individuals in training data: ', nSamples_surv)
 
   # View(pr)
   # View(pr2)
@@ -97,11 +104,12 @@
 
   # determine the number of samples to include in each tree
   sampleSize <- ceiling(x = sampleSize * nSamples)
-  # message("number of samples to include in each tree: ", sampleSize)
+  message("number of samples to include in each tree: ", sampleSize)
+  # for RE: this is # records
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  # message("maximum nodes in a tree: ", maxNodes)
+  message("maximum nodes in a tree: ", maxNodes)
 
   # convert factors to integers
   x = data.matrix(frame = x)
@@ -132,6 +140,7 @@
   # print(delta_endpoint)
   res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1 and Phase2CR, number of records for Phase2RE
+                 t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x), # covariates
@@ -154,7 +163,7 @@
   #   stop("testing inners")
   # }
 
-  message(" dfgdfgd ================= Phase: ", Phase)
+  #message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
     # print("survTree: survTree in Fortran")

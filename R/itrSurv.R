@@ -175,8 +175,13 @@
 #' @param minEvent An integer object. The minimum number of events that must be
 #'   present in a node.
 #'
-#' @param nodeSize An integer object. The minimum number of individuals that
-#'   must be present in a node.
+#' @param nodeSize An integer object. The minimum number of records that
+#'   must be present in a node. Individuals for Phase1/2CR. RE for Phase2RE.
+#'   This is n_min for Phase1 and Phase2CR, and n_min^re for Phase2RE
+#'
+#' @param nodeSizeSurv An integer object. The minimum number of individuals that
+#'   must be present in a node. This is the same as nodeSize for Phase1/2CR.
+#'   This is n_min for all Phases. We ignore this for Endpoint = CR.
 #'
 #' @param nTree An integer object. The number of trees to grow.
 #'
@@ -194,20 +199,16 @@
 #     (s is the total number of splits, d is the
 #'    total number of covariates under consideration).
 #'
-#' @param stageLabel A character object. If using a common formula, the
-#'    character used to separate the covariate from the decision point label.
-#'    See details. IGNORE THIS FOR SINGLE STAGE.
-#'
 #' @references Zhou, C.W. and Kosorok, M.R.
-#'   Estimating optimal individualized treatment regimes for survival data with competing risks.
+#'   Optimal individualized treatment regimes for survival data with competing risks.
 #'   In prepraration.
 #'
 #'   Zhou, C.W. and Kosorok, M.R.
-#'   Estimating optimal individualized treatment regimes for recurrent events and terminal event in survival data.
-#'   In preparation.
+#'   Tailoring Treatment Regimes for Recurrent Events in the Era of Precision Medicine.
+#'   In progress.
 #'
 #' @include VerifyData.R VerifyTxName.R VerifyModels.R VerifySampleSize.R
-#' @include VerifyEndPoint.R VerifyUsePrevTime.R class_Parameters.R
+#' @include VerifyEndPoint.R class_Parameters.R
 #' @include class_ITRSurvStep.R class_ITRSurv.R
 #' @import methods
 #' @export
@@ -216,12 +217,11 @@
 #'
 #' @returns An S4 object of class ITRSurv containing the key results and
 #'   input parameters of the analysis. The information contained therein
-#'   should be accessed through convenience functions stage(), show(), print(),
+#'   should be accessed through convenience functions show(), print(),
 #'   and predict().
 #'
 #' @seealso \code{\link{predict}} for retrieving the optimal treatment
-#'    and/or the optimal survival curves. \code{\link{stage}} for retrieving stage
-#'    results as a list. \code{\link{show}} for presenting the analysis results.
+#'    and/or the optimal survival curves. \code{\link{show}} for presenting the analysis results.
 #'
 #' @examples
 #'
@@ -237,46 +237,45 @@
 #'
 #' # common formula
 #' itrSurv(data = dt,
-#'         txName = c("A.1"),
-#'         models = Surv(Y,D)~X+A,
-#'         usePrevTime = TRUE,
-#'         stageLabel = ".")
+#'         txName = c("A"),
+#'         models = Surv(Y,D)~X+A)
 #'
 #' # common formula and pooled analysis
 #' itrSurv(data = dt,
-#'         txName = c("A.1"),
+#'         txName = c("A"),
 #'         models = Surv(Y,D)~X+A,
-#'         stageLabel = ".",
 #'         pooled = TRUE)
 #'
-#' dt <- data.frame("Y.1" = sample(1:100,100,TRUE), "Y.2" = sample(1:100,100,TRUE),
-#'                  "D.1" = rbinom(100, 1, 0.9), "D.2" = rbinom(100,1,0.9),
-#'                  "A.1" = rbinom(100, 1, 0.5), "A.2" = rbinom(100,1,0.5),
-#'                  "X1" = rnorm(100), "X2" = rnorm(100))
+#' dt <- data.frame("Y" = sample(1:100,100,TRUE),
+#'                  "D" = rbinom(100, 1, 0.9),
+#'                  "A" = rbinom(100, 1, 0.5)
+#'                  "X1" = rnorm(100),
+#'                  "X2" = rnorm(100))
 #'
 #' # common formula with only baseline covariates
 #' itrSurv(data = dt,
-#'         txName = c("A.1", "A.2"),
+#'         txName = c("A"),
 #'         models = Surv(Y,D)~X1+X2+A)
 #'
 #' # common formula with only baseline covariates
 #' # cutoff selected from indices
 #' itrSurv(data = dt,
-#'         txName = c("A.1", "A.2"),
+#'         txName = c("A"),
 #'         models = Surv(Y,D)~X1+X2+A,
-#'         ERT = TRUE, uniformSplit = FALSE)
+#'         ERT = TRUE,
+#'         uniformSplit = FALSE)
 #'
 #' # common formula with only baseline covariates
 #' # not extremely random trees
 #' itrSurv(data = dt,
-#'         txName = c("A.1", "A.2"),
-#'         models = Surv(Y,D)~X1+X2+A,
+#'         txName = c("trt"),
+#'         models = Surv(Y,D)~X1+X2+trt,
 #'         ERT = FALSE)
 #'
 #' # common formula with only baseline covariates
 #' # survival probability
 #' itrSurv(data = dt,
-#'         txName = c("A.1", "A.2"),
+#'         txName = c("A"),
 #'         models = Surv(Y,D)~X1+X2+A,
 #'         criticalValue = 'mean.prob.combo')
 #'
@@ -310,11 +309,11 @@ itrSurv <- function(data,
                     tieMethod = "random",
                     minEvent = 3L, # minimum number of subjects with events
                     nodeSize = 6L,
+                    nodeSizeSurv = 6L, # this is needed only for endpoint=RE.
                     nTree = 10L,
                     mTry = NULL,
                     pooled = FALSE,
-                    stratifiedSplit = NULL,
-                    stageLabel = ".") {
+                    stratifiedSplit = NULL) {
 
   #######################################################################################################
   #######################################################################################################
@@ -392,33 +391,33 @@ itrSurv <- function(data,
   #   "models" - the original input.
   models_surv <- .VerifyModels(models = models[[1]], #Surv(obs_time, D.0) ~ Z1
                            endPoint = endPoint,
-                           nDP = nDP,
+                           # nDP = nDP,
                            nCauses = nCauses,
                            data = data_surv,
                            txName = txName,
-                           epName = epName,
-                           stageLabel = stageLabel)
+                           epName = epName)#,
+                           # stageLabel = stageLabel)
 
   if (endPoint == "CR"){
     #this line is redundant since earlier we specified
     # data=data_surv=data_ep for models_ep, but just to be safe :D
     models_ep <- .VerifyModels(models = models[[2]], #Surv(obs_time, D.1) ~ Z1
                                endPoint = endPoint,
-                               nDP = nDP,
+                               # nDP = nDP,
                                nCauses = nCauses,
                                data = data_surv, # same dataset, just different event indicator
                                txName = txName,
-                               epName = epName,
-                               stageLabel = stageLabel)
+                               epName = epName)#,
+                               # stageLabel = stageLabel)
   } else if (endPoint == "RE"){
     models_ep <- .VerifyModels(models = models[[2]], # Surv(TStart, TStop, epName) ~ Z1
                                endPoint = endPoint,
-                               nDP = nDP,
+                               # nDP = nDP,
                                nCauses = nCauses,
                                data = data_ep,
                                txName = txName,
-                               epName = epName,
-                               stageLabel = stageLabel)
+                               epName = epName)#,
+                               # stageLabel = stageLabel)
   } else{
     stop("itrSurv.R Line 419: endPoint is not specified. no models_ep created.")
   }
@@ -502,6 +501,7 @@ itrSurv <- function(data,
                         splitRule2 = splitRule2,
                         replace = replace,
                         nodeSize = nodeSize,
+                        nodeSizeSurv = nodeSizeSurv,
                         minEvent = minEvent,
                         tieMethod = tieMethod,
                         criticalValue1 = criticalValue1,
@@ -579,31 +579,33 @@ itrSurv <- function(data,
                  t_ERT = as.integer(x = params1@ERT),
                  t_uniformSplit = as.integer(x = params1@uniformSplit),
                  t_nodeSize = as.integer(x = .NodeSize(object = params1)),
+                 t_nodeSizeSurv = as.integer(x = .NodeSize(object = params1)),
                  t_minEvent = as.integer(x = .MinEvent(object = params1)),
+                 t_minEventSurv = as.integer(x = .MinEvent(object = params1)), # same as above
                  t_rule = as.integer(x = splitR_1),
                  t_sIndex = as.integer(x = ind1),
                  t_sFraction = as.double(x = frac1),
                  t_stratifiedSplit = as.double(x = params1@stratifiedSplit),
                  t_replace = as.integer(params1@replace),
                  PACKAGE = "itrSurv")
-  # print('test9')
-  # ensure that if given, sampleSize is 0 < sampleSize <= 1 and that
-  # a value is provided for each decision point. If only 1 value is given,
-  # it is assumed to be used for all decision points
+  print('test9')
+  print("t_nt and t_nt_death")
+  print(as.integer(x = .NTimes(object = params1)))
+  # ensure that if given, sampleSize is 0 < sampleSize <= 1.
   sampleSize1 <- .VerifySampleSize(sampleSize = sampleSize,
-                                  ERT = params1@ERT,
-                                  nDP = nDP
+                                  ERT = params1@ERT#,
+                                  # nDP = nDP
                                   )
   # message("sample size1: ", sampleSize1)
 
-  # ensure that mTry is provided as a vector. At this point, there is
-  # no verification of an appropriate value
-  if (length(x = mTry) == 1L) {
-    mTry <- rep(x = mTry, times = nDP)
-  } else if (!is.null(x = mTry) && {length(x = mTry) != nDP}) {
-    stop("if provided as vector, mTry must be provided for each dp",
-         call. = FALSE)
-  }
+  # # ensure that mTry is provided as a vector. At this point, there is
+  # # no verification of an appropriate value
+  # if (length(x = mTry) == 1L) {
+  #   mTry <- rep(x = mTry, times = nDP)
+  # } else if (!is.null(x = mTry) && {length(x = mTry) != nDP}) {
+  #   stop("if provided as vector, mTry must be provided for each dp",
+  #        call. = FALSE)
+  # }
 
   # message("----------------End of Survival Storing on Fortran Side----------------")
 
@@ -634,11 +636,11 @@ itrSurv <- function(data,
                                 ord_response = ord_response, # only needed for Phase2CR when using grays test
                                 priorStep = NULL,
                                 params = params1,
-                                txName = txName[nDP],
-                                mTry = mTry[nDP],
-                                sampleSize = sampleSize1[nDP])
-  # message("...end of .itrSurvStep...")
-  # message("Phase1Results")
+                                txName = txName,#[nDP],
+                                mTry = mTry,#[nDP],
+                                sampleSize = sampleSize1)#[nDP])
+  message("...end of .itrSurvStep...")
+  message("Phase1Results")
   # View(Phase1Results)
   assign("Phase1Results_survival", Phase1Results, envir = .GlobalEnv)
   phaseResults[[1]] <- Phase1Results
@@ -669,6 +671,8 @@ itrSurv <- function(data,
   splitR_2 = ifelse(params2@splitRule == 'gray_cr', 3,
                     ifelse(params2@splitRule == 'csh_cr', 4,
                            ifelse(params2@splitRule == 'gray_re', 5, NA)))
+  # message("SplitR_2 is:", splitR_2)
+  # message("SplitR_1 was:", splitR_1)
   if (is.na(splitR_2)){stop("SPLIT RULE IS WRONG!!?")}
   res2 = .Fortran("setUpBasics",
                   t_nt = as.integer(x = .NTimes(object = params2)),
@@ -678,7 +682,9 @@ itrSurv <- function(data,
                   t_ERT = as.integer(x = params2@ERT),
                   t_uniformSplit = as.integer(x = params2@uniformSplit),
                   t_nodeSize = as.integer(x = .NodeSize(object = params2)),
+                  t_nodeSizeSurv = as.integer(x = .NodeSize(object = params1)),
                   t_minEvent = as.integer(x = .MinEvent(object = params2)),
+                  t_minEventSurv = as.integer(x = .MinEvent(object = params1)),
                   t_rule = as.integer(splitR_2),
                   t_sIndex = as.integer(x = ind2),
                   t_sFraction = as.double(x = frac2),
@@ -690,18 +696,19 @@ itrSurv <- function(data,
   # a value is provided for each decision point. If only 1 value is given,
   # it is assumed to be used for all decision points
   sampleSize2 <- .VerifySampleSize(sampleSize = sampleSize,
-                                   ERT = params2@ERT,
-                                   nDP = nDP)
+                                   ERT = params2@ERT)#,
+                                   # nDP = nDP)
   # message("sample size2: ", sampleSize2)
 
-  # ensure that mTry is provided as a vector. At this point, there is
-  # no verification of an appropriate value
-  if (length(x = mTry) == 1L) {
-    mTry <- rep(x = mTry, times = nDP)
-  } else if (!is.null(x = mTry) && {length(x = mTry) != nDP}) {
-    stop("if provided as vector, mTry must be provided for each dp",
-         call. = FALSE)
-  }
+  # mTry is a scalar b/c its one decision point for single stage setting
+  # # ensure that mTry is provided as a vector. At this point, there is
+  # # no verification of an appropriate value
+  # if (length(x = mTry) == 1L) {
+  #   mTry <- rep(x = mTry, times = nDP)
+  # } else if (!is.null(x = mTry) && {length(x = mTry) != nDP}) {
+  #   stop("if provided as vector, mTry must be provided for each dp",
+  #        call. = FALSE)
+  # }
   # message("----------------End of EndPoint Storing on Fortran Side----------------")
   # message("#######################################################################")
   message(sprintf("RSF Starting: Phase 2: look at %s", endPoint))
@@ -749,9 +756,9 @@ itrSurv <- function(data,
                                  ord_causeind = ord_causeind, # only needed for CR when using grays test
                                  ord_response = ord_response, # only needed for CR when using grays test
                                  params = params.2,
-                                 txName = txName[nDP],
-                                 mTry = mTry[nDP],
-                                 sampleSize = sampleSize2[nDP])
+                                 txName = txName,#[nDP],
+                                 mTry = mTry,#[nDP],
+                                 sampleSize = sampleSize2)#[nDP])
     assign("Phase2Results_endpoint", Phase2Results, envir = .GlobalEnv)
 
   phaseResults[[2]] <- Phase2Results

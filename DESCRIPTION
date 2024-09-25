@@ -4,7 +4,7 @@ Title: single stage optimization
 Version: 0.1.0
 Author: Christina Zhou
 Maintainer: Christina Zhou <czhou.bios@gmail.com>
-Description: Estimates optimal individualized treatment regime for survival data with multiple endpoints.
+Description: Estimates optimal individualized treatment regime for survival data with multiple endpoints. Multi-utility value function.
     Currently only supports CR and RE
     Based on dissertation work under guidance of Michael Kosorok at UNC-CH.
     Use four spaces when indenting paragraphs within the Description.
@@ -12,18 +12,44 @@ License: What license is it under?
 Encoding: UTF-8
 Depends: methods, stats, survival
 RoxygenNote: 7.2.3
-Collate: 'VerifyEndpointTime.R' 'VerifyCriticalValue.R' 'VerifyData.R'
-        'VerifyERT.R' 'VerifyEndPoint.R' 'VerifyModels.R'
-        'VerifyTol1.R' 'VerifyRandomSplit.R' 'VerifyReplace.R'
-        'VerifySampleSize.R' 'VerifySplitRule.R' 'VerifySurvivalTime.R'
-        'VerifyTieMethod.R' 'VerifyTimePoints.R' 'VerifyTxName.R' 'VerifyYName.R'
-        'VerifyIdName.R' 'VerifyEpName.R' 'VerifyUniformSplit.R'
-        'VerifyUsePrevTime.R' 'class_CriticalValue.R' 'criticalValue.R'
-        'class_CriticalValueMean.R' 'class_CriticalValueArea.R'
-        'class_CriticalValueSurv.R' 'class_CriticalValueEndpoint.R'
-        'class_TreeConditions.R' 'class_TreeType.R' 'class_TimeInfo.R'
-        'class_Parameters.R' 'predictSurvTree.R' 'class_SurvRF.R'
-        'survRF.R' 'shiftMat.R' 'class_Optimal.R' 'class_ITRSurvStep.R'
-        'class_ITRSurv.R' 'itrSurv.R'
+Collate: 
+    'VerifyCriticalValue.R'
+    'VerifyData.R'
+    'VerifyERT.R'
+    'VerifyEndPoint.R'
+    'VerifyEndpointTime.R'
+    'VerifyEpName.R'
+    'VerifyIdName.R'
+    'VerifyModels.R'
+    'VerifyRandomSplit.R'
+    'VerifyReplace.R'
+    'VerifySampleSize.R'
+    'VerifySplitRule.R'
+    'VerifySurvivalTime.R'
+    'VerifyTieMethod.R'
+    'VerifyTimePoints.R'
+    'VerifyTol1.R'
+    'VerifyTxName.R'
+    'VerifyUniformSplit.R'
+    'VerifyUsePrevTime.R'
+    'VerifyYName.R'
+    'class_CriticalValue.R'
+    'class_CriticalValueArea.R'
+    'class_CriticalValueEndpoint.R'
+    'class_CriticalValueMean.R'
+    'class_CriticalValueSurv.R'
+    'class_TreeConditions.R'
+    'class_TreeType.R'
+    'criticalValue.R'
+    'class_TimeInfo.R'
+    'class_Parameters.R'
+    'predictSurvTree.R'
+    'class_SurvRF.R'
+    'survRF.R'
+    'shiftMat.R'
+    'class_Optimal.R'
+    'class_ITRSurvStep.R'
+    'class_ITRSurv.R'
+    'itrSurv.R'
 NeedsCompilation: yes
 Packaged: 2024-08-24 03:32:38 UTC; zhou

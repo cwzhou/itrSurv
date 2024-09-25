@@ -7,7 +7,7 @@
 #
 # Functions
 # .parameters(endPoint, timePointsSurvival, timePointsEndpoint, timePoints, nTimes, response, response_endpoint, nTree, ERT, uniformSplit,
-#                      randomSplit, splitRule1, splitRule2, replace, nodeSize,
+#                      randomSplit, splitRule1, splitRule2, replace, nodeSize, nodeSizeSurv,
 #                      minEvent, tieMethod, criticalValue,
 #                      survivalTime, nSamples, pooled, stratifiedSplit)
 #
@@ -255,6 +255,7 @@ setMethod(f = "initialize",
                         splitRule2,
                         replace,
                         nodeSize,
+                        nodeSizeSurv,
                         minEvent,
                         tieMethod,
                         criticalValue1,

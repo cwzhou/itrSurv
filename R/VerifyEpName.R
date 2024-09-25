@@ -1,6 +1,6 @@
 # Verify input 'epName'
 #
-# method is not exported and is for internal convenience only
+# methods are not exported and are for internal convenience only
 #
 # ensures that 'epName' is provided as a character or character vector and
 # that the provided names are present in data.

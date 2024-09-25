@@ -9,12 +9,16 @@ MODULE INNERS
   INTEGER, PARAMETER :: nst_set1 = 1
 
   INTEGER, SAVE :: ERT ! 0/1 1 = use extremely randomized tree
-  INTEGER, SAVE :: minEvent ! minimum number of events in a node
+  INTEGER, SAVE :: minEvent ! minimum number of events in a node !Phase1: death, Phase2CR: PC death, Phase2RE: recurrent events
+  INTEGER, SAVE :: minEventSurv ! minimum number of Survival events in a node ! this is the same as minEvent for Phase1. Not used for Phase2CR (because CR is subset)
   INTEGER, SAVE :: mTry ! maximum number of covariates to try
   INTEGER, SAVE :: n  ! number of sampled cases
-  INTEGER, SAVE :: nAll ! number of cases
+  INTEGER, SAVE :: n_surv  ! number of sampled SUBJECTS (needed for Phase2RE bc cases = records)
+  INTEGER, SAVE :: nAll ! number of cases (records for Phase2RE)
+  INTEGER, SAVE :: nAll_surv ! number of subjects (same as nAll for Phase1 and Phase2CR) (needed for Phase2RE because records != subjects)
   INTEGER, SAVE :: nLevs ! maximum number of levels
   INTEGER, SAVE :: nodeSize ! minimum number of cases in a node
+  INTEGER, SAVE :: nodeSizeSurv ! minimum number of SUBJECTS in a node (needed for Phase2RE because records != subjects)
   INTEGER, SAVE :: np ! number of covariates
   INTEGER, SAVE :: nrNodes ! maximum number of nodes in a tree
   INTEGER, SAVE :: nt ! number of time points
@@ -35,7 +39,7 @@ MODULE INNERS
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta
   ! COMPETING RISKS: event indicator 1 = event from cause m (not censored for cause m for CR)
   ! RECURRENT EVENTS: event indicator 1 = RECURRENT EVENT (0 = not a recurrent event (could be death or censoring))
-  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_m
+  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: delta_m, id_RE2
   ! number of categories in each np covariate
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: nCat
 
@@ -117,6 +121,39 @@ MODULE INNERS
 
   CONTAINS
 
+      subroutine find_unique(val, num_unique) ! (val, final, num_unique)
+        implicit none
+        integer, intent(in) :: val(:)               ! Input array
+        !integer, allocatable, intent(out) :: final(:) ! Output array of unique elements
+        integer, intent(out) :: num_unique           ! Number of unique elements
+        integer :: i, min_val, max_val
+        integer, allocatable :: unique(:)
+
+        ! Initialize counters and limits
+        i = 0
+        min_val = minval(val) - 1   ! Start just below the minimum value
+        max_val = maxval(val)       ! Maximum value in the array
+
+        ! Allocate memory for unique values (at most the size of val)
+        allocate(unique(size(val)))
+
+        ! Loop to find unique elements
+        do while (min_val < max_val)
+            i = i + 1
+            min_val = minval(val, mask=val > min_val)
+            unique(i) = min_val
+        end do
+
+        ! Number of unique elements found
+        num_unique = i
+
+        !! Allocate final array to store only the unique elements
+        !allocate(final(num_unique))
+        !final = unique(1:num_unique)
+        !! Deallocate temporary array
+        !deallocate(unique)
+    end subroutine find_unique
+
 ! sample an array of indices allowing for duplicates
 !   nCases: integer, the total number of indices to sample
 !   n: integer, the number of indices to draw
@@ -193,6 +230,8 @@ END FUNCTION sampleWithOutReplace
 !   lft : integer, the number of cases in the left node
 ! CALL tfindSplit(size(ind), ind, size(pind), pind, splitVar, cutoffBest, splitFound, indOut, nc, lft)
 !
+! for RE: this is each record and nCases is number of records
+! we need a nCases_person and 
 SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
                     & splitVar, cutoffBest, splitFound, casesOut, nCuts, lft)
   use, intrinsic :: ieee_arithmetic
@@ -208,7 +247,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   INTEGER, DIMENSION(1:nCases), INTENT(OUT) :: casesOut
   INTEGER, INTENT(OUT) :: nCuts
   INTEGER, INTENT(OUT) :: lft
-
 
   LOGICAL, DIMENSION(nCases) :: mk
 
@@ -245,7 +283,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   LOGICAL :: notEqual
   REAL(dp) :: rnd, random1
 
-! for crstm  ! rho_set0, nst_set1, and ng_set2 defined in modules inners
+  ! for crstm  ! rho_set0, nst_set1, and ng_set2 defined in modules inners
   REAL(dp) :: rho_set0
   REAL(dp), DIMENSION(:), ALLOCATABLE :: y_set
   INTEGER, DIMENSION(:), ALLOCATABLE :: ig_setSplit, m_set
@@ -270,10 +308,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   EXTERNAL :: rnd
   are_equal = .TRUE.
 
-  !write(*,'(/,A)') '============================ tfindSplit ============================'
-  !PRINT *, "******************** tfindSplit ********************"
-  !PRINT *, "casesIn"
-  !PRINT *, casesIn
+  IF (isPhase2RE) THEN
+    WRITE(*,'(/,A)') '============================ tfindSplit ============================'
+    PRINT *, "******************** tfindSplit ********************"
+    PRINT *, "casesIn"
+    PRINT *, casesIn
+    PRINT *, "nCases:", nCases
+    PRINT *, "nodeSize:", nodeSize
+    PRINT *, "nodeSizeSurv:", nodeSizeSurv
+  END IF
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -311,13 +354,27 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
   variablesTried = 0
 
   tcases = (/(i,i=1,nCases)/)
-  IF (isPhase2RE) THEN
-  PRINT *, "tcases"
-  PRINT *, tcases
-  END IF
  
-  ! terminal node criteria
-  IF (nCases < 2*nodeSize) RETURN
+ ! nCases is 
+  ! Terminal node criteria
+  IF (isPhase2RE) THEN
+      IF (nCases < 2*nodeSizeSurv) RETURN
+  ELSE
+      ! Ensure nodeSizeSurv equals nodeSize in non-Phase2RE cases
+      IF (nodeSizeSurv .NE. nodeSize) THEN 
+          PRINT *, "Error: nodeSizeSurv and nodeSize mismatch"
+          STOP
+      END IF
+      IF (nCases < 2*nodeSize) RETURN
+      ! nodeSizeSurv = nodeSize for isPhase1 and isPhase2CR
+  END IF
+
+  IF (isPhase2RE) THEN
+    PRINT *, "tcases"
+    PRINT *, tcases
+    PRINT *, "================================"
+    STOP
+  END IF
 
   DO i = 1, nv
 
@@ -379,7 +436,11 @@ SUBROUTINE tfindSplit(nCases, casesIn, nv, varsIn, &
 IF (isPhase2RE) THEN
     PRINT *, "cases"
     PRINT *, cases
-    END IF
+    PRINT *, "tcases"
+    PRINT *, tcases
+    PRINT *, "dSorted"
+    PRINT *, dSorted
+END IF
 
     ! ******************** splitBoundaries ********************
     ! identify minimum cases for left and right splits 
@@ -400,15 +461,14 @@ IF (isPhase2RE) THEN
     uncensoredIndices = pack(tcases, dSorted .EQ. 1)
     nUncensored = size(uncensoredIndices)
         IF (isPhase2RE) THEN
-    PRINT *, "uncensoredIndices: ", uncensoredIndices
-    PRINT *, "nUncensored: ", nUncensored
-
-    PRINT *, "test2a"
-    PRINT *, "minEvent: ", minEvent
+          PRINT *, "uncensoredIndices: ", uncensoredIndices
+          PRINT *, "Number of Uncensored: ", nUncensored
+          PRINT *, "minimum Recurrent Events: ", minEvent
+          PRINT *, "minimum Deaths: ", minEventSurv
         END IF
 
     ! if too few cases to meet minimum number of uncensored cases, CYCLE
-    IF (nUncensored .LT. (minEvent * 2)) CYCLE
+    IF (nUncensored .LT. (minEventSurv * 2)) CYCLE
 
     !! able to split and satisfy minimum number of events in each node
 
@@ -2290,8 +2350,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   REAL(dp), DIMENSION(1:nAll), INTENT(OUT) :: forestMean
   REAL(dp), DIMENSION(1:nAll), INTENT(OUT) :: forestSurvProb
 
-  INTEGER :: i, iTree, j, k, lft, m, nc, ncur, splitFound, splitVar
+  INTEGER :: i, iTree, j, k, lft, m, nc, ncur, splitFound, splitVar, i_surv
   INTEGER, DIMENSION(1:sampleSize) :: indices, jdex, xrand
+  !INTEGER, DIMENSION(1:sampleSize_surv) :: indices_surv
   INTEGER, DIMENSION(1:np) :: newstat, pindices
   INTEGER, DIMENSION(1:np, 1:nrNodes) :: cstat
   INTEGER, DIMENSION(1:nrNodes, 1:2) :: stm
@@ -2311,6 +2372,10 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
   LOGICAL :: are_equal
   INTEGER :: index_delta
+
+  integer :: n_surv    ! Declare the integer that stores the number of unique elements
+  integer, allocatable :: val(:), final(:)  ! Declare allocatable arrays
+
 
   are_equal = .TRUE.
 
@@ -2337,7 +2402,8 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     IF (replace .EQ. 1) THEN
       PRINT *, "sample with replacement"
       xrand = sampleWithReplace(nAll, sampleSize)
-      n = sampleSize
+      n = sampleSize ! the number of cases to sample for each tree: people for Phase1,2CR; records (RE) for Phase2RE
+      id_RE2 = id_RE(xrand)
       x = xAll(xrand,:)
       pr = prAll(xrand,:)
       pr2 = pr2All(xrand,:)
@@ -2349,6 +2415,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       PRINT *, "sample without replacement"
       xrand = sampleWithoutReplace(nAll, sampleSize)
       n = sampleSize
+      id_RE2 = id_RE(xrand)
       x = xAll(xrand,:)
       pr = prAll(xrand,:)
       pr2 = pr2All(xrand,:)
@@ -2359,6 +2426,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     ELSE
       !PRINT *, "replace \neq 1 and nAll = sampleSize"
       n = sampleSize
+      id_RE2 = id_RE
       x = xAll
       pr = prAll
       pr2 = pr2All
@@ -2368,17 +2436,37 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       delta_m = deltaAll_m
     END IF
 
-    !PRINT *, "n", sampleSize
+    IF (isPhase2RE) THEN
+      PRINT *, "id_RE2:"
+      PRINT *, id_RE2
+      !PRINT *, "sampleSize", sampleSize
+      PRINT *, "Number of REs:", n
+      ! Call the subroutine to find unique elements
+      call find_unique(id_RE2, n_surv) ! (id_RE2, num_unique)
+      ! Print the result
+      !print *, 'Unique values: ', final
+      print *, 'Number of subjects: ', n_surv
+    END IF
 
     ! cutoff for identifying covariates to be explored
     srs = stratifiedSplit / REAL(np)
 
     ! indices for all cases
     indices = (/(i,i=1,n)/)
+    PRINT *, "indices for all cases"
+    PRINT *, indices
+    !indices_surv = (/(i_surv, i_surv = 1, n_surv)/)
     jdex = indices
 
     ! indices for all covariates
     pindices = (/(i,i=1,np)/)
+    PRINT *, "indices for all covariates: pindices"
+    PRINT *, pindices
+    PRINT *, "Phase1?", isPhase1
+    PRINT *, "Phase2? (RE)", isPhase2RE
+    PRINT *, "nt and nt_death"
+    PRINT *, nt
+    PRINT *, nt_death
 
     !! initialize first node
 
@@ -2387,7 +2475,10 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     ! IF (isPhase2CR) PRINT *, "calculate CIF function and mean CIF of the first node"
     !PRINT *, "tsurvTree: CALL calcValueSingle"
     CALL calcValueSingle(n, indices, Func(:,1), mean(1))
-    !PRINT *, "--------end of calcValueSingle: OUTPUT mean(1): ", mean(1)
+    IF (isPhase2RE) THEN
+      PRINT *, "--------end of calcValueSingle: OUTPUT mean(1): "
+      PRINT *, mean(1)
+    END IF
 
     IF (isSurvival) THEN
       ! estimate survival/cif probability at SurvivalTime/CIFTime
@@ -2396,12 +2487,39 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       IF (Prob(1) .LT. 1d-8) Prob(1) = 0.d0
     END IF
 
+    IF (isPhase2RE) THEN
+      PRINT *, "delta_m(indices) and sum"
+      PRINT *, delta_m(indices)
+      PRINT *, "Number of current RE events here:", sum(delta_m(indices))
+      PRINT *, "Number of current DEATH here:", sum(delta(indices))
+      PRINT *, "n", n
+      PRINT *, "nodeSize", nodeSize
+      PRINT *, "n_surv", n_surv
+      PRINT *, "nodeSizeSurv", nodeSizeSurv
+    END IF
+    ! For endpoint = CR: Phase 1: delta = delta_m
+    ! For endpoint = RE: Phase 1: delta_m is just delta
+    ! nMatrix: DIMENSION(1:nrNodes, 1:(5+nLevs))
     ! determine if the node can split based on basic minimum requirements
     if (n .LE. nodeSize .OR. sum(delta_m(indices)) .LE. 1) THEN
-      nMatrix(1,1) = -1
+      if (isPhase2RE) THEN
+        if (n_surv .LE. nodeSizeSurv .OR. sum(delta(indices)) .LE. 1) THEN
+          nMatrix(1,1) = -1
+        else 
+          nMatrix(1,1) = -2
+        end if
+      ELSE 
+        nMatrix(1,1) = -1
+      end if
     ELSE
       nMatrix(1,1) = -2
     END IF
+
+    !If (isPhase2RE) THEN
+      !PRINT *, "nMatrix is"
+      !PRINT *, nMatrix
+      !STOP
+    !END IF
 
     cstat(:,1) = 0
 
@@ -2417,8 +2535,12 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
     ! --===----= here
 
-    !PRINT *, "nrNodes: ", nrNodes
+    if (isPhase2RE) PRINT *, "nrNodes: ", nrNodes
     DO k = 1, nrNodes
+
+      if (isPhase2RE) THEN 
+        if (k .GE. 2) STOP
+      END IF
 
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
@@ -2429,6 +2551,14 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       IF (nint(nMatrix(k,1)) .EQ. -1) CYCLE
       !PRINT *, "TEST8"
 
+      if (isPhase2RE) THEN
+        PRINT *, "stm"
+        PRINT *, stm
+        PRINT *, "stm(k,1); k = 1."
+        PRINT *, stm(k,1)
+        PRINT *, "jdex(stm(k,1):stm(k,2))"
+        PRINT *, jdex(stm(k,1):stm(k,2))
+      END IF
       ! indices for cases contained in node
       ind = jdex(stm(k,1):stm(k,2))
       !PRINT *, "ind"
@@ -2442,6 +2572,14 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       ! split cases
       indOut = ind
+
+      if (isPhase2RE) THEN
+        PRINT *, size(ind)
+        PRINT *, "ind"
+        PRINT *, ind
+        print *, "pind"
+        PRINT *, pind
+      END IF 
 
       !PRINT *, "################# Line 1441"
       CALL tfindSplit(size(ind), ind, size(pind), pind, splitVar, cutoffBest, &
@@ -2863,7 +3001,8 @@ END SUBROUTINE predictSurvTree
 ! t_ERT, integer, the indicator of extremely randomized trees
 ! t_uniformSplit, integer, the indicator of method for determining cut-off
 !   when using ERT
-! t_nodeSize, integer, the minimum number of cases in each node
+! t_nodeSize, integer, the minimum number of cases in each node (Phase1/2CR: cases = subjects = people; Phase2RE: cases = recurrent events/records)
+! t_nodeSizeSurv, integer, the minimum number of SUBJECTS in each node
 ! t_minEvent, integer, the minimum number of events in each node
 ! t_rule, integer, 1 = logrank, 2 = mean, 3 = CR gray (Gray 1988), 4 = CR csh, 5 = RE gray Q_LR (Ghosh & Lin 2000)
 ! t_sIndex, integer, the indices of time points that is closest to the
@@ -2872,8 +3011,10 @@ END SUBROUTINE predictSurvTree
 !   requested survival time
 ! t_stratifiedSplit, real, the coefficient for determining stratification
 ! t_replace, integer, indicator of sampling with replacement
-SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, t_nodeSize, &
-                     & t_minEvent, t_rule, t_sIndex, t_sFraction, &
+SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, &
+                     & t_nodeSize, t_nodeSizeSurv, &
+                     & t_minEvent, t_minEventSurv, &
+                     & t_rule, t_sIndex, t_sFraction, &
                      & t_stratifiedSplit, t_replace)
 
   USE INNERS
@@ -2887,7 +3028,9 @@ SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, t_no
   INTEGER, INTENT(IN) :: t_ERT
   INTEGER, INTENT(IN) :: t_uniformSplit
   INTEGER, INTENT(IN) :: t_nodeSize
+  INTEGER, INTENT(IN) :: t_nodeSizeSurv
   INTEGER, INTENT(IN) :: t_minEvent
+  INTEGER, INTENT(IN) :: t_minEventSurv
   INTEGER, INTENT(IN) :: t_rule
   INTEGER, INTENT(IN) :: t_sIndex
   REAL(dp), INTENT(IN) :: t_sFraction
@@ -2895,8 +3038,24 @@ SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, t_no
   INTEGER, INTENT(IN) :: t_replace
 
   !PRINT *, "******************** setUpBasics ********************"
+  !PRINT *, "t_rule", t_rule
+  !PRINT *, "isPhase1:", isPhase1
+  !PRINT *, "isPhase2:", isPhase2
+  !PRINT *, "isPhase2CR:", isPhase2CR
+  !PRINT *, "isPhase2RE:", isPhase2RE
+  isPhase1 = .FALSE.
+  isPhase2 = .FALSE.
+  isPhase2CR = .FALSE.
+  isPhase2RE = .FALSE.
+  !PRINT *, "t_rule", t_rule
+  !PRINT *, "isPhase1:", isPhase1
+  !PRINT *, "isPhase2:", isPhase2
+  !PRINT *, "isPhase2CR:", isPhase2CR
+  !PRINT *, "isPhase2RE:", isPhase2RE
+  
   nt = t_nt
   nt_death = t_nt_death
+
   sIndex = t_sIndex
   sFraction = t_sFraction
 
@@ -2909,11 +3068,18 @@ SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, t_no
   isPhase2CR = (t_rule == 3 .OR. t_rule == 4)
   isPhase2RE = t_rule == 5
 
- !!!PRINT *, "isPhase1:", isPhase1
- !!!PRINT *, "isPhase2CR:", isPhase2CR
+  !PRINT *, "t_rule", t_rule
+  !PRINT *, "isPhase1:", isPhase1
+  !PRINT *, "isPhase2:", isPhase2
+  !PRINT *, "isPhase2CR:", isPhase2CR
+  !PRINT *, "isPhase2RE:", isPhase2RE
 
 IF (isPhase1 .OR. isPhase2CR) THEN
    IF (nt /= nt_death) THEN
+      PRINT *, "nt"
+      PRINT *, nt
+      PRINT *, "nt_death"
+      PRINT *, nt_death
       PRINT *, "itrSurv.f90: Line 2888: nt should equal nt_death for Phase1 and Phase2CR"
       STOP
    END IF
@@ -2933,7 +3099,9 @@ END IF
   ERT = t_ERT
   uniformSplit = t_uniformSplit
   nodeSize = t_nodeSize
+  nodeSizeSurv = t_nodeSizeSurv
   minEvent = t_minEvent
+  minEventSurv = t_minEventSurv
   rule = t_rule
   stratifiedSplit = t_stratifiedSplit
   replace = t_replace
@@ -2957,10 +3125,10 @@ END SUBROUTINE setUpBasics
 ! t_delta_m, integer(:), the indicator of censoring for cause m (for CR endpoint)
 ! t_mTry, integer, the maximum number of covariates to try for splitting
 ! t_nCat, integer(:), the number of categories in each covariate
-! t_sampleSize, integer, the number of cases to sample for each tree
+! t_sampleSize, integer, the number of cases to sample for each tree ! this is number of people for Phase1 and Phase2CR, but number of records for Phase2RE
 ! t_ntree, integer, the number of trees in the forest
 ! t_nrNodes, integer, the maximum number of nodes
-SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
+SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_np, t_x, &
                       & t_pr, t_pr2, t_pr2surv, t_prsurv, t_ord_causeind, t_ord_response, &
                       & t_delta, t_delta_m, t_mTry, t_nCat, &
                       & t_sampleSize, t_nTree, t_nrNodes)
@@ -2969,7 +3137,7 @@ SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
 
   IMPLICIT NONE
 
-  INTEGER, INTENT(IN) :: t_n
+  INTEGER, INTENT(IN) :: t_n, t_n_surv
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_idvec
   INTEGER, INTENT(IN) :: t_np
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
@@ -2993,20 +3161,11 @@ SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
 
  !PRINT *, "******************** setUpInners ********************"
   nAll = t_n
+  nAll_surv = t_n_surv
   !print *, "nAll is:", nAll
-
   ord_causeindAll = t_ord_causeind
   id_RE = t_idvec
-  !PRINT *, "id_RE"
-  !PRINT *, id_RE
-  !PRINT *, "t_ord_causeind"
-  !PRINT *, t_ord_causeind
-  !PRINT *, "t_delta"
-  !PRINT *, t_delta
-  !PRINT *, "t_ord_response"
-  !PRINT *, t_ord_response
   ord_responseAll = t_ord_response
-
   np = t_np
 
   IF (isAllocated) THEN
@@ -3034,7 +3193,7 @@ SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
   nLevs = max(maxval(nCat),1)
 
   mTry = t_mTry
-  sampleSize = t_sampleSize
+  sampleSize = t_sampleSize !the number of cases to sample for each tree
 
   ALLOCATE(forest%Func(1:nt, 1:nAll))
   ALLOCATE(forest%mean(1:nAll))
@@ -3048,6 +3207,21 @@ SUBROUTINE setUpInners(t_n, t_idvec, t_np, t_x, &
   ALLOCATE(trees(1:nTree))
 
   nrNodes = t_nrNodes
+
+  IF (isPhase2RE) THEN
+    PRINT *, "******************** setUpInners ********************"
+    PRINT *, "Number of cases under consideration: nAll:", nAll
+    PRINT *, "Number of cases survival:", nAll_surv
+    PRINT *, "id_RE"
+    PRINT *, id_RE
+    PRINT *, "Number of Covariates np: ", np
+    PRINT *, "t_delta"
+    PRINT *, t_delta
+    PRINT *, "t_delta_m"
+    PRINT *, t_delta_m
+    PRINT *, "******************************************************"
+  END IF
+
   !PRINT *, "End of SetupInners"
 
 END SUBROUTINE setUpInners

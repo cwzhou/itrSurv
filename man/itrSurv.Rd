@@ -7,19 +7,20 @@
 itrSurv(
   data,
   endPoint,
+  yName,
   idName,
   txName,
   epName,
   models,
   ...,
   timePointsSurvival,
-  timePointsEndpoint, # for CR, this is the same as timePointsSurvival
-  timePoints = "quad",
-  nTimes = 100L,
+  timePointsEndpoint,
+  timePoints = NULL,
+  nTimes = NULL,
   tau = NULL,
   criticalValue1 = "mean",
   criticalValue2 = "mean",
-  tol1 = c(0.1,0.1,0,0), # default is eps0_ratio = 0.1 and eps0_diff = 0;
+  tol1 = c(0.1, 0.1, 0, 0),
   evalTime = NULL,
   splitRule1 = NULL,
   splitRule2 = NULL,
@@ -40,66 +41,145 @@ itrSurv(
 }
 \arguments{
 \item{data}{A data.frame object.
-For CR endpoint: The full dataset including treatments received, all covariates, observed times, overall failure indicator, and cause 1 failure indicator.
-For RE endpoint: The first column must be Individual ID. The full dataset including ID, treatment, covariates, start times, stop times, recurrent event indicator, death indicator.
-Can be provided as a matrix object if column headers are included. Can contain missing data coded as NA, but cannot contain NaN.}
-
-\item{txName}{A character vector object. The treatment variable name for
-each decision point. Each element corresponds to the respective decision
-point (element 1 = 1st decision; element 2 = 2nd decision, etc.).}
-
-\item{models}{A list object or a single formula. The models for each
-decision point. For list objects, each
-element corresponds to the respective decision point.
-Each element contains a formula defining the
-response as a Surv() object and the covariate structure of the model.
-Note that this model should not include any terms of order > 1. If
-using a single formula and the number of decision points is > 1, it is
-assumed that 'models' is a common formula to be used across all decision
-points. See details for further discussion.}
+For CR endpoint: The full dataset including treatments received, all covariates,
+observed times, overall failure indicator, and cause 1 failure indicator.
+MUST BE SORTED BY OBSERVED FAILURE TIME IN ASCENDING ORDER for CR endpoint!
+For RE endpoint: The first column must be Individual ID. The full dataset including
+ID, treatment, covariates, start times, stop times,
+recurrent event indicator, death indicator.
+Can be provided as a matrix object if column headers are included.
+Can contain missing data coded as NA, but cannot contain NaN.}
 
 \item{endPoint}{A character object. Must be one of
-\{"CR", "RE", "MC"\}. The label for the ultimate end point type. For "CR":
-competing risks data that is interested in cumulative incidence function; for
-"RE": recurrent events data that is interested in mean frequency function;
-for "MC: data involving medical costs that is interested in costs.}
+\{"CR", "RE"\}. The label for the ultimate end point type.
+For "CR": competing risks data to examine cumulative incidence function;
+For "RE": recurrent events data to examine mean frequency function}
+
+\item{yName}{A character object. The observed failure time variable name. Only required for endpoint CR.}
+
+\item{idName}{A character object. The ID variable name. Only required for endpoint RE.}
+
+\item{txName}{A character object. The treatment variable name.}
+
+\item{epName}{A character object. The endpoint variable name of interest.
+For "RE" endpoint: Refers to indicator if row is recurrent event (1) or not (0).
+Later used to subset Phase 1 survival dataset (one row per subject).
+For "CR" endpoint: Refers to status indicator for causes: 0 = censored, 1 = priority cause, 2 = any other cause.
+Should be inputted as one row per person for CR data.
+If doing csh_cr test for "CR" endpoint, then epName is not needed.}
+
+\item{models}{A list containing formulas defining the response as a Surv() object
+and the covariate structure of the model.
+Note that this model should not include any terms of order > 1.
+ For CR endpoint: this should be a list where the first is formula for
+ overall survival and the second is a formula for priority cause.
+ For RE endpoint: the first list should be a formula for terminal (i.e death) events
+ and the second should be a formula for recurrent events.
+ Example: CR:
+    Surv(obs_time, D.0) ~ Z1
+    Surv(obs_time, D.1) ~ Z1
+ Example: RE:
+    Surv(TStop, D.0) ~ Z1
+    Surv(TStart, TStop, D.1) ~ Z1
+ For RE, TStart is start time, TStop is stop time, and D.0 represents death indicator for survival dataset
+ D.1 represents recurrent event indicator for RE dataset (full dataset)
+ The inputted dataset must reflect these variable names.}
 
 \item{...}{Ignored. Present only to require named inputs.}
 
-\item{timePoints}{A character object or a numeric vector object. If a character
+\item{timePointsSurvival}{A numeric vector object of the time points to be used.
+This should be the unique observed failure times.
+If 0 is not the first value, it will be concatenated by the software.
+If endPoint is "CR" then timePointsEndpoint is the same as timePointsSurvival.}
+
+\item{timePointsEndpoint}{A numeric vector object of the time points to be used.
+This should be the unique observed endpoint times.
+If endPoint is "RE" then timePointsEndpoint is a vector of the unique recurrent event times.
+If endPoint is "CR" then timePointsEndpoint can be the same as timePointsSurvival (since it is subset).
+If 0 is not the first value, it will be concatenated by the software.}
+
+\item{timePoints}{We recommend using the timePointsSurvival and timePointsEndpoint parameters.
+If both those and these are used, then those will overrule timePoints and nTimes parameters.
+A character object or a numeric vector object. If a character
 object, must be one of \{"quad", "uni", "exp"\} indicating the distribution
 from which the time points are to be calculated. For character input,
 input 'nTimes' must also be provided. If a numeric vector, the
 time points to be used. If 0 is not the first value, it will be
-concatenated by the software.}
+concatenated by the software.
+We strongly recommend using the same number of decimal points between
+your failure times and the time points derived.
+For example, if T = 2.1, 2.2, 2.4, 5.1, then the time points here should
+also be to 1 decimal point.
+The largest time point should be the maximum of the observed failure time
+of your dataset.
+If you are using years and you have 2.1 total years, then you should use
+0.01 increments until you reach the maximum years (2.1).
+Default is NULL because we suggest inputting 'timePointsSurvival' and 'timePointsEndpoint'.}
 
 \item{nTimes}{An integer object. The total number of time points to be
 generated and considered. Used in conjunction with input 'timePoints'
-when 'timePoints' is a character; ignored otherwise.}
+when 'timePoints' is a character; ignored otherwise.
+If inputting 'timePointsSurvival' and 'timePointsEndpoint' then leave 'nTimes' blank.
+Default is NULL because we recommend inputting 'timePointsSurvival' and 'timePointsEndpoint'.}
 
 \item{tau}{A numeric object or NULL. The study length. If NULL, the
-maximum timePoint is used.}
+maximum timePoint is used. For RE, this is the maximum of all the stop times in
+the recurrent event dataset (multiple rows per person)}
 
-\item{criticalValue}{A character object. Must be one of
-\{"mean", "surv.prob", "surv.mean"\}. The estimator for the value
-of a treatment rule. For "mean": the mean survival time; for
-"surv.prob": the mean survival probability at time 'evalTime';
-for "surv.mean": first the mean survival probability is used, if ties
-exist across treatments, the mean survival time is used to identify the
-optimal.}
+\item{criticalValue1}{A character object. Must be one of
+\{"mean", "prob", "mean.prob.combo"\}. The estimator for the value
+of a treatment rule for Phase 1. For "mean": the mean survival/cif time; for
+"prob": the mean survival/cif probability at time 'evalTime';
+for "mean.prob.combo": first the mean survival/cif probability is used, if ties
+exist across treatments, the mean survival/cif time is used to identify the
+optimal. Typically, the same criticalValue should be used for Phase 1 and Phase 2.
+For "RE" endpoint, only "mean" is valid as the others are not yet coded.}
+
+\item{criticalValue2}{A character object. Must be one of
+\{"mean", "prob", "mean.prob.combo"\}. The estimator for the value
+of a treatment rule for Phase 2. For "mean": the mean survival/cif time; for
+"prob": the mean survival/cif probability at time 'evalTime';
+for "mean.prob.combo": first the mean survival/cif probability is used, if ties
+exist across treatments, the mean survival/cif time is used to identify the
+optimal.Typically, the same criticalValue should be used for Phase 1 and Phase 2.}
+
+\item{tol1}{Must be a vector where the length depends on criticalValue1. If criticalValue1
+is one of \{"mean", "prob", "area"\}, then length of tol1 is 2, where the first element
+is the tolerance specified for criticalValue under the curve for the treatment and
+counterfactual treatment for overall survival (Phase 1). The second element is for the
+specific scenario where one predicted criticalValue is 0 and the other is not.
+Then we take the absolute difference of the two and compare to the second tolerance criteria.
+When criticalValue1 is "mean.prob.combo", then we have a length of 4 elements, where the first
+two are for the ratio for mean and prob respectively, and the second two are for the difference
+for mean and prob, respectively. The defaults are 0.1 for mean ratio, 0.2 for prob ratio,
+0 for mean difference, and 0 for prob difference, respectively.}
 
 \item{evalTime}{A numeric object or NULL. This is T0. If numeric, the time at which
 the survival probability and/or cumulative incidence function is
 to be estimated to determine the optimal treatment rule;
-'criticalValue' must be one of  \{"surv.prob", "surv.mean", "cif"\}.
+'criticalValue' must be one of  \{"mean.prob.combo", "prob"\}.
 If NULL, 'criticalValue' must be \{"mean"\}.}
 
-\item{splitRule}{A character object OR NULL.
-Must be one of \{"logrank", "mean", "logrankCR"\}
-indicating the test used to determine an optimal split. If NULL and
-'criticalValue' = 'mean', takes value 'mean'. If NULL and
-'criticalValue' = 'surv.prob' or 'surv.mean', takes value 'logrank'.
-If NULL and endPoint = 'CR', takes value 'logrankCR'.}
+\item{splitRule1}{A character object. splitRule for Phase 1
+Must be one of \{'logrank_surv', 'mean_surv'\} indicating the test used to determine an optimal split.}
+
+\item{splitRule2}{A character object. splitRule for Phase 2
+  Must be one of \{'gray_cr', 'csh_cr', 'gray_re'\} indicating the test used to determine an optimal split.
+
+  If NULL and Phase = 'Survival' and 'criticalValue' = 'mean', then takes value 'mean'.
+  If NULL and Phase = 'Survival' and 'criticalValue' = 'prob' or 'mean.prob.combo', then takes value 'logrank'.
+  If NULL and Phase = 'CR' and endPoint = 'CR', takes value 'graycr'. # default over cshcr
+  If NULL and Phase = 'RE' and endPoint = 'RE', takes value 'grayre'.
+  ## survival endpoint ##
+  logrank_surv = 1
+  mean_surv = 2
+  ## other endpoints (CR, RE) ##
+  gray_cr = 3
+  csh_cr = 4
+  gray_re = 5
+  if splitRule <=2 then Phase 1 survival
+  if splitRule 3-4 then Phase 2 endpoint (CR)
+  if splitRule >4 then Phase 2 endpoint (RE)}
 
 \item{ERT}{A logical object. If TRUE, the Extremely Randomized Trees
 algorithm is used to select the candidate variable.}
@@ -111,13 +191,9 @@ FALSE, a case is randomly selected and the cutoff is taken to be the mean
 cutoff between it and the next largest covariate value. If 'ERT' is FALSE,
 input is ignored.}
 
-\item{sampleSize}{A numeric object, numeric vector object, or NULL.
+\item{sampleSize}{A numeric object or NULL.
 The fraction (0 < sampleSize <= 1) of the data to be used for each
-tree in the forest. If only
-one value is given, it is assumed to be the fraction for all decision
-points. If a vector is given, the length must be equal to the total
-number of decision points and each element corresponds to its respective
-decision point. If NULL and 'ERT' is TRUE,
+tree in the forest. If NULL and 'ERT' is TRUE,
 sampleSize defaults to 1.0. If NULL and 'ERT'
 is FALSE, sampleSize defaults to 0.632.}
 
@@ -155,7 +231,7 @@ total number of covariates under consideration).}
 
 \item{stageLabel}{A character object. If using a common formula, the
 character used to separate the covariate from the decision point label.
-See details.}
+See details. IGNORE THIS FOR SINGLE STAGE.}
 }
 \value{
 An S4 object of class ITRSurv containing the key results and
@@ -164,8 +240,10 @@ An S4 object of class ITRSurv containing the key results and
   and predict().
 }
 \description{
-Provides methods for estimating multi-stage optimal dynamic treatment
-  regimes for survival outcomes with dependent censoring.
+Provides methods for estimating single stage optimal individualized treatment
+  regimes for survival outcomes with multiple endpoints. Currently only applicable to single stage diseases.
+  1) Competing risk with priority cause.
+  2) Recurrent events.
 }
 \examples{
 
@@ -222,14 +300,18 @@ itrSurv(data = dt,
 itrSurv(data = dt,
         txName = c("A.1", "A.2"),
         models = Surv(Y,D)~X1+X2+A,
-        criticalValue = 'surv.prob')
+        criticalValue = 'mean.prob.combo')
 
 
 }
 \references{
-Cho, H., Holloway, S.T., and Kosorok, M.R.
-  Multi-stage optimal dynamic treatment regimes for survival outcomes
-  with dependent censoring. Submitted.
+Zhou, C.W. and Kosorok, M.R.
+  Estimating optimal individualized treatment regimes for survival data with competing risks.
+  In prepraration.
+
+  Zhou, C.W. and Kosorok, M.R.
+  Estimating optimal individualized treatment regimes for recurrent events and terminal event in survival data.
+  In preparation.
 }
 \seealso{
 \code{\link{predict}} for retrieving the optimal treatment

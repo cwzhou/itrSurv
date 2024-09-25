@@ -51,13 +51,14 @@ setMethod(f = ".VerifyModels",
           definition = function(models,
                                 endPoint,
                                 ...,
-                                nDP,
+                                # nDP,
                                 nCauses,
                                 data,
                                 txName,
-                                epName,
-                                stageLabel,
-                                usePrevTime) {
+                                epName#,
+                                # stageLabel,
+                                # usePrevTime
+                                ) {
 
             # create formula
               # ensure that model frame can be generated from provided data
@@ -71,40 +72,40 @@ setMethod(f = ".VerifyModels",
                                })
 
 
-              if (is.null(x = mf) && nDP > 1L) {
+              # if (is.null(x = mf) && nDP > 1L) {
+              #
+              #   stop("nDP should NOT be greater than 1. Single stage setting.")
+              #
+              #   # # assume that a failure indicates a common formula
+              #   # models <- commonFormula(models = models,
+              #   #           endPoint = endPoint,
+              #   #           nDP = nDP,
+              #   #           nCauses = nCauses,
+              #   #           data = data,
+              #   #           txName = txName,
+              #   #           stageLabel = stageLabel,
+              #   #           usePrevTime = usePrevTime)
+              #   #
+              #   # # if (endPoint == "CR"){
+              #   # #   print("endPoint is CR")
+              #   # #   message("Double check that your 'delta' variable within 'models' parameter is for the overall survival (i.e., 1 = any event and 0 = censor)")
+              #   # # }
+              #   #
+              #   # # call method for list of models
+              #   # return( .VerifyModels(models = models,
+              #   #                       endPoint = endPoint,
+              #   #                       nDP = nDP,
+              #   #                       nCauses = nCauses,
+              #   #                       data = data,
+              #   #                       txName = txName) )
+              #
+              # }
 
-                stop("nDP should NOT be greater than 1. Single stage setting.")
-
-                # # assume that a failure indicates a common formula
-                # models <- commonFormula(models = models,
-                #           endPoint = endPoint,
-                #           nDP = nDP,
-                #           nCauses = nCauses,
-                #           data = data,
-                #           txName = txName,
-                #           stageLabel = stageLabel,
-                #           usePrevTime = usePrevTime)
-                #
-                # # if (endPoint == "CR"){
-                # #   print("endPoint is CR")
-                # #   message("Double check that your 'delta' variable within 'models' parameter is for the overall survival (i.e., 1 = any event and 0 = censor)")
-                # # }
-                #
-                # # call method for list of models
-                # return( .VerifyModels(models = models,
-                #                       endPoint = endPoint,
-                #                       nDP = nDP,
-                #                       nCauses = nCauses,
-                #                       data = data,
-                #                       txName = txName) )
-
-              }
-
-              # formula objects can only be provided for single decision point
-              # or for common formula
-              if (nDP != 1L) {
-                stop("insufficient number of models provided", call. = FALSE)
-              }
+              # # formula objects can only be provided for single decision point
+              # # or for common formula
+              # if (nDP != 1L) {
+              #   stop("insufficient number of models provided", call. = FALSE)
+              # }
 
               # ensure that model frame can be generated from provided data
               mf <- tryCatch(expr = model.frame(formula = models,
@@ -325,7 +326,8 @@ setMethod(f = ".VerifyModels",
 #-------------------------------------------------------------------------------
 setMethod(f = ".VerifyModels",
           signature = c(models = "list"),
-          definition = function(models, ..., endPoint, nDP, nCauses, data) {
+          definition = function(models, ..., endPoint, #nDP,
+                                nCauses, data) {
 
             # UPDATE 7/30/24: WE DO NOT ALLOW LISTS - WE GET DEL AND RESPONSE FOR PHASE 1 AND PHASE 2 SEPARATELY IN ITRSURV.R
             stop("VerifyModels.R Line 312: This should not be inputted as list. IT should be just one formula at a time.")

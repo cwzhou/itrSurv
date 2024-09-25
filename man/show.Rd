@@ -24,9 +24,9 @@ dt <- data.frame("Y.1" = sample(1:100,100,TRUE), "Y.2" = sample(101:200,100,TRUE
                  "A.1" = rbinom(100, 1, 0.5), "A.2" = rbinom(100,1,0.5),
                  "X.1" = rnorm(100), "X.2" = rnorm(100))
 
-result <- itrSurv(data = dt, 
-                  txName = c("A.1", "A.2"), 
-                  models = list(Surv(Y.1,D.1)~X.1+A.1, 
+result <- itrSurv(data = dt,
+                  txName = c("A.1", "A.2"),
+                  models = list(Surv(Y.1,D.1)~X.1+A.1,
                                 Surv(Y.2,D.2)~X.2+A.2+Y.1))
 
 show(object = result)

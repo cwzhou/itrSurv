@@ -3,9 +3,26 @@
 \name{predict}
 \alias{predict}
 \alias{predict,ITRSurv-method}
-\title{Prediction Method}
+\title{#-------------------------------------------------------------------------------
+# method to return key stage results as a list
+#-------------------------------------------------------------------------------
+# method is exported
+#-------------------------------------------------------------------------------
+#' Retrieve Stage Results as a List
+#'
+#' Returns the key results from all stages or one stage of the Q-learning algorithm.
+#'
+#' @param object A ITRSurv object. The value returned by itrSurv().
+#'
+#' @param ... Ignored. Used to require named inputs.
+#'
+#' @export
+#' @name stage
+#' @rdname stage
+setGeneric(name = "stage",
+           def = function(object, ...) { standardGeneric("stage") })}
 \usage{
-\S4method{predict}{ITRSurv}(object, ..., newdata, stage = 1, findOptimal = TRUE)
+\S4method{predict}{ITRSurv}(object, ..., newdata, Phase, findOptimal = TRUE)
 }
 \arguments{
 \item{object}{A ITRSurv object. The object returned by a call to itrSurv().}
@@ -16,18 +33,78 @@
 the estimated value for the training data. If a data.frame, the
 value is estimated based on the data provided.}
 
-\item{stage}{An integer object. The stage for which predictions are desired.}
-
 \item{findOptimal}{A logical object. If TRUE, the value is estimated for
 all treatment options and that leading to the maximum value for each
 individual is used to estimate the value.}
+
+\item{stage}{An integer object. The stage for which predictions are desired.}
 }
 \value{
-a list object containing a matrix of the predicted survival function
-  (survFunc), the estimated mean survuval (mean), and the estimated
-  survival probability (if critical value is surv.mean or surv.prob)
+a list object containing a matrix of the predicted survival/cif function
+  (Func), the estimated mean survival/cif (mean), and the estimated
+  survival/cif probability (if critical value is mean.prob.combo or prob)
 }
 \description{
+#' Retrieve Stage Results as a List
+#'
+#' @rdname itrSurv-internal-api
+#'
+setMethod(f = "stage",
+          signature = c(object = "ANY"),
+          definition = function(object, ...) { stop("not allowed") })
+}
+\details{
+#-------------------------------------------------------------------------------
+# method to return key stage results as a list
+#-------------------------------------------------------------------------------
+# method is exported
+#-------------------------------------------------------------------------------
+#' Retrieve Stage Results for Decision Point q as a List
+#'
+#' @param object A ITRSurv object. The value returned by itrSurv().
+#'
+#' @param ... Ignored. Used to require named inputs.
+#'
+#' @param q An integer object. (optional) The stage for which results are
+#'   desired. If q is not provided, all stage results will be returned.
+#'
+#' @return A list object containing the key results for each requested stage.
+#'   If q is not provided, a list of these results will be returned, where the
+#'   ith element of that list corresponds to the ith decision point.
+#'
+#' @rdname stage
+#' @examples
+#'
+#'
+#' dt <- data.frame("Y.1" = sample(1:100,100,TRUE), "Y.2" = sample(101:200,100,TRUE),
+#'                  "D.1" = rbinom(100, 1, 0.9), "D.2" = rbinom(100,1,0.9),
+#'                  "A.1" = rbinom(100, 1, 0.5), "A.2" = rbinom(100,1,0.5),
+#'                  "X.1" = rnorm(100), "X.2" = rnorm(100))
+#'
+#' result <- itrSurv(data = dt,
+#'                   txName = c("A.1", "A.2"),
+#'                   models = list(Surv(Y.1,D.1)~X.1+A.1,
+#'                                 Surv(Y.2,D.2)~X.2+A.2+Y.1))
+#'
+#' tt <- stage(object = result)
+setMethod(f = "stage",
+          signature = c(object = "ITRSurv"),
+          definition = function(object, ..., q) {
+            message('TESTINGGG3')
+              if (missing(x = q)) {
+                res <- list()
+                for (i in 1L:length(object@phaseResults)) {
+                  res[[ i ]] <- .stage(object = object@phaseResults[[ i ]])
+                }
+                return( res )
+              }
+              if (q > length(x = object@phaseResults)) {
+                stop("q > # of decision points of analysis", call. = FALSE)
+              }
+              return( .stage(object = object@phaseResults[[ q ]]) )
+            })
+Prediction Method
+
 Method to estimate the value for new data or to retrieve estimated value for
  training data
 }
@@ -39,15 +116,15 @@ dt <- data.frame("Y.1" = sample(1:100,100,TRUE), "Y.2" = sample(101:200,100,TRUE
                  "A.1" = rbinom(100, 1, 0.5), "A.2" = rbinom(100,1,0.5),
                  "X.1" = rnorm(100), "X.2" = rnorm(100))
 
-result <- itrSurv(data = dt, 
-                  txName = c("A.1", "A.2"), 
-                  models = list(Surv(Y.1,D.1)~X.1+A.1, 
+result <- itrSurv(data = dt,
+                  txName = c("A.1", "A.2"),
+                  models = list(Surv(Y.1,D.1)~X.1+A.1,
                                 Surv(Y.2,D.2)~X.2+A.2+Y.1))
 
 tt <- predict(object = result)
-tt <- predict(object = result, stage = 1)
+tt <- predict(object = result, Phase = 1)
 tt <- predict(object = result, findOptimal = FALSE)
 tt <- predict(object = result, newdata = dt)
-tt <- predict(object = result, newdata = dt, stage = 1)
+tt <- predict(object = result, newdata = dt, Phase = 1)
 tt <- predict(object = result, newdaata = dt, findOptimal = FALSE)
 }
