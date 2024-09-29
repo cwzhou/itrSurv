@@ -59,6 +59,9 @@
                     params, mTry, sampleSize) {
   # message("---------- starting .survRF function from survRF.R ----------------")
 
+  sampleSize_frac = sampleSize
+  message("sampleSize_frac", sampleSize_frac)
+
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
   # if x_i is an ordered factor, nCat is 1
@@ -86,7 +89,7 @@
   # View(pr)
   # View(pr2)
   # message("dim pr:", dim(pr))
-  # if (endPoint == "RE"){
+  # if (Phase == "RE"){
   #   message("dim pr2:", dim(pr2))
   # }
 
@@ -103,13 +106,23 @@
   # message("total number of trees to be grown in forest: ", nTree)
 
   # determine the number of samples to include in each tree
-  sampleSize <- ceiling(x = sampleSize * nSamples)
+  sampleSize <- ceiling(x = sampleSize_frac * nSamples)
   message("number of samples to include in each tree: ", sampleSize)
   # for RE: this is # records
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  message("maximum nodes in a tree: ", maxNodes)
+  message("maximum nodes in a tree based on samples: ", maxNodes)
+
+  if (Phase == "RE"){
+    sampleSize_surv <- ceiling(x = sampleSize_frac * nSamples_surv)
+    maxNodes_surv <- 2L * sampleSize_surv + 1L
+    message("number of individuals to include in each tree: ", sampleSize_surv)
+    message("maximum nodes in a tree based on people: ", maxNodes_surv)
+  } else{
+    sampleSize_surv <- sampleSize
+    maxNodes_surv = maxNodes
+  }
 
   # convert factors to integers
   x = data.matrix(frame = x)
@@ -139,7 +152,7 @@
 
   # print(delta_endpoint)
   res = .Fortran("setUpInners",
-                 t_n = as.integer(x = nSamples), # number of subjects for Phase1 and Phase2CR, number of records for Phase2RE
+                 t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
@@ -155,8 +168,10 @@
                  t_mTry = as.integer(x = mTry),
                  t_nCat = as.integer(x = nCat),
                  t_sampleSize = as.integer(x = sampleSize),
+                 t_sampleSize_surv = as.integer(x = sampleSize_surv),
                  t_nTree = as.integer(x = params@nTree),
                  t_nrNodes = as.integer(x = maxNodes),
+                 t_nrNodes_surv = as.integer(x = maxNodes_surv),
                  PACKAGE = "itrSurv")
 
   # if (Phase == "RE"){
