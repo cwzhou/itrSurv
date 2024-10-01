@@ -344,7 +344,14 @@ itrSurv <- function(data,
 
   data_surv = data_list[[1]]
   data_ep = data_list[[2]]
-  dlist_test<<-data_list
+  dlist_test <<- data_list
+
+  # Extract the indicator for Phase2RE
+  person_indicator <- data_ep %>%
+    group_by(!!sym(idName)) %>%
+    summarise(last_row_indicator = as.integer(row_number() == n())) %>%
+    pull(last_row_indicator)
+  print(person_indicator)
 
   # ensure that 'txName' is provided as a character or character vector and
   # that the provided names are present in 'data'. If 'txName' is appropriate,
@@ -638,7 +645,8 @@ itrSurv <- function(data,
                                 params = params1,
                                 txName = txName,#[nDP],
                                 mTry = mTry,#[nDP],
-                                sampleSize = sampleSize1)#[nDP])
+                                sampleSize = sampleSize1,#[nDP]
+                                person_indicator = person_indicator)
   message("...end of .itrSurvStep...")
   message("Phase1Results")
   # View(Phase1Results)
@@ -758,7 +766,8 @@ itrSurv <- function(data,
                                  params = params.2,
                                  txName = txName,#[nDP],
                                  mTry = mTry,#[nDP],
-                                 sampleSize = sampleSize2)#[nDP])
+                                 sampleSize = sampleSize2,#[nDP]
+                                 person_indicator = person_indicator)
     assign("Phase2Results_endpoint", Phase2Results, envir = .GlobalEnv)
 
   phaseResults[[2]] <- Phase2Results

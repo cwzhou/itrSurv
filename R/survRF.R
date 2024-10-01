@@ -56,6 +56,7 @@
                     pr, pr2, pr2_surv = NULL, pr_surv = NULL,
                     ord_causeind, ord_response,
                     delta, delta_endpoint,
+                    person_indicator,
                     params, mTry, sampleSize) {
   # message("---------- starting .survRF function from survRF.R ----------------")
 
@@ -155,6 +156,7 @@
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
+                 t_person_ind = as.integer(x = person_indicator), # needed for 2RE
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x), # covariates
                  t_pr = as.double(x = t(x = pr)), # transpose(pr): dim: n x nt #used to get number of events

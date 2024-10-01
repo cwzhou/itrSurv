@@ -81,6 +81,7 @@ MODULE INNERS
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr2survAll
   ! id list for Phase2RE; used in conjunction with pr2 for death-at-risk in Phase2RE
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: id_RE
+  INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: person_ind
 
   REAL, DIMENSION(:), ALLOCATABLE, SAVE :: ord_responseAll
   INTEGER, DIMENSION(:), ALLOCATABLE, SAVE :: ord_causeindAll
@@ -262,7 +263,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
   INTEGER :: splitLeft_m, splitLeftFinal_m, splitLeft_doloop, splitLeftFinal_doloop
   INTEGER :: tieValue, variablesTried
-  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases !dSorted_RE
+  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases, subjects, tsubjects, tsubjind, person_ind_sorted !dSorted_RE
   REAL(dp), DIMENSION(1:nCases) :: sorted_cases
   INTEGER, DIMENSION(1:nv) :: variables
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, ind_m, indSingles, indSingles_m, leftCases, leftCases_m, rightCases, rightCases_m
@@ -363,29 +364,47 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   variablesTried = 0
 
   tcases = (/(i,i=1,nCases)/)
- 
- ! nCases is 
-  ! Terminal node criteria
+  tsubjects = subjIn(tcases)
+  tsubjind = person_ind(tcases)
+
+  IF (isPhase1 .OR. isPhase2CR) THEN
+    IF (nSubj .NE. nCases .OR. nodeSizeSurv .NE. nodeSize) THEN
+        PRINT *, "LINE 369 ERROR: NCASES AND NSUBJ SHOULD BE THE SAME AND NODE SIZE SHOULD BE THE SAME"
+        PRINT *, "nSubj =", nSubj, "nCases =", nCases
+        PRINT *, "nodeSizeSurv =", nodeSizeSurv, "nodeSize =", nodeSize
+        STOP
+    END IF
+END IF
+
+  ! Terminal node criteria     
   IF (isPhase2RE) THEN
-      IF (nCases < 2*nodeSizeSurv) RETURN
+    IF (nSubj < 2*nodeSizeSurv .OR. nCases < 2*nodeSize) RETURN ! if number of subjects is less than 2*min node size for people, then its terminal node
   ELSE
-      ! Ensure nodeSizeSurv equals nodeSize in non-Phase2RE cases
-      IF (nodeSizeSurv .NE. nodeSize) THEN 
-          PRINT *, "Error: nodeSizeSurv and nodeSize mismatch"
-          STOP
-      END IF
-      IF (nCases < 2*nodeSize) RETURN
+    ! Ensure nodeSizeSurv equals nodeSize in non-Phase2RE cases
+    IF (nodeSizeSurv .NE. nodeSize) THEN 
+      PRINT *, "Error: nodeSizeSurv and nodeSize mismatch"
+      STOP
+    ELSE
       ! nodeSizeSurv = nodeSize for isPhase1 and isPhase2CR
+      IF (nCases < 2*nodeSize) RETURN ! if number of cases is less than 2*min node size for cases then this is terminal node
+    END IF
   END IF
+  PRINT *, "================================"
+  PRINT *, ""
 
   IF (isPhase2RE) THEN
-    PRINT *, "tcases"
-    PRINT *, tcases
-    PRINT *, "================================"
-    STOP
+    PRINT *, "====================================================================================================="
+    PRINT *, "person_ind"
+    PRINT *, person_ind
+    PRINT *, "====================================================================================================="
   END IF
 
   DO i = 1, nv
+
+    if (i == 2 .AND. isPhase2RE) THEN
+      PRINT *, "End of Testing."
+      STOP
+    end if
 
     ! if mTry successful splits already explored, exit
     IF (variablesTried .EQ. mTry) EXIT
@@ -411,27 +430,30 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
       xSorted = x(casesIn,kv)
     END IF
 
-    !PRINT *, "old xSorted"
-    !PRINT *, SIZE(xSorted)
-    !PRINT *, xSorted
-    !PRINT *, "first cases"
-    !PRINT *, cases
-    !PRINT *, "caseseIn"
-    !PRINT *, casesIn
-    !PRINT *, "nCases", nCases
+    PRINT *, "old xSorted"
+    PRINT *, SIZE(xSorted)
+    PRINT *, xSorted
+    PRINT *, "first cases"
+    PRINT *, cases
+    PRINT *, "caseseIn"
+    PRINT *, casesIn
+    PRINT *, "nCases", nCases
 
     cases = casesIn
 
-    !PRINT *, "second cases"
-    !PRINT *, cases
+    PRINT *, "second cases"
+    PRINT *, cases
+    PRINT *, "BEFORE xSorted"
+    PRINT *, SIZE(xSorted)
+    PRINT *, xSorted
 
     ! sort the covariate and track the indices
     CALL qsort4(xSorted, cases, 1, nCases)
-!    CALL hpsort_eps_epw(nCases, xSorted, cases, 1d-8)
+!    CALL hpsort_eps_epw(nCases, xSorted, cases, 1d-8) ! this is old stuff by HC that was commentd out. Can delete.
 
-    !PRINT *, "sorted xSorted"
-    !!PRINT *, SIZE(xSorted)
-    !PRINT *, xSorted
+    PRINT *, "sorted xSorted"
+    PRINT *, SIZE(xSorted)
+    PRINT *, xSorted
 
     ! sort event indicator data accordingly
     ! Phase 1: overall survival (delta = event indicator from any cause)
@@ -439,16 +461,31 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     ! Phase 2: CR (delta_m = indicator for event from cause m)
     !          RE (delta_m = indicator for recurrent event)
     dSorted_m = delta_m(cases) 
-             
-    !dSorted_RE = delta_RE(cases) ! Phase 2 for recurrent events (delta_RE = indicator for recurrent events)
+    ! sort surv id index accordingly
+    subjects = subjIn(cases) ! needed for Phase2RE only
+    person_ind_sorted = person_ind(cases)
 
 IF (isPhase2RE) THEN
     PRINT *, "cases"
     PRINT *, cases
+    PRINT *, "dSorted_m"
+    PRINT *, dSorted_m
     PRINT *, "tcases"
     PRINT *, tcases
+    PRINT *, "delta_m"
+    PRINT *, delta_m
+    PRINT *, "-------------"
+    PRINT *, "subjects"
+    PRINT *, subjects
     PRINT *, "dSorted"
     PRINT *, dSorted
+    PRINT *, "person_ind_sorted"
+    PRINT *, person_ind_sorted
+    PRINT *, "tsubjects"
+    PRINT *, tsubjects
+    PRINT *, "delta"
+    PRINT *, delta
+    PRINT *, "-------------"
 END IF
 
     ! ******************** splitBoundaries ********************
@@ -464,22 +501,50 @@ END IF
     rUnifSet_m = -1
     !PRINT *, "test1"
 
-    ! below is for dSorted == Phase 1
+    ! tcases and tsubjects, and delta and delta_m are og in order indices
+    ! cases and subjects, and dSorted and dSorted_m have been sorted with xSorted
+    ! 9/29/24: HC has error below: he wrote tcases with dSorted but those don't align.
+    ! dSorted == Phase 1 and is for SURVIVAL for Phase2CR and Phase2RE.
     ! Do below for both isPhase1 and isPhase2CR
-    ! cases that are not-censored
-    uncensoredIndices = pack(tcases, dSorted .EQ. 1)
+    IF (.NOT. isPhase2RE) THEN ! Phase1/2CR
+      ! SURVIVAL cases that are not-censored
+      uncensoredIndices = pack(cases, dSorted .EQ. 1) ! gives cases indices for those who have delta = 1 (event)
+    ELSE 
+      ! Phase2RE
+      uncensoredIndices = pack(subjects, person_ind_sorted .EQ. 1 .AND. dSorted .EQ. 1) 
+    END IF
     nUncensored = size(uncensoredIndices)
-        IF (isPhase2RE) THEN
-          PRINT *, "uncensoredIndices: ", uncensoredIndices
-          PRINT *, "Number of Uncensored: ", nUncensored
-          PRINT *, "minimum Recurrent Events: ", minEvent
-          PRINT *, "minimum Deaths: ", minEventSurv
-        END IF
+    ! ENDPOINT cases that are not-censored ! not used for Phase1
+    uncensoredIndices_m = pack(cases, dSorted_m .EQ. 1) ! RE: uncensored means NOT recurrent event (so either death or censored)
+    nUncensored_m = size(uncensoredIndices_m)
+    
+    IF (isPhase2RE) THEN
+      PRINT *, "uncensoredIndices (survival): ", uncensoredIndices
+      PRINT *, "Number of Uncensored (survival): ", nUncensored
+      PRINT *, "uncensoredIndices (endpoint): ", uncensoredIndices_m
+      PRINT *, "Number of Uncensored (endpoint): ", nUncensored_m
+      PRINT *, "minimum Recurrent Events: ", minEvent
+      PRINT *, "minimum Deaths: ", minEventSurv
+    END IF
 
-    ! if too few cases to meet minimum number of uncensored cases, CYCLE
-    IF (nUncensored .LT. (minEventSurv * 2)) CYCLE
+    !! Able to split and satisfy minimum number of events in each node
+    IF (isPhase1) THEN
+      ! If too few uncensored cases to meet minimum number of events, CYCLE
+      IF (nUncensored .LT. (minEvent * 2)) CYCLE
+    ELSE IF (isPhase2CR) THEN
+      ! if too few cases to meet minimum number of uncensored cases, CYCLE
+      IF (nUncensored_m .LT. (minEvent * 2)) CYCLE
+    ELSE ! isPhase2RE
+      ! Perform when isPhase2RE is TRUE
+      ! If too few deaths or too few recurrent events to meet their respective minimums, CYCLE
+      IF ((nUncensored .LT. (minEventSurv * 2)) .OR. (nUncensored_m .LT. (minEvent * 2))) CYCLE
+    END IF
 
-    !! able to split and satisfy minimum number of events in each node
+    if (isPhase2RE) THEN
+      PRINT *, "uncensoredIndices(minEvent):", uncensoredIndices(minEvent)
+      PRINT *, "nodeSize:", nodeSize
+      PRINT *, "max:", max(uncensoredIndices(minEvent), nodeSize)
+    END IF
 
     ! cases to left include all indices up to and including minEvent case
     ! must have at least nodeSize cases
@@ -506,16 +571,10 @@ END IF
     IF (splitLeft .GT. splitLeftFinal) CYCLE
     !PRINT *, "test6a"
 
-    ! below is for Phase 2 (Endpoint: CR or RE)
-    ! cases that are not-censored
-    uncensoredIndices_m = pack(tcases, dSorted_m .EQ. 1)
-    nUncensored_m = size(uncensoredIndices_m)
+    ! ============================================
+    ! Below is for Phase 2 (Endpoint: CR or RE)
+    ! ============================================
     
-    ! if too few cases to meet minimum number of uncensored cases, CYCLE
-    IF (nUncensored_m .LT. (minEvent * 2)) CYCLE
-
-    !! able to split and satisfy minimum number of events in each node
-
     ! cases to left include all indices up to and including minEvent case
     ! must have at least nodeSize cases
     splitLeft_m = max(uncensoredIndices_m(minEvent), nodeSize)
@@ -2629,12 +2688,20 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       ! split cases
       indOut = ind ! elements of casesIn that go left; ind if yes, 0 otherwise
+      
+      ! get the total number of subjects (needed for 2RE. Same as size(ind) for 1/2CR.)
+      call find_unique(ind_surv_RE, size_ind_surv_RE)
+      if (isPhase1 .OR. isPhase2CR) THEN
+        if (size(ind) .NE. size_ind_surv_RE) THEN
+          PRINT *, "LINE 2645 ERROR: size(ind) .NE. size_ind_surv_RE for Phase1 or Phase2CR!!"
+          STOP
+        END IF
+      END IF
 
       if (isPhase2RE) THEN
         PRINT *, "size(ind)", size(ind)
         PRINT *, "ind"
         PRINT *, ind
-        call find_unique(ind_surv_RE, size_ind_surv_RE)
         PRINT *, "size_ind_surv_RE", size_ind_surv_RE
         PRINT *, "ind_surv_RE"
         PRINT *, ind_surv_RE
@@ -3190,6 +3257,7 @@ END SUBROUTINE setUpBasics
 ! set up basic information for the module that is step dependent
 ! t_n, integer, the number of cases under consideration
 ! t_idvec, integer(:), the id label for Phase2 dataset (needed for MeanFreqFunc for RE endpoint to calculate at risk for death in RE setting)
+! t_person_ind, integer(:), indicator for person in RE setting
 ! t_np, integer, the number of covariates
 ! t_x, real(:), the covariates
 ! t_pr, real(:), the probability mass vector of survival function
@@ -3205,7 +3273,7 @@ END SUBROUTINE setUpBasics
 ! t_sampleSize, integer, the number of cases to sample for each tree ! this is number of people for Phase1 and Phase2CR, but number of records for Phase2RE
 ! t_ntree, integer, the number of trees in the forest
 ! t_nrNodes, integer, the maximum number of nodes
-SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_np, t_x, &
+SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_person_ind, t_np, t_x, &
                       & t_pr, t_pr2, t_pr2surv, t_prsurv, t_ord_causeind, t_ord_response, &
                       & t_delta, t_delta_m, t_mTry, t_nCat, &
                       & t_sampleSize, t_sampleSize_surv, t_nTree, t_nrNodes, t_nrNodes_surv)
@@ -3216,6 +3284,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_np, t_x, &
 
   INTEGER, INTENT(IN) :: t_n, t_n_surv
   INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_idvec
+  INTEGER, DIMENSION(1:t_n), INTENT(IN) :: t_person_ind
   INTEGER, INTENT(IN) :: t_np
   REAL(dp), DIMENSION(1:t_n*t_np), INTENT(IN) :: t_x
   REAL(dp), DIMENSION(1:nt*t_n), INTENT(IN) :: t_pr
@@ -3244,6 +3313,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_np, t_x, &
   !print *, "nAll is:", nAll
   ord_causeindAll = t_ord_causeind
   id_RE = t_idvec
+  person_ind = t_person_ind
   ord_responseAll = t_ord_response
   np = t_np
 

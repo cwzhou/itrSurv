@@ -319,7 +319,8 @@ setMethod(f = ".Predict",
                          params,
                          txName,
                          mTry,
-                         sampleSize) {
+                         sampleSize,
+                         person_indicator) {
   # print("---STARTING ITRSURVSTEP---")
 
   if (Phase == "RE"){
@@ -651,6 +652,7 @@ setMethod(f = ".Predict",
                         ord_response = ord_response[elig],
                         delta = delta[elig],
                         delta_endpoint = delta_endpoint[elig],
+                        person_indicator = person_indicator[elig],
                         params = params,
                         mTry = mTry,
                         txLevels = txLevels,
@@ -690,6 +692,7 @@ setMethod(f = ".Predict",
                                  ord_response = ord_response[use], # only matters for Phase2CR
                                  delta = delta[use],
                                  delta_endpoint = delta_endpoint[use],
+                                 person_indicator = person_indicator[use],
                                  params = params,
                                  mTry = mTry,
                                  txLevels = txLevels[i],
