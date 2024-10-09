@@ -172,8 +172,8 @@
                  t_sampleSize = as.integer(x = sampleSize),
                  t_sampleSize_surv = as.integer(x = sampleSize_surv),
                  t_nTree = as.integer(x = params@nTree),
-                 t_nrNodes = as.integer(x = maxNodes),
-                 t_nrNodes_surv = as.integer(x = maxNodes_surv),
+                 t_nrNodes = as.integer(x = maxNodes), # for 2nd endpoint
+                 t_nrNodes_surv = as.integer(x = maxNodes_surv), # for survival
                  PACKAGE = "itrSurv")
 
   # if (Phase == "RE"){

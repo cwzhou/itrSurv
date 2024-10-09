@@ -435,9 +435,12 @@ setMethod(f = ".Predict",
     # stop("tmp")
   }
 
+  # View(data)
+  # print(data[[3]])
   # set id_vec which is needed for Phase2RE, in fortran, to calculate mff stuff with pr2 to get at risk for death in RE setting
   id_vec = data[[3]] %>% unlist()
   # idvec_test <<- id_vec
+  # print(id_vec)
   # stop(" testing id_vec ")
 
  # old stuff located in scratch: old itrsurvstep code.R

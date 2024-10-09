@@ -22,6 +22,14 @@ First, build source .tar.gz file from .RProj on local machine, then copy to clus
 
 Ie can run in R: install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
+install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
+
+Use "git clone https://github.com/fortran-lang/stdlib.git" to install stdlib module
+
+
+
+
+
 
 Local machine: scp ~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz cwzhou@longleaf.unc.edu:/nas/longleaf/home/cwzhou/Dissertation/Paper_1/.
 ! In cluster:

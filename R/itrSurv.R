@@ -172,10 +172,13 @@
 #'   \{"first", "random"\}. If multiple splits lead to the same
 #'   value, the method by which the tie is broken.
 #'
-#' @param minEvent An integer object. The minimum number of events that must be
-#'   present in a node.
+#' @param minEventEnd An integer object. The minimum number of endpoint events that must be
+#'   present in a node. (Phase2CR: events from priority cause. Phase2RE: recurrent events)
 #'
-#' @param nodeSize An integer object. The minimum number of records that
+#' @param minEventSurv An integer object. The minimum number of events that must be
+#'   present in a node. (CR: Phase 1 overall survival. RE: Phase 1 death (terminal) events)
+#'
+#' @param nodeSizeEnd An integer object. The minimum number of records that
 #'   must be present in a node. Individuals for Phase1/2CR. RE for Phase2RE.
 #'   This is n_min for Phase1 and Phase2CR, and n_min^re for Phase2RE
 #'
@@ -284,7 +287,7 @@
 itrSurv <- function(data,
                     endPoint,
                     yName,
-                    idName,
+                    idName = NULL,
                     txName,
                     epName,
                     models,
@@ -307,14 +310,16 @@ itrSurv <- function(data,
                     replace = NULL,
                     randomSplit = 0.2,
                     tieMethod = "random",
-                    minEvent = 3L, # minimum number of subjects with events
-                    nodeSize = 6L,
+                    minEventEnd = 3L, # minimum number of subjects with events
+                    minEventSurv = 3L, # minimum number of subjects with events
+                    nodeSizeEnd = 6L,
                     nodeSizeSurv = 6L, # this is needed only for endpoint=RE.
                     nTree = 10L,
                     mTry = NULL,
                     pooled = FALSE,
                     stratifiedSplit = NULL) {
 
+  print(endPoint)
   #######################################################################################################
   #######################################################################################################
   #######################################################################################################
@@ -341,17 +346,23 @@ itrSurv <- function(data,
                            epName = epName,
                            endPoint = endPoint,
                            idName = idName)
+  # print(3)x
 
   data_surv = data_list[[1]]
   data_ep = data_list[[2]]
   dlist_test <<- data_list
 
-  # Extract the indicator for Phase2RE
-  person_indicator <- data_ep %>%
-    group_by(!!sym(idName)) %>%
-    summarise(last_row_indicator = as.integer(row_number() == n())) %>%
-    pull(last_row_indicator)
-  print(person_indicator)
+  if (endPoint == "RE"){
+    # Extract the indicator for Phase2RE
+    person_indicator <- data_ep %>%
+      group_by(!!sym(idName)) %>%
+      summarise(last_row_indicator = as.integer(row_number() == n())) %>%
+      pull(last_row_indicator)
+    print(person_indicator)
+  } else{
+    person_indicator = rep(1, nrow(data_surv))
+  }
+
 
   # ensure that 'txName' is provided as a character or character vector and
   # that the provided names are present in 'data'. If 'txName' is appropriate,
@@ -507,9 +518,10 @@ itrSurv <- function(data,
                         splitRule1 = splitRule1,
                         splitRule2 = splitRule2,
                         replace = replace,
-                        nodeSize = nodeSize,
+                        nodeSizeEnd = nodeSizeEnd,
                         nodeSizeSurv = nodeSizeSurv,
-                        minEvent = minEvent,
+                        minEventEnd = minEventEnd,
+                        minEventSurv = minEventSurv,
                         tieMethod = tieMethod,
                         criticalValue1 = criticalValue1,
                         criticalValue2 = criticalValue2,
@@ -585,10 +597,10 @@ itrSurv <- function(data,
                  t_rs = as.double(x = params1@randomSplit),
                  t_ERT = as.integer(x = params1@ERT),
                  t_uniformSplit = as.integer(x = params1@uniformSplit),
-                 t_nodeSize = as.integer(x = .NodeSize(object = params1)),
-                 t_nodeSizeSurv = as.integer(x = .NodeSize(object = params1)),
-                 t_minEvent = as.integer(x = .MinEvent(object = params1)),
-                 t_minEventSurv = as.integer(x = .MinEvent(object = params1)), # same as above
+                 t_nodeSizeEnd = as.integer(x = .NodeSizeEnd(object = params1)),# same as below
+                 t_nodeSizeSurv = as.integer(x = .NodeSizeSurv(object = params1)),
+                 t_minEventEnd = as.integer(x = .MinEventEnd(object = params1)),# same as below
+                 t_minEventSurv = as.integer(x = .MinEventSurv(object = params1)),
                  t_rule = as.integer(x = splitR_1),
                  t_sIndex = as.integer(x = ind1),
                  t_sFraction = as.double(x = frac1),
@@ -689,10 +701,10 @@ itrSurv <- function(data,
                   t_rs = as.double(x = params2@randomSplit),
                   t_ERT = as.integer(x = params2@ERT),
                   t_uniformSplit = as.integer(x = params2@uniformSplit),
-                  t_nodeSize = as.integer(x = .NodeSize(object = params2)),
-                  t_nodeSizeSurv = as.integer(x = .NodeSize(object = params1)),
-                  t_minEvent = as.integer(x = .MinEvent(object = params2)),
-                  t_minEventSurv = as.integer(x = .MinEvent(object = params1)),
+                  t_nodeSizeEnd = as.integer(x = .NodeSizeEnd(object = params2)),
+                  t_nodeSizeSurv = as.integer(x = .NodeSizeSurv(object = params1)),
+                  t_minEventEnd = as.integer(x = .MinEventEnd(object = params2)),
+                  t_minEventSurv = as.integer(x = .MinEventSurv(object = params1)),
                   t_rule = as.integer(splitR_2),
                   t_sIndex = as.integer(x = ind2),
                   t_sFraction = as.double(x = frac2),

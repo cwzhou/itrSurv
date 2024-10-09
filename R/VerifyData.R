@@ -33,6 +33,7 @@ setMethod(f = ".VerifyData",
 
             # 'yName' is the column name for observed time
             if (endPoint == "CR") {
+              message("Endpoint: CR")
               yName <- .VerifyYName(yName = yName, data = data)
               vector_y = data %>% dplyr::select(!!sym(yName)) %>% unlist()
               # sorted = sort(vector)
@@ -84,9 +85,10 @@ setMethod(f = ".VerifyData",
                 message("Phase 1 and Phase 2 datasets are the same.")
                 data_surv = data_ep = data
                 id_ep = c(1:nrow(data_ep))
-              }
-
-              return( list(data_surv, data_ep, id_ep) )
+                print(1)
+                }
+            print(2)
+            return( list(data_surv, data_ep, id_ep) )
             })
 
 setMethod(f = ".VerifyData",
