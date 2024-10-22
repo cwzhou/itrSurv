@@ -588,12 +588,18 @@ itrSurv <- function(data,
   }
   # print('test2')
 
+  surv_tp = params@survivalparam@timePoints
+  end_tp = params@endpointparam@timePoints
+
   # set basic parameter values in Fortran
   splitR_1 = ifelse(params1@splitRule == 'logrank_surv', 1, 2) # 1 for logrank; 2 for truncated mean
   res1 = .Fortran("setUpBasics",
+                 t_surv_tp = as.integer(x = surv_tp),
+                 t_end_tp = as.integer(x = end_tp),
                  t_nt = as.integer(x = .NTimes(object = params1)),
                  t_nt_death = as.integer(x = .NTimes(object = params1)),
                  t_dt = as.double(x = .TimeDiff(object = params1)),
+                 t_dt_death = as.double(x = .TimeDiff(object = params1)),
                  t_rs = as.double(x = params1@randomSplit),
                  t_ERT = as.integer(x = params1@ERT),
                  t_uniformSplit = as.integer(x = params1@uniformSplit),
@@ -695,9 +701,12 @@ itrSurv <- function(data,
   # message("SplitR_1 was:", splitR_1)
   if (is.na(splitR_2)){stop("SPLIT RULE IS WRONG!!?")}
   res2 = .Fortran("setUpBasics",
+                  t_surv_tp = as.double(x = surv_tp),
+                  t_end_tp = as.double(x = end_tp),
                   t_nt = as.integer(x = .NTimes(object = params2)),
                   t_nt_death = as.integer(x = .NTimes(object = params1)),
                   t_dt = as.double(x = .TimeDiff(object = params2)),
+                  t_dt_death = as.double(x = .TimeDiff(object = params1)),
                   t_rs = as.double(x = params2@randomSplit),
                   t_ERT = as.integer(x = params2@ERT),
                   t_uniformSplit = as.integer(x = params2@uniformSplit),

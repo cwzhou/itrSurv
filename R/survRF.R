@@ -87,6 +87,7 @@
   message('number of records in training data: ', nSamples)
   message('number of individuals in training data: ', nSamples_surv)
 
+  # tpSurv =
   # View(pr)
   # View(pr2)
   # message("dim pr:", dim(pr))
@@ -132,27 +133,13 @@
 
   # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
-  # rownames(pr) = tp.tmp
-  # rownames(pr2) = tp.tmp
-  # print(pr)
-  # print(pr2)
 
   dd <<- delta
   oo <<- ord_causeind
   rr <<- ord_response
   ii <<- idvec
-  # print('response ordered')
-  # print(ord_response)
-  # print('delta')
-  # print(length(delta))
-  # print(delta)
-  # print("ord_causeind")
-  # print(length(ord_causeind))
-  # print(ord_causeind)
 
-
-  # print(delta_endpoint)
-  res = .Fortran("setUpInners",
+    res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
@@ -175,10 +162,6 @@
                  t_nrNodes = as.integer(x = maxNodes), # for 2nd endpoint
                  t_nrNodes_surv = as.integer(x = maxNodes_surv), # for survival
                  PACKAGE = "itrSurv")
-
-  # if (Phase == "RE"){
-  #   stop("testing inners")
-  # }
 
   #message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){

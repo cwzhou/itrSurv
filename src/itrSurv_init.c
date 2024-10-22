@@ -9,7 +9,7 @@
 /* .Fortran calls */
 extern void F77_NAME(gettree)(int *iTree, int *nr, int *nc, double *nodes, double *Func, double *mean, double *Prob);
 extern void F77_NAME(predictsurvtree)(int *n, int *np, double *xt, int *nCat, int *nt, int *nNodes, double *tFunc, double *mean, double *Prob, int *nCols, double *tnodes, double *predFunc, double *predMean, double *predProb);
-extern void F77_NAME(setupbasics)(int *t_nt, int *t_nt_death, double *t_dt, double *t_rs, int *t_ERT, int *t_uniformSplit, int *t_nodeSizeEnd, int *t_nodeSizeSurv, int *t_minEventEnd, int *t_minEventSurv, int *t_rule, int *t_sIndex, double *t_sFraction, double *t_stratifiedSplit, int *t_replace);
+extern void F77_NAME(setupbasics)(double *t_surv_tp, double *t_end_tp, int *t_nt, int *t_nt_death, double *t_dt, double *t_dt_death, double *t_rs, int *t_ERT, int *t_uniformSplit, int *t_nodeSizeEnd, int *t_nodeSizeSurv, int *t_minEventEnd, int *t_minEventSurv, int *t_rule, int *t_sIndex, double *t_sFraction, double *t_stratifiedSplit, int *t_replace);
 extern void F77_NAME(setupinners)(int *t_n, int *t_n_surv, int *t_idvec, int *t_person_ind, int *t_np, double *t_x, double *t_pr, double *t_pr2, double *t_pr2surv, double *t_prsurv, double *t_ord_causeind, double *t_ord_response, int *t_delta, int *t_delta_m, int *t_mTry, int *t_nCat, int *t_sampleSize, int *t_sampleSize_surv, int *t_nTree, int *t_nrNodes, int *t_nrNodes_surv);
 extern void F77_NAME(survtree)(double *tSurvFunc, double *mean, double *survProb);
 extern void F77_NAME(ciftree)(double *tFunc, double *mean, double *Prob);
@@ -21,7 +21,7 @@ extern void F77_NAME(example_sort)(int *n);
 static const R_FortranMethodDef FortranEntries[] = {
     {"gettree",         (DL_FUNC) &F77_NAME(gettree),          7},
     {"predictsurvtree", (DL_FUNC) &F77_NAME(predictsurvtree), 14},
-    {"setupbasics",     (DL_FUNC) &F77_NAME(setupbasics),     15},
+    {"setupbasics",     (DL_FUNC) &F77_NAME(setupbasics),     18},
     {"setupinners",     (DL_FUNC) &F77_NAME(setupinners),     21},
     {"survtree",        (DL_FUNC) &F77_NAME(survtree),         3},
     {"ciftree",         (DL_FUNC) &F77_NAME(ciftree),         3},

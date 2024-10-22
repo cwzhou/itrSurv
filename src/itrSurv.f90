@@ -69,6 +69,9 @@ MODULE INNERS
 
   ! time differences
   REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: dt
+  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: dt_death
+  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: end_tp
+  REAL(dp), DIMENSION(:), ALLOCATABLE, SAVE :: surv_tp
 
   ! probability mass vector of survival function for sampled cases
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: pr
@@ -1422,6 +1425,15 @@ PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+
         !CALL MeanFreqFunc(nt, nt_death, atRiskRight_m, eventsRight_m, atRiskRight_m, eventsRight, &
         !& survRE_Right, dRhat_Right, mu_Right, dmu_Right)
         valuej = 99
+        PRINT *, "dt"
+        PRINT *, dt
+        PRINT *, "dt_death"
+        PRINT *, dt_death
+        PRINT *, "end_tp"
+        PRINT *, end_tp
+        PRINT *, "surv_tp"
+        PRINT *, surv_tp
+        STOP
 
           IF (ieee_is_nan(valuej)) then
             ! Make sure there are no NaN test statistics
@@ -3862,9 +3874,12 @@ END SUBROUTINE predictSurvTree
 ! =================================================================================
 
 ! set up basic information for the module
+! t_surv_tp, real(:), the time points for survival (death)
+! t_end_tp, real(:), the time points for phase 2 (recurrent events)
 ! t_nt, integer, the number of observed unique event time points including 0 and tau; death for isPhase1/isPhase2CR and recurrent events for isPhase2RE
 ! t_nt_death, integer, the number of observed unique death time points including 0 and tau; needed for isPhase2RE
 ! t_dt, real(:), the time differences between time points
+! t_dt_death, real(:), the time differences between death time points
 ! t_rs, real, the probability for a random split
 ! t_ERT, integer, the indicator of extremely randomized trees
 ! t_uniformSplit, integer, the indicator of method for determining cut-off
@@ -3879,7 +3894,7 @@ END SUBROUTINE predictSurvTree
 !   requested survival time
 ! t_stratifiedSplit, real, the coefficient for determining stratification
 ! t_replace, integer, indicator of sampling with replacement
-SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, &
+SUBROUTINE setUpBasics(t_surv_tp, t_end_tp, t_nt, t_nt_death, t_dt, t_dt_death, t_rs, t_ERT, t_uniformSplit, &
                      & t_nodeSize, t_nodeSizeSurv, &
                      & t_minEvent, t_minEventSurv, &
                      & t_rule, t_sIndex, t_sFraction, &
@@ -3891,7 +3906,10 @@ SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, &
 
   INTEGER, INTENT(IN) :: t_nt
   INTEGER, INTENT(IN) :: t_nt_death
+  REAL(dp), DIMENSION(1:t_nt), INTENT(IN) :: t_end_tp
+  REAL(dp), DIMENSION(1:t_nt_death), INTENT(IN) :: t_surv_tp
   REAL(dp), DIMENSION(1:t_nt), INTENT(IN) :: t_dt
+  REAL(dp), DIMENSION(1:t_nt_death), INTENT(IN) :: t_dt_death
   REAL(dp), INTENT(IN) :: t_rs
   INTEGER, INTENT(IN) :: t_ERT
   INTEGER, INTENT(IN) :: t_uniformSplit
@@ -3923,6 +3941,8 @@ SUBROUTINE setUpBasics(t_nt, t_nt_death, t_dt, t_rs, t_ERT, t_uniformSplit, &
   
   nt = t_nt
   nt_death = t_nt_death
+  surv_tp = t_surv_tp
+  end_tp = t_end_tp
 
   sIndex = t_sIndex
   sFraction = t_sFraction
@@ -3962,6 +3982,7 @@ END IF
   ! write(*, *) 'Check2 Fortran'
 
   dt = t_dt
+  dt_death = t_dt_death
 
   rs = t_rs
   ERT = t_ERT
