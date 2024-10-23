@@ -1429,9 +1429,9 @@ PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+
         PRINT *, dt
         PRINT *, "dt_death"
         PRINT *, dt_death
-        PRINT *, "end_tp"
+        PRINT *, "end_tp with size ", size(end_tp)
         PRINT *, end_tp
-        PRINT *, "surv_tp"
+        PRINT *, "surv_tp with size ", size(surv_tp)
         PRINT *, surv_tp
         STOP
 
