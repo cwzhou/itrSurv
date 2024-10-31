@@ -423,16 +423,20 @@ setMethod(f = ".Predict",
       response_endpoint_stop <<- response_tmp[,2L]
       response = response_endpoint_stop
     }
+    # Create d3 by joining data[[2]] with data[[1]] based on "id"
+    d1 <<- data[[1]]
+    d2 <<- data[[2]]
+    d3 <<- d2 %>%
+      dplyr::select(id, Status_D, Z1) %>%
+      left_join(d1 %>% dplyr::select(id, TStop), by = "id")
+    mod_surv <<- mod_surv
     x_surv <<- stats::model.frame(formula = mod_surv,
                                   # we want to Phase 2 Dataset because multiple records per person for RE; and for CR they are the same dataset
-                                  data = data[[2]],
+                                  data = d3,
                                   na.action = na.pass)
     response_surv <<- stats::model.response(data = x_surv)
     delta <<- response_surv[,2L] # survival delta
-    # View(delta)
     x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
-
-    # stop("tmp")
   }
 
   # View(data)
@@ -479,7 +483,8 @@ setMethod(f = ".Predict",
     tp.tmp.phase1<<- .TimePoints(object = phase1_params)
   }
 
-# we use tSurv to get pr
+
+  # we use tSurv to get pr
   # tSurv shows at risk to not at risk.
   tSurv <- sapply(X = response[elig],
                   FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk; 1 means NOT at risk
@@ -504,15 +509,43 @@ setMethod(f = ".Predict",
   # rownames(pr.tmp) = response_surv[,1]
   pr.tmp <<- pr.tmp
 
-    if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
+  if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
                                call. = FALSE)
   if (any(pr > 1.0) || any(pr < 0.0)) {
     stop("pr must obey 0 <= pr <= 1 -- contact maintainer", call. = FALSE)
   }
 
   if (Phase == "RE" & endPoint == "RE"){
-    # message(Phase)
-    # print("pr2")
+    # print("pr_surv")
+    # we use tSurv_surv to get pr_surv
+    # changed response to be response_surv
+    response_survival <<- response_surv[,1L]
+    tSurv_surv <- sapply(X = response_survival[elig],
+                         FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk for death; 1 means NOT at risk
+                         tp = .TimePoints(object = phase1_params)) # this is phase 1 TIME POINTS!!!
+    tSurv_surv.tmp<<-tSurv_surv
+    ttp <<- .TimePoints(object = phase1_params)
+    rownames(tSurv_surv.tmp) = ttp
+    colnames(tSurv_surv.tmp) = a1$id
+    # time point nearest the status change (response (death) or censoring ONLY) without going over
+    # prsurv: {nTimes_SURVIVAL x nElig (still records not people)}
+    pr_surv <- {rbind(tSurv_surv[-1L,],1)-tSurv_surv}
+    pr_surv.tmp <<- pr_surv
+    # print(ttp)
+    # print(rownames(pr_surv.tmp))
+    # rownames(pr_surv.tmp) = ttp
+    # colnames(pr_surv.tmp) = a1$id
+    # print(rownames(pr_surv.tmp))
+    # print(pr_surv.tmp)
+    # View(pr_surv.tmp)
+    # stop("stopping")
+
+    if (any(is.na(x = pr_surv))) stop("NA not permitted in pr_surv -- contact maintainer",
+                                      call. = FALSE)
+    if (any(pr_surv > 1.0) || any(pr_surv < 0.0)) {
+      stop("pr_surv must obey 0 <= pr_surv <= 1 -- contact maintainer", call. = FALSE)
+    }
+
     # FOR RECURRENT EVENTS ONLY:
     # obtain pr2 to obtain number of people at risk for recurrent event set-up
     # pr2 shows 'at risk' to 'not at risk' for records in recurrent event set-up
@@ -521,13 +554,19 @@ setMethod(f = ".Predict",
     # print(elig)
     # print(response_re[elig,])
     # Apply function to each row of response_re
+    ttpp <<- .TimePoints(object = params)
     pr2 <- apply(response_re[elig,], 1, function(row) {
-      # start-stop interval is OPEN-CLOSED: (start, stop]
+      # start-stop interval is OPEN-CLOSED: (start, stop] when it's NOT a "first" record
+      # start-stop interval is CLOSED-CLOSED: [start, stop] when it IS a "first" record
+        # because we include 0, we need make it so that left hand interval is closed when it starts with 0
+        # but when it's not starting with 0 because its a 2nd+ record, then we want it to be OPEN.
       # THIS IS TO IDENTIFY # AT RISK FOR RECORDS
       # row[1] is the start, row[2] is the stop
+
       sapply(.TimePoints(object = params), function(tp) {
         # 1 means at risk; 0 means NOT at risk (opposite of tSurv)
-        as.integer(row[1] < tp & row[2] >= tp)
+        #this is old, didn't account for 0: as.integer(row[1] < tp & row[2] >= tp)
+        as.integer(((row[1] < tp & row[1] > 0) | (row[1] <= tp & row[1] == 0)) & row[2] >= tp)
       })
     })
     pr2.tmp<<-pr2
@@ -556,10 +595,12 @@ setMethod(f = ".Predict",
       # USING SURVIVAL TIME POINTS (includes 0 and tau)
       sapply(.TimePoints(object = phase1_params), function(tp) {
         # 1 means at risk; 0 means NOT at risk (opposite of tSurv)
-        as.integer(row[1] < tp & row[2] >= tp)
+        # this is old: doens't account for 0 : as.integer(row[1] < tp & row[2] >= tp)
+        as.integer(((row[1] < tp & row[1] > 0) | (row[1] <= tp & row[1] == 0)) & row[2] >= tp)
       })
     })
-    pr2_surv.tmp<<-pr2_surv
+    pr2_surv.tmp<<-as.matrix(pr2_surv)
+
     # {nTimes_survival x nElig}
     if (any(is.na(x = pr2_surv))) stop("NA not permitted in pr2_surv -- contact maintainer",
                                        call. = FALSE)
@@ -567,42 +608,14 @@ setMethod(f = ".Predict",
       stop("pr2_surv must obey 0 <= pr2_surv <= 1 -- contact maintainer", call. = FALSE)
     }
 
-    # print("pr_surv")
-    # we use tSurv_surv to get pr_surv
-    tSurv_surv <- sapply(X = response[elig],
-                    FUN = function(s, tp) { as.integer(x = {s < tp}) }, # 0 means at risk; 1 means NOT at risk
-                    tp = .TimePoints(object = phase1_params)) # this is phase 1 TIME POINTS!!!
-    tSurv_surv.tmp<<-tSurv_surv
-    # time point nearest the status change (response (death), censoring, recurrent event, CR,etc) without going over
-    # prsurv: {nTimes_SURVIVAL x nElig (still records not people)}
-    pr_surv <- {rbind(tSurv_surv[-1L,],1)-tSurv_surv}
-    pr_surv.tmp <- pr_surv
-    # colnames(pr_surv.tmp) = tp.tmp.phase1
-    # print("test000")
-    # rownames(pr_surv.tmp) = response_surv[,1]
-    pr_surv.tmp <<- pr_surv.tmp
-    # print("test1")
-
-    if (any(is.na(x = pr_surv))) stop("NA not permitted in pr_surv -- contact maintainer",
-                                 call. = FALSE)
-    if (any(pr_surv > 1.0) || any(pr_surv < 0.0)) {
-      stop("pr_surv must obey 0 <= pr_surv <= 1 -- contact maintainer", call. = FALSE)
-    }
-    # print("test2")
+    # stop("testing")
 
   } else{
     message("we set pr2=pr2_surv=pr_surv=pr since we don't use pr2,pr2_surv,pr_surv in this setting")
     pr2 = pr
     pr2_surv = pr
     pr_surv = pr
-    # print("pr")
-    # print(pr)
-    # print("pr2")
-    # print(pr2)
-    # print("pr_surv")
-    # print(pr_surv)
   }
-
 
   # identify tx levels in limited data
   if (is.factor(x = dataset[,txName])) {

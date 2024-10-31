@@ -139,6 +139,15 @@
   rr <<- ord_response
   ii <<- idvec
 
+
+  # if (Phase == "RE"){
+  #   # View(tSurv)
+  #   # View(tSurv_surv)
+  #   # View(t(pr))
+  #   # View(t(pr_surv))
+  #   stop("Testing RE Phase.")
+  # }
+
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
