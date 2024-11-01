@@ -384,10 +384,13 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
   INTEGER, DIMENSION(4*ng_set2) :: iwk_set
 
   REAL(dp), DIMENSION(1:nCases, 6) :: combArray
+  
+  ! below is for calculating dMi and dMiD
+  REAL(dp), DIMENSION(nt) :: tmp_events1, tmp_events2, dlam 
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: dNi, YidR, dMi, dNiD, YidLam, dMiD
 
-
-real(dp), dimension(13) :: TESTINGpd1
-INTEGER :: iiii
+  real(dp), dimension(13) :: TESTINGpd1
+  INTEGER :: iiii, tmp_i
 
   ! below is old code that doesn't initialize
   ! REAL(dp) :: s_set(ng_set2-1), vs_set(ng_set2-1, ng_set2-1)
@@ -1438,8 +1441,6 @@ if (print_check) then
     eventsLeft_m_loop = sum(prl_m_loop * &
     & spread(dSorted_m(1:splitLeft_loop), 2, nt), DIM = 1)
 
-
-
     prr_m_loop = pr(rightCases_loop,:)
     eventsRight_m_loop = sum(prr_m_loop * &
     & spread(dSorted_m(splitLeft_loop+1:nCases), 2, nt), DIM = 1)
@@ -1480,6 +1481,15 @@ if (print_check) then
       END DO
       STOP
 
+      if (print_check) then
+        ! Print the entire pr2 array in a readable way
+        PRINT *, "pr2 array:"
+        DO testi = 1, SIZE(pr2(:,leftCases_loop), 1)  ! Loop over rows
+            PRINT *, "id:", leftCases_loop(testi)
+            PRINT '(F6.1)', (pr2(leftCases_loop(testi), j), j = 1, SIZE(pr2, 2))
+        END DO
+      end if
+
       PRINT *, "stopping"
       if (isPhase2RE) STOP
     END IF
@@ -1488,14 +1498,7 @@ if (print_check) then
     !PRINT *
     !PRINT *, pr2(:,1) ! column is timepoint
 
-if (print_check) then
-   ! Print the entire pr2 array in a readable way
-  PRINT *, "pr2 array:"
-  DO testi = 1, SIZE(pr2(:,leftCases_loop), 1)  ! Loop over rows
-      PRINT *, "id:", leftCases_loop(testi)
-      PRINT '(F6.1)', (pr2(leftCases_loop(testi), j), j = 1, SIZE(pr2, 2))
-  END DO
-end if
+
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!! atRiskLeft_loop and atRiskRight_loop !!!!
@@ -1516,10 +1519,10 @@ end if
     atRiskRight_loop = pd2_loop
 
     ! Process records for the current person
-!    DO doj = dostart, doend
+    !DO doj = dostart, doend
         ! at risk indicators for dojth case
-        ! number of terminal events for dojth case
-!    END DO
+        ! number of terminal events for dojth case   
+    !END DO
 
     !!!!!!! =============
     PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+1) - 1d-8 is: ", xSorted(doend + 1) - 1d-8
@@ -1561,9 +1564,82 @@ end if
             PRINT *, "dmu_right"
       PRINT *, dmu_right
 
-    
-      PRINT *, "stopping"
-      STOP
+    PRINT *, "======================"
+
+  ! Derivative of equation (2.2) in Ghosh and Lin (2000) using product rule
+  ! Y_bar(t) = sum_i=1^n Y_i(t) = atriskRE vector
+  ! dMi_hat(i) = eventsRE(i) - atriskRE(i)*dRhat(i)
+  ! dMi_hat^D(i) = eventsSurv(i) - atriskRE(i) * (eventsSurv(i)/atriskSurv(i))
+
+    ! dNi(t)
+    dNi = prl_m_loop * &
+    & spread(dSorted_m(1:splitLeft_loop), 2, nt)
+    ! Y_i(t) * dRhat(t)
+    YidR = pr2l_loop * &
+    & spread(dRhat_left, 1, size(leftCases_loop))
+    ! dMihat
+    dMi = dNi - YidR
+
+    ! dNi^D(t)
+    dNiD = prl_m_loop * &
+    & spread(dSorted(1:splitLeft_loop), 2, nt)
+
+    PRINT *, "atRiskLeft_m_loop with size ", size(atRiskLeft_m_loop)
+    PRINT *, atRiskLeft_m_loop
+
+    !dLambdahat^D(t)
+    tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
+    dlam = 0.0_dp                                  ! Initialize dlam to zero
+    ! Calculate tmp_events1 as sum over the first dimension (summing across rows)
+    tmp_events1 = sum(prl_m_loop * &
+        & spread(dSorted(1:splitLeft_loop), 2, nt), DIM=1)
+    ! Loop to calculate dlam with a check for zero in atRiskLeft_m_loop
+    DO tmp_i = 1, nt
+      PRINT *, "timepoint:", tmp_i
+      PRINT *, "at risk at this timepoint:"
+      PRINT *, atRiskLeft_m_loop(tmp_i)
+        IF (atRiskLeft_m_loop(tmp_i) /= 0.0_dp) THEN
+            dlam(tmp_i) = tmp_events1(tmp_i) / atRiskLeft_m_loop(tmp_i)
+        ELSE
+            dlam(tmp_i) = 0.0_dp 
+        END IF
+    END DO
+    ! Y_i(t) * dLambdahat^D(t)
+    YidLam = pr2l_loop * &
+    & spread(dlam, 1, size(leftCases_loop))
+    ! dMiD
+    dMiD = dNiD - YidLam
+
+PRINT *, "PERSON ", recordID(leftCases_loop(1))
+! Print the nt values for person 1
+PRINT *, "dNi for person 1 with row ", size(dNi,1), "and column ", size(dNi,2)
+PRINT *, dNi(1, :)
+PRINT *
+
+PRINT *, "dNiD for person 1 with  row ", size(dNiD,1), "and column ", size(dNiD,2)
+PRINT *, dNiD(1, :)
+PRINT *
+
+PRINT *, "Yi for person 1 with row ", SIZE(prl_m_loop, 1), "and column ", SIZE(prl_m_loop, 2)
+PRINT *, pr2l_loop(1, :)
+PRINT *
+
+PRINT *, "dRhat_left with size", size(dRhat_left)
+PRINT *, dRhat_left
+PRINT *
+
+PRINT *, "dlam with size", size(dlam)
+PRINT *, dlam
+PRINT *
+
+PRINT *, "dMi for person 1 with row ", SIZE(dMi, 1), "and column ", SIZE(dMi, 2)
+PRINT *, dMi(1, :)
+PRINT *
+
+PRINT *, "dMiD for person 1 with row ", SIZE(dMiD, 1), "and column ", SIZE(dMiD, 2)
+PRINT *, dMiD(1, :)
+PRINT *
+
         
         !CALL MeanFreqFunc(nt, nt_death, atRiskLeft_m, eventsLeft_m, atRiskLeft_m, eventsLeft, &
         !& survRE_Left, dRhat_Left, mu_Left, dmu_Left)
@@ -1997,7 +2073,6 @@ END SUBROUTINE sort_and_subset
 SUBROUTINE MeanFreqFunc(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 Nj_endpoint, Oj_endpoint, Nj_survival, Oj_survival, &
 survRE, dRhat, mu, dmu)
-
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: nt_endpoint
@@ -2108,7 +2183,7 @@ survRE, dRhat, mu, dmu)
   PRINT *, survRE
   DO i = 2, nt_endpoint
     dmu(i) = survRE(i) * dRhat(i)
-    mu(i) = mu(i-1) + survRE(i) * dRhat(i)
+    mu(i) = mu(i-1) + dmu(i)
     if (mu(i) .NE. mu(i-1)) THEN
       PRINT *, "i: ",i
       PRINT *, "mu(i-1): ", mu(i-1)
@@ -2124,6 +2199,158 @@ survRE, dRhat, mu, dmu)
 
 END SUBROUTINE MeanFreqFunc
 ! =================================================================================
+
+SUBROUTINE weightKLR(ns, n1, n2, atrisk1, atrisk2, output_weight)
+  IMPLICIT NONE
+
+  INTEGER, INTENT(IN) :: ns ! # time points for unique observed RE times
+  INTEGER, INTENT(IN) :: n1 ! sample size in group 1
+  INTEGER, INTENT(IN) :: n2 ! sample size in group 2
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: atrisk1 ! # subj in group 1 at risk at time t
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: atrisk2 ! # subj in group 2 at risk at time t
+  REAL(dp), DIMENSION(1:ns), INTENT(OUT) :: output_weight
+
+  INTEGER :: n 
+  INTEGER :: i                       ! loop variable if needed
+
+  n = n1 + n2
+  DO i = 1, ns
+    IF (atrisk1(i) + atrisk2(i) > 0.0_dp) THEN
+      output_weight(i) = (atrisk1(i) * atrisk2(i) / (atrisk1(i) + atrisk2(i))) * (n / (n1 * n2))
+    ELSE
+      output_weight(i) = 0.0_dp      ! Handle cases with no risk in either group
+    END IF
+  END DO
+
+END SUBROUTINE weightKLR
+
+
+SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, dmu1, dmu2, Q_LR, sigma2_LR)
+  IMPLICIT NONE
+
+  INTEGER, INTENT(IN) :: ns ! # time points for unique observed RE times
+  INTEGER, INTENT(IN) :: n1 ! sample size in group 1
+  INTEGER, INTENT(IN) :: n2 ! sample size in group 2
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: atrisk1 ! # subj in group 1 at risk at time t
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: atrisk2 ! # subj in group 2 at risk at time t
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu1 ! # dmu in group 1 
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu2 ! # dmu in group 2
+  INTEGER, INTENT(OUT) :: Q_LR
+  INTEGER, INTENT(OUT) :: sigma2_LR
+
+  REAL(dp), DIMENSION(1:ns) :: K_LR ! K_LR weight
+  REAL(dp), DIMENSION(1:ns):: Q_LR_vec
+
+  INTEGER :: n1_ind, n2_ind, ns_ind, i
+
+  CALL weightKLR(ns, n1, n2, atrisk1, atrisk2, K_LR) 
+  ! numerator: Q_LR
+  Q_LR_vec(1) = K_LR(1) * (dmu1(1) - dmu2(1))
+  IF (ns .LT. 2) RETURN
+  DO i = 2, ns 
+    Q_LR_vec(i) = Q_LR_vec(i-1) + K_LR(i) * (dmu1(i)- dmu2(i))
+  END DO
+  Q_LR = Q_LR_vec(ns)
+
+  ! variance: sigma2_LR
+
+  ! first term
+  DO n1_ind = 1, n1
+  END DO
+
+  ! second term
+  DO n2_ind = 1, n2
+  END DO
+
+  DO ns_ind = 1, ns
+  END DO
+
+  !termone = var1(ns)
+  !termtwo = var2(ns)
+
+
+  !sigma2_LR = (n2/(n*n1))*termone + (n1/(n*n2))*termtwo
+
+
+
+END SUBROUTINE GeneralizedWeightedLR_RE
+
+
+! =======================================
+
+SUBROUTINE dPsi_indiv(personID, recordID, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Ybar, dPsi_person)
+  IMPLICIT NONE
+
+  ! Declare the types and intents of the input/output parameters
+  REAL(dp), INTENT(IN) :: personID ! personID
+  REAL(dp), INTENT(IN) :: recordID ! recordID
+  INTEGER, INTENT(IN) :: n        ! Sample size (1:n for individuals)
+  INTEGER, INTENT(IN) :: ns       ! Number of recurrent event time points (1:ns)
+  INTEGER, INTENT(IN) :: ns_death ! Number of terminal event time points (1:ns_death)
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: survRE     ! Survival estimates at RE times
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: mu
+  REAL(dp), DIMENSION(:,:), INTENT(IN) :: dMi
+  REAL(dp), DIMENSION(:,:), INTENT(IN) :: dMiD
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: Ybar
+  
+  ! Output vector as 1D array for derived values (1:ns)
+  REAL(dp), DIMENSION(1:ns), INTENT(OUT) :: dPsi_person
+
+  ! Variable Declarations
+  INTEGER :: i, j
+  REAL(dp), DIMENSION(1:ns) :: termA, termB, termB0, termC, termD
+  REAL(dp), DIMENSION(1:ns) :: dMi_hat, dMiD_hat
+
+  ! Initialize the output vector to zero
+  dPsi_person = 0.0_dp
+
+  ! Subset dMi and dMiD for this person
+  dMi_hat = dMi(recordID, :)  ! Assuming dMi has at least recordID rows
+  dMiD_hat = dMiD(recordID, :) ! Assuming dMiD has at least recordID rows
+
+  ! Compute TERM A for each time point
+  IF (Ybar(1) /= 0.0_dp) THEN
+      termA(1) = survRE(1) * dMi_hat(1) / (Ybar(1) / n)
+  ELSE
+      termA(1) = 0.0_dp
+  END IF
+
+  ! Initialize TERM B0
+  termB0 = 0.0_dp
+  DO j = 2, ns
+      IF (Ybar(j) > 0.0_dp) THEN
+          termB0(j) = termB0(j - 1) + (dMiD_hat(j) / (Ybar(j) / n))
+      ELSE
+          termB0(j) = 0.0_dp
+      END IF
+  END DO
+
+  ! Compute TERM B, C, and D for the first time point
+  termB(1) = dmu(1) * termB0(1)
+  termC(1) = mu(1) * dMiD_hat(1) / (Ybar(1) / n)
+  termD(1) = mu(1) * dMiD_hat(1) / (Ybar(1) / n)
+
+  dPsi_person(1) = termA(1) - termB(1) - termC(1) + termD(1)
+
+  IF (ns .LT. 2) RETURN
+  
+  DO i = 2, ns
+    IF (Ybar(i) /= 0.0_dp) THEN
+      termA(i) = survRE(i) * dMi_hat(i) / (Ybar(i) / n)
+      termB(i) = dmu(i) * termB0(i)
+      termC(i) = mu(i) * dMiD_hat(i) / (Ybar(i) / n)
+      termD(i) = mu(i) * dMiD_hat(i) / (Ybar(i) / n)
+      dPsi_person(i) = termA(i) - termB(i) - termC(i) + termD(i)
+    ELSE
+      dPsi_person(i) = 0.0_dp
+    END IF
+  END DO
+
+END SUBROUTINE dPsi_indiv
+
+
+!==========================================
 
 
 SUBROUTINE nelsonAalenRecurrent(ns, nj, oj, h)
