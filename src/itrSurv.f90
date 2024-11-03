@@ -1349,7 +1349,7 @@ if (print_check) then
     !PRINT *, personID_og
 
     DO doi = personID_new(splitLeft), personID_new(splitLeftFinal)
-      PRINT *, "doi: ", doi
+      !PRINT *, "doi: ", doi
 
       ! Get start and end indices for the current person
       dostart = firstIndex(doi)
@@ -1357,8 +1357,8 @@ if (print_check) then
       ! Determine the number of cases for the current person
       numCases = doend - dostart + 1
 
-      PRINT *, "dostart:", dostart
-      PRINT *, "doend:", doend
+      !PRINT *, "dostart:", dostart
+      !PRINT *, "doend:", doend
       PRINT *, "This person (ID: ", doi, ") has ", numCases, "records."
       !PRINT *, personID_new
       !PRINT *, "There are a total of ", nCases, " cases."
@@ -1536,7 +1536,7 @@ END IF
       !END DO
 
       !!!!!!! =============
-      PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+1) - 1d-8 is: ", xSorted(doend + 1) - 1d-8
+      !PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+1) - 1d-8 is: ", xSorted(doend + 1) - 1d-8
 
       ! if the case is not the last case with this covariate value, cycle
       IF (xSorted(doend) .GE. (xSorted(doend+1) - 1d-8)) CYCLE
@@ -2528,10 +2528,10 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
                               outer_sum2)
   
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
-  PRINT *, "sigma2_LR denominator: ", sigma2_LR
+  !PRINT *, "sigma2_LR denominator: ", sigma2_LR
 
   test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/sigma2_LR
-  PRINT *, "test statistic z^2 = ", test_statistic
+  !PRINT *, "test statistic z^2 = ", test_statistic
 
 END SUBROUTINE GeneralizedWeightedLR_RE
 
