@@ -2329,7 +2329,7 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
 
   ! Variable Declarations
   INTEGER :: i, j
-  REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, termB0, termC, termD
+  REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, int_termB1, termB1
   
   ! Initialize the output vector to zero
   !dPsi_mat = 0.0_dp
@@ -2342,8 +2342,11 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   ! Initialize the output matrix to zero
   dPsi_mat = 0.0_dp
 
+  ! row is record, column is timepoint
   PRINT *, "size of survRE is: ", size(survRE)
   PRINT *, "size of Ybar is: ", size(Ybar)
+  PRINT *, "size of dmu is: ", size(dmu)
+  PRINT *, "size of mu is: ", size(mu)
   PRINT *, "row of dMi is: ", size(dMi,1), "and col is: ", size(dMi,2)
   PRINT *
   PRINT *, "size of spreading survRE by ", nrecords, " records is: ", &
@@ -2362,11 +2365,55 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   END IF
 
   PRINT *, "termA with dim: ", size(termA,1), " x ", size(termA,2)
-  PRINT *, termA
+  !PRINT termA
   PRINT *
-  
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+
+  ! spread(mu, 1, nrecords)
+  IF (ANY(Ybar /= 0.0_dp)) THEN
+      termB1 = dMiD / (spread(Ybar, 1, nrecords) / n)
+  ELSE
+      termB1 = 0.0_dp
+  END IF
+  ! first timepoint is equal to first column of B1, the first timepoint of B1
+  ! initialize first timepoint
+  int_termB1(:,1) = termB1(:,1)
+  do i = 2, ns
+    int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+  end do
+  termB = spread(dmu, 1, nrecords) * int_termB1
+
+  PRINT *, "termB1 with dim: ", size(termB1,1), " x ", size(termB1,2)
+  PRINT *, "int_termB1 with dim: ", size(int_termB1,1), " x ", size(int_termB1,2)
+  PRINT *, "spread(dmu, 1, nrecords) with dim: ", size(spread(dmu, 1, nrecords),1), " x ", size(spread(dmu, 1, nrecords),2)
+  PRINT *, "termB with dim: ", size(termB,1), " x ", size(termB,2)
+  PRINT *, termB
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *, "termA + termB with size:", size(termA+termB,1), " x ", size(termA+termB,2)  
+  PRINT *, termA + termB
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+  dPsi_mat = termA + termB
+  PRINT *, "dPsi_mat with size:", size(dPsi_mat,1), " x ", size(dPsi_mat,2)  
+  PRINT *, dPsi_mat
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
+  PRINT *
 
 END SUBROUTINE dPsi_indiv
+
 
 
 
