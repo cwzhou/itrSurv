@@ -147,6 +147,7 @@
 #'
 #' @param ERT A logical object. If TRUE, the Extremely Randomized Trees
 #'   algorithm is used to select the candidate variable.
+#'   NOTE: this is not supported in code for Endpoint RE at the moment.
 #'
 #' @param sampleSize A numeric object or NULL.
 #'   The fraction (0 < sampleSize <= 1) of the data to be used for each

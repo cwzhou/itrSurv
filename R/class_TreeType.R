@@ -8,7 +8,7 @@
 #  @slot randomSplit A numeric object; The probability of a random split
 #
 #  @slot ERT A logical object; TRUE indicates that extremely randomized trees
-#    methods are to be used
+#    methods are to be used. NOTE: only coded up for endPoint CR right now.
 #
 #  @slot uniformSplit A logical object; TRUE indicates that cutoffs are to
 #    be selected based on a uniformed random number
@@ -53,7 +53,7 @@ setClass(Class = "TreeType",
                       criticalValue) {
 
   # ensure that ERT is logical or NULL. Methods return a logical.
-  ERT <- .VerifyERT(ERT = ERT)
+  ERT <- .VerifyERT(ERT = ERT, endPoint = endPoint)
 
   # ensure that randomSplit is 0 <= rs < 1. Methods return a numeric.
   randomSplit <- .VerifyRandomSplit(randomSplit = randomSplit)

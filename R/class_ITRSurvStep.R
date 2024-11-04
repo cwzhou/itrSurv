@@ -321,7 +321,7 @@ setMethod(f = ".Predict",
                          mTry,
                          sampleSize,
                          person_indicator) {
-  # print("---STARTING ITRSURVSTEP---")
+  print("---STARTING ITRSURVSTEP---")
 
   if (Phase == "RE"){
     phase1_params <<- params@survivalparam
@@ -409,6 +409,7 @@ setMethod(f = ".Predict",
 
     # identify individuals with complete data
     elig <- stats::complete.cases(x_endpoint)
+    # print(2)
 
     # extract response and delta from model frame
     response_tmp <<- stats::model.response(data = x_endpoint)
@@ -440,6 +441,7 @@ setMethod(f = ".Predict",
   }
 
   # View(data)
+  # print(3)
   # print(data[[3]])
   # set id_vec which is needed for Phase2RE, in fortran, to calculate mff stuff with pr2 to get at risk for death in RE setting
   id_vec = data[[3]] %>% unlist()
@@ -483,7 +485,7 @@ setMethod(f = ".Predict",
     tp.tmp.phase1<<- .TimePoints(object = phase1_params)
   }
 
-
+  # print(4)
   # we use tSurv to get pr
   # tSurv shows at risk to not at risk.
   tSurv <- sapply(X = response[elig],
@@ -508,6 +510,7 @@ setMethod(f = ".Predict",
   # colnames(pr.tmp) = tp.tmp
   # rownames(pr.tmp) = response_surv[,1]
   pr.tmp <<- pr.tmp
+  # print(5)
 
   if (any(is.na(x = pr))) stop("NA not permitted in pr -- contact maintainer",
                                call. = FALSE)
@@ -516,7 +519,7 @@ setMethod(f = ".Predict",
   }
 
   if (Phase == "RE" & endPoint == "RE"){
-    # print("pr_surv")
+    print("pr_surv")
     # we use tSurv_surv to get pr_surv
     # changed response to be response_surv
     response_survival <<- response_surv[,1L]
@@ -525,8 +528,8 @@ setMethod(f = ".Predict",
                          tp = .TimePoints(object = phase1_params)) # this is phase 1 TIME POINTS!!!
     tSurv_surv.tmp<<-tSurv_surv
     ttp <<- .TimePoints(object = phase1_params)
-    rownames(tSurv_surv.tmp) = ttp
-    colnames(tSurv_surv.tmp) = a1$id
+    # rownames(tSurv_surv.tmp) = ttp
+    # colnames(tSurv_surv.tmp) = a1$id
     # time point nearest the status change (response (death) or censoring ONLY) without going over
     # prsurv: {nTimes_SURVIVAL x nElig (still records not people)}
     pr_surv <- {rbind(tSurv_surv[-1L,],1)-tSurv_surv}
