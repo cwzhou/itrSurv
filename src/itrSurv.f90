@@ -1345,7 +1345,8 @@ if (print_check) then
           IF (xSorted(doj) /= xSorted(dostart)) THEN
               all_delta_same = .false.  ! Set to false if any difference is found
               PRINT *, "ERROR: Not all records are the same."
-              PRINT "(A, I5, A, F6.2)", "xSorted for record", doj, ": ", xSorted(doj)
+              PRINT "(A, I5, A, F6.2)", "doj: xSorted for record", doj, ": ", xSorted(doj)
+              PRINT "(A, I5, A, F6.2)", "dstart: xSorted for record", dostart, ": ", xSorted(dostart)
               STOP
           END IF
       END DO
@@ -2011,10 +2012,10 @@ END IF
   PRINT *, "nCuts: ", nCuts
   PRINT *, "lft: ", lft
 
-IF (isPhase2RE) THEN
-  PRINT *, "testing stop"
-  STOP
-END IF
+!IF (isPhase2RE) THEN
+!  PRINT *, "testing stop"
+!  STOP
+!END IF
 
   PRINT *, "============================END OF tfindSplit============================"
   RETURN
