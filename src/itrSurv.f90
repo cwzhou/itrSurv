@@ -279,7 +279,7 @@ END FUNCTION sampleWithOutReplace
 !   splitVar : integer, the index of the selected variable for splitting
 !   cutoffBest : real(:), the cutoff (<= go to 'left' node)
 !   splitFound : integer, 0 = no split; 1 = found a split
-!   casesOut : integer(:), elements of casesIn that go left; ind if yes, 0
+!   casesOut : integer(:), elements of casesIn that go left; index if yes, 0
 !     otherwise
 !   nCuts : integer, the number of cutoff values returned
 !   lft : integer, the number of cases in the left node
@@ -310,7 +310,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
 
   INTEGER :: cnt, cnt_m, i, iperson, cc, ikv, j, jj, k, kv, l, nUncensored, nUncensored_m, ptr, rightNode, rightNode_m
   INTEGER :: nnn, iii, jjj, count_nonzero, ix
-  INTEGER :: rUnifSet, rUnifSet_m, set, splitLeft, splitLeftFinal, tieCovariate
+  INTEGER :: rUnifSet, set, splitLeft, splitLeftFinal, tieCovariate
   INTEGER :: splitLeft_m, splitLeftFinal_m, splitLeft_doloop, splitLeftFinal_doloop
   INTEGER :: splitLeft_loop
   INTEGER :: tieValue, variablesTried
@@ -331,7 +331,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   INTEGER, DIMENSION(1:nAll) :: group_cr
   INTEGER, DIMENSION(:), ALLOCATABLE :: group_cr2, cases2
 
-  REAL(dp) :: cutoff, maxValueSplit, maxValueXm, rUnif, rUnif_m, valuej, tester3a, tester3b
+  REAL(dp) :: cutoff, maxValueSplit, maxValueXm, rUnif, valuej, tester3a, tester3b
   REAL(dp) :: valuej_num, valuej_denom
   REAL(dp), DIMENSION(1:nt_death) :: atRiskLeft, atRiskRight, D, denJ, numJ
   REAL(dp), DIMENSION(1:nt_death) :: atRiskLeft_loop, atRiskRight_loop
@@ -413,13 +413,15 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
     PRINT *, "******************** tfindSplit ********************"
     PRINT *, "casesIn"
     PRINT *, casesIn
+    PRINT *
     PRINT *, "nCases:", nCases, "and nSubj:", nSubj
+    PRINT *
     PRINT *, "subjIn"
     PRINT *, subjIn
-    PRINT *, "nodeSizeEnd:", nodeSizeEnd
-    PRINT *, "nodeSizeSurv:", nodeSizeSurv
-    PRINT *, ""
-    PRINT *, ""
+    !PRINT *, "nodeSizeEnd:", nodeSizeEnd
+    !PRINT *, "nodeSizeSurv:", nodeSizeSurv
+    PRINT *
+    PRINT *
   END IF
 
   ! determine if this is to be a random split
@@ -461,19 +463,9 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
   if (isPhase2RE) THEN
     tsubjects = subjIn(tcases)
     tsubjind = person_ind(tcases)
-    PRINT *, "tsubjects:", tsubjects
-    PRINT *, "tsubjind:", tsubjind
+    !PRINT *, "tsubjects:", tsubjects
+    !PRINT *, "tsubjind:", tsubjind
   END IF 
-
-  !IF (isPhase1 .OR. isPhase2CR) THEN
-  !  IF (nSubj .NE. nCases .OR. nodeSizeSurv .NE. nodeSizeEnd) THEN
-  !      PRINT *, "LINE 369 ERROR: NCASES AND NSUBJ SHOULD BE THE SAME AND NODE SIZE SHOULD BE THE SAME"
-  !      PRINT *, "nSubj =", nSubj, "nCases =", nCases
-  !      PRINT *, "nodeSizeSurv =", nodeSizeSurv, "nodeSizeEnd =", nodeSizeEnd
-  !      STOP
-  !  END IF
-  !END IF
-  !print *, "1"
 
   ! Terminal node criteria     
   IF (isPhase2RE) THEN
@@ -490,18 +482,13 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
   END IF
 
   IF (isPhase2RE) THEN
-    PRINT *, "=============================================================="
-    PRINT *, "person_ind"
-    PRINT *, person_ind
-    PRINT *, "=============================================================="
+    !PRINT *, "=============================================================="
+    !PRINT *, "person_ind"
+    !PRINT *, person_ind
+    !PRINT *, "=============================================================="
   END IF
 
   DO i = 1, nv
-
-    !if (i == 2) THEN
-    !  PRINT *, "End of Testing."
-    !  STOP
-    !end if
 
     ! if mTry successful splits already explored, exit
     IF (variablesTried .EQ. mTry) EXIT
@@ -540,11 +527,11 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
     !================================================================
     !================================================================
     IF (isPhase1 .OR. isPhase2CR) THEN
-      PRINT *, "cases"
+      PRINT *, "pre-sorting cases"
       PRINT *, cases
       ! sort the covariate and track the indices
       CALL qsort4(xSorted, cases, 1, nCases)
-      PRINT *, "cases"
+      PRINT *, "post-sorting cases"
       PRINT *, cases
       ! sort event indicator data accordingly
       ! Phase 1: overall survival (delta = event indicator from any cause)
@@ -592,11 +579,6 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
         PRINT '(I6)', dSorted_m
       END IF
 
-! below is old. can delete.
-      ! Phase 2 RE (delta_m = indicator for recurrent event)
-      ! sort surv id index accordingly
-      !subjects = subjIn(cases) ! needed for Phase2RE only
-      !person_ind_sorted = person_ind(cases)
     !================================================================
     !================================================================
     ELSE 
@@ -613,12 +595,8 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
     ! in the minimum nodes
     PRINT *, "******************** splitBoundaries ********************"
 
-    ! Phase 1
     rUnif = 0.d0
-    rUnifSet = -1 !-1 menas doesn't satisify requirements, move to next covariate. this is default and change to 0 if satisfied.
-    ! Phase 2
-    rUnif_m = 0.d0
-    rUnifSet_m = -1 ! -1 menas doesn't satisify requirements, move to next covariate. this is default and change to 0 if satisfied.
+    rUnifSet = -1 !-1 means doesn't satisify requirements, move to next covariate. this is default and change to 0 if satisfied.
 
     ! tcases and tsubjects, and delta and delta_m are og in order indices
     ! cases and subjects, and dSorted and dSorted_m have been sorted with xSorted
@@ -641,19 +619,14 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
       uncensoredIndices_m = pack(personID_new, dSorted_m .EQ. 1)
       call find_unique(uncensoredIndices_m, &
       unique_uncensoredIndices_m, nUncensored_m)
-      PRINT *, "*************************"
-      PRINT *, "uncensoredIndices_m: recurrent event person indices"
-      PRINT *, uncensoredIndices_m
-      PRINT *, "unique_uncensoredIndices_m: non-repeating person with recurrent event indices"
-      PRINT *, unique_uncensoredIndices_m
-      PRINT *, "size:",nUncensored_m
-      PRINT *, "*************************"
-      !CALL find_unique_subjects(uncensoredIndices_m, unique_uncensoredIndices_m1, nUncensored_m1)
-      !PRINT *, "test2"
-      !PRINT *, "unique_uncensoredIndices_m1"
-      !PRINT *,unique_uncensoredIndices_m1
-      !PRINT *, "size:",nUncensored_m1 
       IF (print_check) THEN
+        PRINT *, "*************************"
+        PRINT *, "uncensoredIndices_m: recurrent event person indices"
+        PRINT *, uncensoredIndices_m
+        PRINT *, "unique_uncensoredIndices_m: non-repeating person with recurrent event indices"
+        PRINT *, unique_uncensoredIndices_m
+        PRINT *, "size:",nUncensored_m
+        PRINT *, "*************************"
         PRINT *, "personID_new"
         PRINT *, personID_new
         PRINT *, "dSorted_m"
@@ -821,78 +794,83 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
     END IF
 
     rUnifSet = 0
-    rUnifSet_m = 0
 
-    PRINT *, "randomSplit:", randomSplit
-    PRINT *, "ERT:", ERT
-    IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1)) THEN
-    
-      !************* getUniformSplit *****************
-      PRINT *, "************* getUniformSplit *****************"
+    IF (isPhase1 .OR. isPhase2CR) THEN
+      IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1)) THEN
+        PRINT *, "randomSplit:", randomSplit
+        PRINT *, "ERT:", ERT
+      
+        !************* getUniformSplit *****************
+        PRINT *, "************* getUniformSplit *****************"
 
-      !! split based on extremely randomized trees and uniform split inputs
+        !! split based on extremely randomized trees and uniform split inputs
 
-      ! if ERT splitLeft = splitLeftFinal, which is the splitting point
-      ! and cutoff is set to random value or mid-point depending on uniERT
+        ! if ERT splitLeft = splitLeftFinal, which is the splitting point
+        ! and cutoff is set to random value or mid-point depending on uniERT
 
-      !! extremely randomized tree methods used
+        !! extremely randomized tree methods used
 
-      IF (uniformSplit .EQ. 0) THEN
-        PRINT *, "uniformSplit = 0"
+        IF (uniformSplit .EQ. 0) THEN
+          !PRINT *, "uniformSplit = 0"
 
-        ! if the cutoff is not determined from a uniform distribution
-        ! randomly sample available indices to identify the last case
-        ! of the left split to define the minimum; cutoff is the
-        ! mid-point {x[r] + x[r+1]} / 2
+          ! if the cutoff is not determined from a uniform distribution
+          ! randomly sample available indices to identify the last case
+          ! of the left split to define the minimum; cutoff is the
+          ! mid-point {x[r] + x[r+1]} / 2
 
-        ! only indices for which x[r] < x[r+1] can be sampled
-        ind = (/ (i, i = splitLeft, splitLeftFinal) /)
-        singles = xSorted(ind) .LT. xSorted(ind + 1)
-        indSingles = pack(ind, singles)
-        cnt = size(indSingles)
+          ! only indices for which x[r] < x[r+1] can be sampled
+          ind = (/ (i, i = splitLeft, splitLeftFinal) /)
+          singles = xSorted(ind) .LT. xSorted(ind + 1)
+          indSingles = pack(ind, singles)
+          cnt = size(indSingles)
 
-        splitLeftFinal = indSingles(1 + floor(rnd(0.d0, 1.d0)*cnt))
-        ! the last required case in the left node is now splitLeftFinal
-        splitLeft = splitLeftFinal
-        rUnif = (xSorted(splitLeftFinal) + xSorted(splitLeftFinal+1))/2.0
-        rUnifSet = 1
+          splitLeftFinal = indSingles(1 + floor(rnd(0.d0, 1.d0)*cnt))
+          ! the last required case in the left node is now splitLeftFinal
+          splitLeft = splitLeftFinal
+          rUnif = (xSorted(splitLeftFinal) + xSorted(splitLeftFinal+1))/2.0
+          rUnifSet = 1
 
-        IF (isPhase2CR .OR. isPhase2RE) THEN
-          ind_m = (/ (i, i = splitLeft_m, splitLeftFinal_m) /)
-          singles_m = xSorted(ind_m) .LT. xSorted(ind_m + 1)
-          indSingles_m = pack(ind_m, singles_m)
-          cnt_m = size(indSingles_m)
+          IF (isPhase2CR .OR. isPhase2RE) THEN
+            ind_m = (/ (i, i = splitLeft_m, splitLeftFinal_m) /)
+            singles_m = xSorted(ind_m) .LT. xSorted(ind_m + 1)
+            indSingles_m = pack(ind_m, singles_m)
+            cnt_m = size(indSingles_m)
 
-          splitLeftFinal_m = indSingles_m(1 + floor(rnd(0.d0, 1.d0)*cnt_m))
-          splitLeft_m = splitLeftFinal_m
-          rUnif_m = (xSorted(splitLeftFinal_m) + xSorted(splitLeftFinal_m+1))/2.0
-          rUnifSet_m = 1
+            splitLeftFinal_m = indSingles_m(1 + floor(rnd(0.d0, 1.d0)*cnt_m))
+            splitLeft_m = splitLeftFinal_m
+            !rUnif_m = (xSorted(splitLeftFinal_m) + xSorted(splitLeftFinal_m+1))/2.0
+            !rUnifSet_m = 1
+          END IF
+
+        ELSE IF (uniformSplit .EQ. 1) THEN
+          PRINT *, "uniformSplit = 1"
+          ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
+          random1 = rnd(0.d0, 1.d0)
+          rUnif = random1 * (xSorted(splitLeftFinal+1) - &
+                & xSorted(splitLeft)) + xSorted(splitLeft)
+          rUnifSet = 1
+          
+          ! identify the first case that splits to the right of this value
+          ! the preceding case is the last case to the left node
+          splitLeftFinal = nSubj - count(xSorted > rUnif)
+
+          ! the last required case in the left node is now splitLeftFinal
+          splitLeft = splitLeftFinal
+
+          IF (isPhase2CR .OR. isPhase2RE) THEN
+            !rUnif_m = random1 * (xSorted(splitLeftFinal_m+1) - &
+            !      & xSorted(splitLeft_m)) + xSorted(splitLeft_m)
+            !rUnifSet_m = 1
+            !splitLeftFinal_m = nCases - count(xSorted > rUnif_m)
+            !splitLeft_m = splitLeftFinal_m
+          END IF
+
         END IF
 
-      ELSE IF (uniformSplit .EQ. 1) THEN
-        PRINT *, "uniformSplit = 1"
-        ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
-        random1 = rnd(0.d0, 1.d0)
-        rUnif = random1 * (xSorted(splitLeftFinal+1) - &
-              & xSorted(splitLeft)) + xSorted(splitLeft)
-        rUnifSet = 1
-        
-        ! identify the first case that splits to the right of this value
-        ! the preceding case is the last case to the left node
-        splitLeftFinal = nSubj - count(xSorted > rUnif)
+      END IF ! end of IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1))
+    END IF ! end of isPhase1/2CR
 
-        ! the last required case in the left node is now splitLeftFinal
-        splitLeft = splitLeftFinal
-
-        IF (isPhase2CR .OR. isPhase2RE) THEN
-          rUnif_m = random1 * (xSorted(splitLeftFinal_m+1) - &
-                & xSorted(splitLeft_m)) + xSorted(splitLeft_m)
-          rUnifSet_m = 1
-          splitLeftFinal_m = nCases - count(xSorted > rUnif_m)
-          splitLeft_m = splitLeftFinal_m
-        END IF
-
-      END IF
+    IF (isPhase2RE) THEN
 
     END IF
 
@@ -907,23 +885,14 @@ REAL(dp), DIMENSION(:,:), ALLOCATABLE :: tempArray
       !PRINT *, "splitLeftFinal:", splitLeftFinal
       !PRINT *, "rUnif:", rUnif
       !PRINT *, "rUnifSet:", rUnifSet
-      !STOP
-    END IF
-    IF (isPhase2) THEN
       !PRINT *, "splitLeft_m:", splitLeft_m
       !PRINT *, "splitLeftFinal_m:", splitLeftFinal_m
-      !PRINT *, "rUnif_m:", rUnif_m
-      !PRINT *, "rUnifSet_m:", rUnifSet_m
     END IF
 
     ! -1 is returned if cannot satisfy minimum requirements for nodes
     ! cycle to next covariate
     !PRINT *, "rUnifSet:", rUnifSet
-    IF (isPhase1) THEN
-      IF (rUnifSet .EQ. -1) CYCLE
-    ELSE ! Phase 2 (endpoint)
-      IF (rUnifSet_m .EQ. -1) CYCLE
-    END IF
+    IF (rUnifSet .EQ. -1) CYCLE
 
     ! increment the number of covariates that have been explored
     variablesTried = variablesTried + 1
@@ -1529,12 +1498,6 @@ END IF
       atRiskLeft_loop = pd1_loop
       atRiskRight_loop = pd2_loop
 
-      ! Process records for the current person
-      !DO doj = dostart, doend
-          ! at risk indicators for dojth case
-          ! number of terminal events for dojth case   
-      !END DO
-
       !!!!!!! =============
       !PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+1) - 1d-8 is: ", xSorted(doend + 1) - 1d-8
 
@@ -1692,22 +1655,22 @@ END IF
           & prr_m_loop, pr2r_loop, &
           & dmu_right, dPsi_right)
 
-IF (print_check) THEN
-        !ALLOCATE(dPsi_left(size(leftCases_loop), nt))
-        PRINT *, "end of CALL RE_INFO FOR LEFT NODE"
-        PRINT *, "dPsi_left with dim:", size(dPsi_left,1), size(dPsi_left,2)
-        PRINT *, dPsi_left
-        PRINT *
-        PRINT *
-        PRINT *
-        !ALLOCATE(dPsi_right(size(rightCases_loop), nt))
-        PRINT *, "end of CALL RE_INFO FOR RIGHT NODE"
-        PRINT *, "dPsi_right with dim:", size(dPsi_right,1), size(dPsi_right,2)
-        PRINT *, dPsi_right
-        PRINT *
-        PRINT *
-        PRINT *
-END IF
+        IF (print_check) THEN
+          !ALLOCATE(dPsi_left(size(leftCases_loop), nt))
+          PRINT *, "end of CALL RE_INFO FOR LEFT NODE"
+          PRINT *, "dPsi_left with dim:", size(dPsi_left,1), size(dPsi_left,2)
+          PRINT *, dPsi_left
+          PRINT *
+          PRINT *
+          PRINT *
+          !ALLOCATE(dPsi_right(size(rightCases_loop), nt))
+          PRINT *, "end of CALL RE_INFO FOR RIGHT NODE"
+          PRINT *, "dPsi_right with dim:", size(dPsi_right,1), size(dPsi_right,2)
+          PRINT *, dPsi_right
+          PRINT *
+          PRINT *
+          PRINT *
+        END IF
         !PRINT *, "starting generalized weighted logrank (RE test)"
         CALL GeneralizedWeightedLR_RE(nt, nleftPeople_loop, nrightPeople_loop, &
             & atRiskLeft_m_loop, atRiskRight_m_loop, &
@@ -1725,10 +1688,10 @@ END IF
           PRINT "(A, F6.2)", "Q_LR test statistic valuej = ", valuej
         END IF 
       
-      ELSE ! for rule
+      ELSE ! for rule == 5
         PRINT *, "ERROR: RULE SHOULD BE 5 BECAUSE PHASE 2 RE."
         STOP ! do not delete this stop error condition
-      END IF
+      END IF ! end of RULE == 5
 
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
         ! if first value or value > current max, save
@@ -1773,7 +1736,7 @@ IF (isPhase1 .OR. isPhase2CR) THEN
         ! at risk indicators for jth case
         ! number of events for jth case
         pd1 = prr(cnt,:)
-        write(*,'(F6.2)', advance='no') prr(cnt, :)
+        !write(*,'(F6.2)', advance='no') prr(cnt, :)
         cnt = cnt + 1
         D = pd1*delta(cases(j))
         Rcum(1) = 0.0
@@ -1806,8 +1769,8 @@ IF (isPhase1 .OR. isPhase2CR) THEN
         ! remove the jth case from the right node
         atRiskRight = atRiskRight - Rcum
         ! number of events
-        PRINT *, "BEFORE removing jth case: eventsRight"
-        PRINT *, eventsRight
+        !PRINT *, "BEFORE removing jth case: eventsRight"
+        !PRINT *, eventsRight
         ! add the jth case to the left node
         eventsLeft = eventsLeft + D
         ! remove the jth case from the right node
@@ -1824,11 +1787,11 @@ IF (isPhase1 .OR. isPhase2CR) THEN
           eventsLeft_m = eventsLeft_m + D_m
           ! remove the jth case from the right node
           eventsRight_m = eventsRight_m - D_m
-          PRINT *, "atRiskLeft_m"
-          PRINT *, atRiskLeft_m
-          PRINT *, "atRiskLeft"
-          PRINT *, atRiskLeft
-          PRINT *, "this should be the same because at risk for Survival and same at risk for priority cause."
+          !PRINT *, "atRiskLeft_m"
+          !PRINT *, atRiskLeft_m
+          !PRINT *, "atRiskLeft"
+          !PRINT *, atRiskLeft
+          !PRINT *, "this should be the same because at risk for Survival and same at risk for priority cause."
         END IF
       END IF
 
@@ -1891,33 +1854,21 @@ IF (isPhase1 .OR. isPhase2CR) THEN
         & atRiskRight, eventsRight_m, valuej)
         PRINT *, "CSH test statistic valuej = ", valuej
       ELSE IF (rule == 5) THEN
-        PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
-        ! atRisk is same for RE and survival within RE test statistic Q_LR
-        !CALL MeanFreqFunc(nt, nt_death, atRiskLeft_m, eventsLeft_m, atRiskLeft_m, eventsLeft, &
-        !& survRE_Left, dRhat_Left, mu_Left, dmu_Left)
-        !CALL MeanFreqFunc(nt, nt_death, atRiskRight_m, eventsRight_m, atRiskRight_m, eventsRight, &
-        !& survRE_Right, dRhat_Right, mu_Right, dmu_Right)
-        valuej = 99
-        PRINT *, "Q_LR test statistic valuej = ", valuej
+        PRINT *, "THIS SHOULD NEVER BE TRIGGERED, SINCE RULE == 5 ONLY WORKS FOR ISPHASE2RE"
+        STOP
       END IF
 
       ! Make sure there are no NaN test statistics
       IF (ieee_is_nan(valuej)) then
         PRINT *, "The test statistic is NaN. Stopping the execution."
         STOP
-      ELSE 
-        !PRINT *, "Test Statistic: ", valuej
-        !print *,""
-        !print *,""
       END IF
 
       IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
         ! if first value or value > current max, save
         IF (rUnifSet .EQ. 1) THEN
-          !PRINT *, "rUnifSet: ", rUnifSet
-          !PRINT *, "rUnifSet_m: ", rUnifSet_m
-          !PRINT *, "rUnif: ", rUnif
-          !PRINT *, "rUnif_m: ", rUnif_m
+          PRINT *, "rUnifSet: ", rUnifSet
+          PRINT *, "rUnif: ", rUnif
           cutoff = rUnif
         ELSE
           cutoff = (xSorted(j) + xSorted(j+1))/2.d0
@@ -1943,19 +1894,14 @@ IF (isPhase1 .OR. isPhase2CR) THEN
     PRINT *, "========== END OF jth case DO LOOP =========="
 END IF
 
-PRINT *, ""
-PRINT *, "---------------------"
-PRINT *, "set:", set
-PRINT *, "splitVar:", splitVar
-! Use formatted output for two decimal places
-PRINT "(A, F6.2, A, F6.2)", "maxValueXm: ", maxValueXm, " and maxValueSplit: ", maxValueSplit
-PRINT "(A, F6.2)", "cutoff:", cutoff
-PRINT *, "---------------------"
-
-IF (isPhase2RE) THEN
-  PRINT *, "testing stop"
-  STOP
-END IF
+  PRINT *
+  PRINT *, "---------------------"
+  PRINT *, "set:", set
+  PRINT *, "splitVar:", splitVar
+  ! Use formatted output for two decimal places
+  PRINT "(A, F6.2, A, F6.2)", "maxValueXm: ", maxValueXm, " and maxValueSplit: ", maxValueSplit
+  PRINT "(A, F6.2)", "cutoff:", cutoff
+  PRINT *, "---------------------"
 
     ! if not successful, cycle to next covariate
     ! this condition should never be true
@@ -1974,7 +1920,13 @@ END IF
 
       ! count the number of cases in the left node
       lft = count(xSorted .LE. cutoff)
-      casesOut = cases
+      IF (isPhase1 .OR. isPhase2CR) THEN
+        casesOut = cases
+      ELSE IF (isPhase2RE) THEN
+        casesOut = recordID
+      END IF
+      PRINT *, "casesOut at end with size:", size(casesOut)
+      PRINT *, casesOut
 
       cutoffBest = 0
 
@@ -2011,7 +1963,13 @@ END IF
         maxValueSplit = maxValueXm
         ! count the number of cases in the left node
         lft = count(xSorted .LE. cutoff)
-        casesOut = cases
+        IF (isPhase1 .OR. isPhase2CR) THEN
+          casesOut = cases
+        ELSE IF (isPhase2RE) THEN
+          casesOut = recordID
+        END IF
+        PRINT *, "casesOut at end with size:", size(casesOut)
+        PRINT *, casesOut
 
         cutoffBest = 0
 
@@ -2042,16 +2000,23 @@ END IF
 
   ! if successful at finding a split set flag and return
   splitFound = 1
-  IF (isPhase2RE) PRINT *, "splitFound: ", splitFound
+  PRINT *, "splitFound: ", splitFound
   PRINT *, "splitVar: ", splitVar
   PRINT *, "cutoffBest: ", cutoffBest
   PRINT *, "splitFound: ", splitFound
-  PRINT *, "casesOut: ", casesOut
+  PRINT *, "casesIn with size ", size(casesIn)
+  PRINT *, casesIn
+  PRINT *, "casesOut with size ", size(casesOut)
+  PRINT *, casesOut
   PRINT *, "nCuts: ", nCuts
   PRINT *, "lft: ", lft
 
-  PRINT *, "============================END OF tfindSplit============================"
+IF (isPhase2RE) THEN
+  PRINT *, "testing stop"
+  STOP
+END IF
 
+  PRINT *, "============================END OF tfindSplit============================"
   RETURN
 
 END SUBROUTINE tfindSplit
@@ -2711,7 +2676,7 @@ SUBROUTINE meanSplit(N1j, N2j, O1j, O2j, Z)
   !PRINT *, "N2j:", N2j
   !PRINT *, "O1j:", O1j
   !PRINT *, "O2j:", O2j
-  PRINT *, "******************** meanSplit ********************"
+  !PRINT *, "******************** meanSplit ********************"
   CALL kaplan(nt, N1j, O1j, E1)
   !PRINT *, "Kaplan Meier Estimate for Group 1: ", E1
 
@@ -4870,15 +4835,15 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_person_ind, t_np, t_x, &
   ord_responseAll = t_ord_response
   np = t_np
 
-  IF (isPhase2RE) THEN
-    DO j = 1, MIN(10, t_n)
-      PRINT *, 't_n =', j, ': '
-      DO i = 1, nt_death
-          WRITE(*, '(F5.1, 1X)', ADVANCE='NO') t_prsurv((i - 1) * t_n + j)
-      END DO
-      PRINT *  ! New line after each t_n
-    END DO
-  END IF
+  !IF (isPhase2RE) THEN
+  !  DO j = 1, MIN(10, t_n)
+  !    PRINT *, 't_n =', j, ': '
+  !    DO i = 1, nt_death
+  !        WRITE(*, '(F5.1, 1X)', ADVANCE='NO') t_prsurv((i - 1) * t_n + j)
+  !    END DO
+  !    PRINT *  ! New line after each t_n
+  !  END DO
+  !END IF
 
   IF (isAllocated) THEN
     DEALLOCATE(xAll, prAll, deltaAll, deltaAll_m, nCat, forest%Func, forest%mean,  &
