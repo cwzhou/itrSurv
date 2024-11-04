@@ -321,7 +321,7 @@ setMethod(f = ".Predict",
                          mTry,
                          sampleSize,
                          person_indicator) {
-  print("---STARTING ITRSURVSTEP---")
+  # print("---STARTING ITRSURVSTEP---")
 
   if (Phase == "RE"){
     phase1_params <<- params@survivalparam
@@ -519,7 +519,7 @@ setMethod(f = ".Predict",
   }
 
   if (Phase == "RE" & endPoint == "RE"){
-    print("pr_surv")
+    # print("pr_surv")
     # we use tSurv_surv to get pr_surv
     # changed response to be response_surv
     response_survival <<- response_surv[,1L]

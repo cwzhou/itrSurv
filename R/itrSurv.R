@@ -614,9 +614,9 @@ itrSurv <- function(data,
                  t_stratifiedSplit = as.double(x = params1@stratifiedSplit),
                  t_replace = as.integer(params1@replace),
                  PACKAGE = "itrSurv")
-  print('test9')
-  print("t_nt and t_nt_death")
-  print(as.integer(x = .NTimes(object = params1)))
+  # print('test9')
+  # print("t_nt and t_nt_death")
+  # print(as.integer(x = .NTimes(object = params1)))
   # ensure that if given, sampleSize is 0 < sampleSize <= 1.
   sampleSize1 <- .VerifySampleSize(sampleSize = sampleSize,
                                   ERT = params1@ERT#,
@@ -666,7 +666,7 @@ itrSurv <- function(data,
                                 mTry = mTry,#[nDP],
                                 sampleSize = sampleSize1,#[nDP]
                                 person_indicator = person_indicator)
-  message("...end of .itrSurvStep...")
+  # message("...end of .itrSurvStep...")
   message("Phase1Results")
   # View(Phase1Results)
   assign("Phase1Results_survival", Phase1Results, envir = .GlobalEnv)

@@ -84,8 +84,8 @@
   } else{
     nSamples_surv = nSamples
   }
-  message('number of records in training data: ', nSamples)
-  message('number of individuals in training data: ', nSamples_surv)
+  # message('number of records in training data: ', nSamples)
+  # message('number of individuals in training data: ', nSamples_surv)
 
   # tpSurv =
   # View(pr)
@@ -109,18 +109,18 @@
 
   # determine the number of samples to include in each tree
   sampleSize <- ceiling(x = sampleSize_frac * nSamples)
-  message("number of samples to include in each tree: ", sampleSize)
+  # message("number of samples to include in each tree: ", sampleSize)
   # for RE: this is # records
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  message("maximum nodes in a tree based on samples: ", maxNodes)
+  # message("maximum nodes in a tree based on samples: ", maxNodes)
 
   if (Phase == "RE"){
     sampleSize_surv <- ceiling(x = sampleSize_frac * nSamples_surv)
     maxNodes_surv <- 2L * sampleSize_surv + 1L
-    message("number of individuals to include in each tree: ", sampleSize_surv)
-    message("maximum nodes in a tree based on people: ", maxNodes_surv)
+    # message("number of individuals to include in each tree: ", sampleSize_surv)
+    # message("maximum nodes in a tree based on people: ", maxNodes_surv)
   } else{
     sampleSize_surv <- sampleSize
     maxNodes_surv = maxNodes

@@ -529,12 +529,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     !================================================================
     !================================================================
     IF (isPhase1 .OR. isPhase2CR) THEN
-      PRINT *, "pre-sorting cases"
-      PRINT *, cases
+      !PRINT *, "pre-sorting cases"
+      !PRINT *, cases
       ! sort the covariate and track the indices
       CALL qsort4(xSorted, cases, 1, nCases)
-      PRINT *, "post-sorting cases"
-      PRINT *, cases
+      !PRINT *, "post-sorting cases"
+      !PRINT *, cases
       ! sort event indicator data accordingly
       ! Phase 1: overall survival (delta = event indicator from any cause)
       dSorted = delta(cases) 
@@ -1716,7 +1716,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
       splitLeft_doloop = splitLeft
       splitLeftFinal_doloop = splitLeftFinal
       
-      PRINT *, "========== STARTING DO LOOP FOR Jth CASE =========="
+      !PRINT *, "========== STARTING DO LOOP FOR Jth CASE =========="
       DO j = splitLeft_doloop, splitLeftFinal_doloop
         
         IF (isPhase1 .OR. isPhase2CR) THEN
@@ -1877,7 +1877,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         END IF
 
       END DO
-      PRINT *, "========== END OF jth case DO LOOP =========="
+      !PRINT *, "========== END OF jth case DO LOOP =========="
     END IF ! end of phase1/phase2cr
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2026,7 +2026,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   !  STOP
   !END IF
 
-  PRINT *, "============================END OF tfindSplit============================"
+  !PRINT *, "============================END OF tfindSplit============================"
   RETURN
 
 END SUBROUTINE tfindSplit
@@ -4826,16 +4826,15 @@ SUBROUTINE setUpBasics(t_surv_tp, t_end_tp, t_nt, t_nt_death, t_dt, t_dt_death, 
   !PRINT *, "isPhase2CR:", isPhase2CR
   !PRINT *, "isPhase2RE:", isPhase2RE
 
-  PRINT *, "t_nt:", t_nt
-  PRINT *, "t_nt_death:", t_nt_death
-  PRINT *
-  PRINT *, "t_surv_tp:"
-  PRINT *, t_surv_tp
-  PRINT *
-  PRINT *, "t_end_tp:"
-  PRINT *, t_end_tp
-  PRINT *
-  if (isPhase2RE) STOP
+  !PRINT *, "t_nt:", t_nt
+  !PRINT *, "t_nt_death:", t_nt_death
+  !PRINT *
+  !PRINT *, "t_surv_tp:"
+  !PRINT *, t_surv_tp
+  !PRINT *
+  !PRINT *, "t_end_tp:"
+  !PRINT *, t_end_tp
+  !PRINT *
   
   nt = t_nt
   nt_death = t_nt_death
