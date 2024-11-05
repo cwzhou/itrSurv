@@ -320,7 +320,7 @@ itrSurv <- function(data,
                     pooled = FALSE,
                     stratifiedSplit = NULL) {
 
-  print(endPoint)
+  # print(endPoint)
   #######################################################################################################
   #######################################################################################################
   #######################################################################################################
@@ -347,7 +347,7 @@ itrSurv <- function(data,
                            epName = epName,
                            endPoint = endPoint,
                            idName = idName)
-  # print(3)x
+  # print(3)
 
   data_surv = data_list[[1]]
   data_ep = data_list[[2]]
@@ -359,7 +359,7 @@ itrSurv <- function(data,
       group_by(!!sym(idName)) %>%
       summarise(last_row_indicator = as.integer(row_number() == n())) %>%
       pull(last_row_indicator)
-    print(person_indicator)
+    # print(person_indicator)
   } else{
     person_indicator = rep(1, nrow(data_surv))
   }
@@ -372,7 +372,7 @@ itrSurv <- function(data,
 
   # # total number of individuals in dataset
   nSamples <- nrow(data_surv)
-  message("Dataset sample size: N = ", nSamples)
+  # message("Dataset sample size: N = ", nSamples)
 
   # ignore nDP - leftover from multi-stage part that we DON'T do.
   # nDP = length(x = txName) # number of decision points in the analysis
@@ -384,7 +384,7 @@ itrSurv <- function(data,
   }
   if (endPoint == "CR"){
     # print(models)
-    message("Setting nCauses = 2 because there is one priority cause and everything else is lumped into Cause 2*")
+    # message("Setting nCauses = 2 because there is one priority cause and everything else is lumped into Cause 2*")
     nCauses = 2 #there are always 2 causes because one is the priorty cause, and everything else is lumped into cause 2.
   } else{
     nCauses = 1

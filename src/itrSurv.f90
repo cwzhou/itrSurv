@@ -4011,6 +4011,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   integer, allocatable :: val(:), final(:)  ! Declare allocatable arrays
   INTEGER, DIMENSION(:), ALLOCATABLE ::  unique_id_RE2
 
+  INTEGER :: n_leftCases, n_rightCases
+  INTEGER, DIMENSION(:), ALLOCATABLE :: unique_leftCases, unique_rightCases
+
   print_check = .FALSE.
 
   are_equal = .TRUE.
@@ -4216,10 +4219,10 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
     ! --===----= here
 
-    !if (isPhase2RE) PRINT *, "nrNodes: ", nrNodes
+    PRINT *, "nrNodes: ", nrNodes
     !if (isPhase2RE) PRINT *, "Starting do loop for each node..."
     DO k = 1, nrNodes
-      if (isPhase2RE) PRINT *, "******** node: #", k
+      PRINT *, "******** node: #", k
 
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
@@ -4389,13 +4392,25 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
           nMatrix(ncur,1) = -2
         END IF
       ELSE ! PHASE2
-        IF (size(leftCases) .LE. nodeSizeEnd .OR. sum(delta_m(leftCases)) .LE. 1) THEN
-          ! if the number of cases in the node is at or below the minimum required
-          ! or the number of uncensored PC/RE event is at most 1
-          ! status is terminal
-          nMatrix(ncur,1) = -1
-        ELSE
-          nMatrix(ncur,1) = -2
+        IF (isPhase2CR) THEN
+          IF (size(leftCases) .LE. nodeSizeEnd .OR. sum(delta_m(leftCases)) .LE. 1) THEN
+            ! if the number of cases in the node is at or below the minimum required
+            ! or the number of uncensored PC/RE event is at most 1
+            ! status is terminal
+            nMatrix(ncur,1) = -1
+          ELSE
+            nMatrix(ncur,1) = -2
+          END IF
+        ELSE ! RE
+          CALL find_unique(leftCases, unique_leftCases, n_leftCases)
+          IF (n_leftCases .LE. nodeSizeEnd .OR. sum(delta_m(leftCases)) .LE. 1) THEN
+            ! if the number of cases in the node is at or below the minimum required
+            ! or the number of uncensored PC/RE event is at most 1
+            ! status is terminal
+            nMatrix(ncur,1) = -1
+          ELSE
+            nMatrix(ncur,1) = -2
+          END IF
         END IF
       END IF
 
@@ -4440,6 +4455,17 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       IF (isPhase2) THEN
         IF (isPhase2CR) THEN
           IF (size(rightCases) .LE. nodeSizeEnd .OR. &
+            & sum(delta_m(rightCases)) .LE. 1) THEN
+            ! if the number of cases in the node is at or below the minimum required
+            ! or the number of uncensored event (from cause M) is only 1
+            ! status is terminal
+            nMatrix(ncur,1) = -1
+          ELSE
+            nMatrix(ncur,1) = -2
+          END IF
+        ELSE ! RE
+          CALL find_unique(rightCases, unique_rightCases, n_rightCases)
+          IF (n_rightCases .LE. nodeSizeEnd .OR. &
             & sum(delta_m(rightCases)) .LE. 1) THEN
             ! if the number of cases in the node is at or below the minimum required
             ! or the number of uncensored event (from cause M) is only 1
@@ -4516,10 +4542,10 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   forestSurvProb = forestSurvProb / nTree
 
   !PRINT *, "forestSurvFunc: ", forestSurvFunc
-  !PRINT *, "forestMean: ", forestMean
+  PRINT *, "forestMean: ", forestMean
   !PRINT *, "forestSurvProb: ", forestSurvProb
 
-  !PRINT *, "END OF SUBROUTINE TSURVTREE"
+  PRINT *, "END OF SUBROUTINE TSURVTREE"
 
 END SUBROUTINE tSurvTree
 
