@@ -1,20 +1,33 @@
 ## ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT BUT IS ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to be in the midst of updating until this note is removed (estimated - December 2024). **
 
-itrSurv is an R package to estimate optimal individualized treatment regimes for various survival endpoints. The authors introduce an multi-utility value function that determine the optimal rule via prioritizing survival while also accounting for a secondary endpoint.
+## itrSurv
 
-itrSurv works for multiple treatment options, but is only applicable to the single stage disease setting. Please refer to our papers for technical details.
-
-Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of May 2024), and recurrent events (on-going, as of July 2024).
+**itrSurv** is an R package designed to **estimate optimal individualized treatment regimes for various survival endpoints**. This package provides tools for **survival data involving competing risks or recurrent events**. Please use as appropriate for your data. The authors introduce an multi-utility value function that determine the optimal rule via prioritizing survival while also accounting for a secondary endpoint. itrSurv works for multiple treatment options, but is only applicable to the single stage disease setting. Please refer to our papers for technical details.
 
 This is the doctoral dissertation thesis work of Christina W Zhou under the mentorship of Michael R Kosorok at UNC-CH Department of Biostatistics.
 
+### Installation
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+You can install the package directly from GitHub:
+```r
+# install.packages("devtools")
+devtools::install_github("cwzhou/itrSurv")
 
-Updated July 2024:
-Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
+Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of May 2024), and recurrent events (on-going, as of July 2024).
 
-Updated 1/17/24:
+### Usage
+
+
+### Functions
+
+
+***
+
+### Updates
+
+- **CURRENTLY**: On-going updates for developing RCIF and the itrSurv estimator for RE setting.
+- **July 2024**: Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
+- **1/17/24**:
 
 To install in cluster (linux):
 First, build source .tar.gz file from .RProj on local machine, then copy to cluster location. Then, unzip the file by doing the following:
