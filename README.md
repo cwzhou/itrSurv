@@ -1,4 +1,4 @@
-## ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT BUT IS ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to be in the midst of updating until this note is removed (estimated - December 2024). **
+### ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT, BUT THE REPO IS BEING UPDATED WITH ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to update until this note is removed (estimated completion: mid-November 2024). ** 
 
 ## itrSurv
 
@@ -15,12 +15,6 @@ devtools::install_github("cwzhou/itrSurv")
 ```
 
 Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of May 2024), and recurrent events (on-going, as of July 2024).
-
-### Usage
-
-
-### Functions
-
 
 ### Useful Code
 
