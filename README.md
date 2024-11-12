@@ -22,7 +22,7 @@ Currently, itrSurv is only applicable to competing risks with a priority cause o
 ### Functions
 
 
-### Userful Code
+### Useful Code
 
 - **Simulation Studies**: R code for simulation studies is located in  
   `cwzhou/Analyses/Simulations/Paper1_CR`.
