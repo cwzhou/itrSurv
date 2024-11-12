@@ -12,6 +12,7 @@ You can install the package directly from GitHub:
 ```r
 # install.packages("devtools")
 devtools::install_github("cwzhou/itrSurv")
+```
 
 Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of May 2024), and recurrent events (on-going, as of July 2024).
 
