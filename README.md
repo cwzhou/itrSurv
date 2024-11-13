@@ -18,11 +18,8 @@ Currently, itrSurv is only applicable to competing risks with a priority cause o
 
 ### Useful Code
 
-- **Simulation Studies**: R code for simulation studies is located in  
-  `cwzhou/Analyses/Simulations/Paper1_CR`.
-
-- **University Cohort Application**: R code for applying the methodology to the university cohort can be found in  
-  `cwzhou/Analyses/RDA/Paper1_CR`.
+- **Simulation Studies**: R code for simulation studies is located in `cwzhou/Analyses/Simulations/Paper1_CR`.
+- **University Cohort Application**: R code for applying the methodology to the university cohort can be found in `cwzhou/Analyses/RDA/Paper1_CR`.
   
 ***
 
