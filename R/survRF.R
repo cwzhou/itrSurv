@@ -52,7 +52,7 @@
 # model = mod,
 # sampleSize = sampleSize)
 
-.survRF <- function(..., Phase, eps0, x, idvec,
+.survRF <- function(..., endPoint, Phase, eps0, x, x_ep, idvec,
                     pr, pr2, pr2_surv = NULL, pr_surv = NULL,
                     ord_causeind, ord_response,
                     delta, delta_endpoint,
@@ -77,30 +77,22 @@
 
   # FIGURE OUT HOW TO DO WITHOUT CRASHING
   # number of individuals in training data
-  nSamples <- nrow(x = x) # RE: nrow(x) is for RE for Phase 2 data (# records)
-  print(nSamples)
-  if (Phase == "RE"){
-    nSamples_surv = length(unique(idvec))
-  } else{
-    nSamples_surv = nSamples
+  if (Phase == "Survival" | Phase == "CR" | Phase == 1){
+    nSamples <- nrow(x = x)
+    nSamples_surv <- nSamples
+  } else{ # RE
+    nSamples <- length(idvec) # (no. records for recurrent events (Phase2RE))
+    nSamples_surv <- length(unique(idvec)) # number of people
   }
   # message('number of records in training data: ', nSamples)
   # message('number of individuals in training data: ', nSamples_surv)
 
-  # tpSurv =
-  # View(pr)
-  # View(pr2)
-  # message("dim pr:", dim(pr))
-  # if (Phase == "RE"){
-  #   message("dim pr2:", dim(pr2))
-  # }
-
   # number of time points
-  nTimes <- nrow(x = pr)
+  nTimes <<- nrow(x = pr)
   if (is.null(nTimes)){
     nTimes = length(x = pr)
   }
-  # message('number of time points: ', nTimes)
+  message('number of time points: ', nTimes)
 
   # total number of trees to be grown in the forest
   # .NTree() is a getter method defined for Parameters objects
@@ -119,8 +111,8 @@
   if (Phase == "RE"){
     sampleSize_surv <- ceiling(x = sampleSize_frac * nSamples_surv)
     maxNodes_surv <- 2L * sampleSize_surv + 1L
-    # message("number of individuals to include in each tree: ", sampleSize_surv)
-    # message("maximum nodes in a tree based on people: ", maxNodes_surv)
+    message("number of individuals to include in each tree: ", sampleSize_surv)
+    message("maximum nodes in a tree based on people: ", maxNodes_surv)
   } else{
     sampleSize_surv <- sampleSize
     maxNodes_surv = maxNodes
@@ -128,10 +120,15 @@
 
   # convert factors to integers
   x = data.matrix(frame = x)
-  nr = nrow(x = x) # number of individuals based on covariate length
-  # message("number of individuals, nr: ", nr)
+  nr = nSamples_surv # number of individuals based on covariate length
+  # if (endPoint == "RE" & Phase == "Survival"){
+  #   nr = nSamples_surv # number of individuals based on covariate length
+  # } else{
+  #   nr = nrow(x = x)
+  # }
+  message("number of individuals, nr: ", nr)
 
-  # message("setUpInners: Send info to Fortran")
+  message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
 
   dd <<- delta
@@ -139,22 +136,20 @@
   rr <<- ord_response
   ii <<- idvec
 
+  if (Phase == "RE"){
+    x_covar = data.matrix(x_ep)
+  } else{
+    x_covar = x
+  }
 
-  # if (Phase == "RE"){
-  #   # View(tSurv)
-  #   # View(tSurv_surv)
-  #   # View(t(pr))
-  #   # View(t(pr_surv))
-  #   stop("Testing RE Phase.")
-  # }
-
+  message("setupInners")
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
                  t_person_ind = as.integer(x = person_indicator), # needed for 2RE
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
-                 t_x = as.double(x = x), # covariates
+                 t_x = as.double(x = x_covar), # covariates
                  t_pr = as.double(x = t(x = pr)), # transpose(pr): dim: n x nt #used to get number of events
                  t_pr2 = as.double(x = t(x = pr2)), # pr2 to get at-risk for RE during isPhase2RE
                  t_pr2surv = as.double(x = t(x = pr2_surv)), #to get at-risk for death during isPhase2RE
@@ -172,32 +167,31 @@
                  t_nrNodes_surv = as.integer(x = maxNodes_surv), # for survival
                  PACKAGE = "itrSurv")
 
-  #message(" dfgdfgd ================= Phase: ", Phase)
+  message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
-    # print("survTree: survTree in Fortran")
+    print("survTree: survTree in Fortran")
     # nTimes = maximum number of time points
     # nr = number of rows
-    # message("number of rows/people in dataset: nr = ", nr)
-    # message("maximum number of time points: nTimes = ", nTimes)
+    message("number of rows/people in dataset: nr = ", nr)
+    message("maximum number of time points: nTimes = ", nTimes)
     Tree <- .Fortran("survTree",
-                       forestSurvFunc = as.double(numeric(nTimes*nr)),#survival function averaged over forest
+                       forestFunc = as.double(numeric(nTimes*nr)),#survival function averaged over forest
                        forestMean = as.double(numeric(nr)),#mean survival time averaged over forest
-                       forestSurvProb = as.double(numeric(nr)),#survival probability at t0 (evalTime/survivalTime) averaged over forest
+                       forestProb = as.double(numeric(nr)),#survival probability at t0 (evalTime/survivalTime) averaged over forest
                        PACKAGE = "itrSurv")
-
-    # print(nr)
     Tree_Surv <<- Tree
-
+    matrix_output_surv <<- matrix(Tree_Surv[["forestFunc"]], nrow = nTimes)
   } else{ #if (grepl("CR", Phase, ignore.case = TRUE)){
-    res_pooled0_cif <<- res
-    Tree <- .Fortran("cifTree",
-                         forestSurvFunc = as.double(numeric(nTimes*nr)),
+    res_pooled0_endpoint <<- res
+    Tree <- .Fortran("endpointTree",
+                         forestFunc = as.double(numeric(nTimes*nr)),
                          forestMean = as.double(numeric(nr)),
-                         forestSurvProb = as.double(numeric(nr)),
+                         forestProb = as.double(numeric(nr)),
                          PACKAGE = "itrSurv")
     # print(nr)
-    Tree_Cif <<- Tree
+    Tree_Endpoint <<- Tree
+    matrix_output <<- matrix(Tree_Endpoint[["forestFunc"]], nrow = nTimes)
   }
   message(sprintf("%s Tree for Phase %s", Phase, Phase))
 
@@ -253,14 +247,14 @@
     }
   }
   forest <- list()
-  forest[[ "Func" ]] <- matrix(data = Tree$forestSurvFunc,
+  forest[[ "Func" ]] <- matrix(data = Tree$forestFunc,
                                    nrow = nTimes, ncol = nr)
   forest[[ "mean" ]] <- Tree$forestMean
 
   # print(Phase)
   crit <- .CriticalValueCriterion(params)
   if (crit %in% c("prob", "mean.prob.combo")) {
-    forest[[ "Prob" ]] <- Tree$forestSurvProb
+    forest[[ "Prob" ]] <- Tree$forestProb
   }
 
   return( new(Class = "SurvRF",

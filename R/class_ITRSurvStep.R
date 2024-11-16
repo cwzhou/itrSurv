@@ -64,10 +64,11 @@ setClass(Class = "ITRSurvStep",
 # }
 
 
-.meanValue <- function(object,Phase,endPoint = NULL, ...) {
+.meanValue <- function(object,Phase,endPoint, ...) {
   res <- list()
   # message("OK1")
 
+  # print(endPoint)
   object_surv <<- object[[1]]
   object_ep <<- object[[2]]
   # message("OK2")
@@ -104,6 +105,7 @@ setClass(Class = "ITRSurvStep",
   }
 
   if (!is.null(endPoint)){
+    # print(endPoint)
     if (endPoint == Phase){
       object = object_ep
       objep <<- object_ep
@@ -125,20 +127,24 @@ setClass(Class = "ITRSurvStep",
       indicator_vector <- object_surv@optimal@Ratio_Stopping_Ind
       dat_mean <- cbind(object_ep@valueAllTx$mean[[1]],
                         object_ep@valueAllTx$mean[[2]])
-      dat_area <- cbind(object_ep@valueAllTx$AUS[[1]],
-                        object_ep@valueAllTx$AUS[[2]])
       # message("Obtain mean CIF times for those who continued to Phase 2 with mean critical values.")
       mean_dat <- dat_mean[indicator_vector == 0,]
       if (is.null(nrow(mean_dat))){
         mean_dat = rbind(mean_dat)
       }
       mdat2 <<- mean_dat
-      # message("Obtain mean area under CIF curve for those who continued to Phase 2 with area critical values.")
-      area_dat <- dat_area[indicator_vector == 0,]
-      if (is.null(nrow(area_dat))){
-        area_dat = rbind(area_dat)
+      # print("hi")
+      if (endPoint == "CR"){
+        # print('hi2')
+        dat_area <- cbind(object_ep@valueAllTx$AUS[[1]],
+                          object_ep@valueAllTx$AUS[[2]])
+        # message("Obtain mean area under CIF curve for those who continued to Phase 2 with area critical values.")
+        area_dat <- dat_area[indicator_vector == 0,]
+        if (is.null(nrow(area_dat))){
+          area_dat = rbind(area_dat)
+        }
+        # print("hi3")
       }
-
       if (!is.null(object_ep@valueAllTx$Prob[[1]])) {
         # message("Obtain mean CIF curve for those who continued to Phase 2 with prob critical values.")
         dat_prob0 <- object_ep@valueAllTx$Prob[[1]]
@@ -155,6 +161,7 @@ setClass(Class = "ITRSurvStep",
       }
     }
   }
+  # print(endPoint)
   # message("OK6")
   # print(optfunc)
   mdat3 <<- mean_dat
@@ -164,9 +171,16 @@ setClass(Class = "ITRSurvStep",
   res[[ mean_name ]] <-  mean(x = apply(X = mean_dat,
                                         MARGIN = 1L,
                                         FUN = optfunc))
-  res[[ AU_name ]] <-  mean(x = apply(X = area_dat,
-                                   MARGIN = 1L,
-                                   FUN = optfunc))
+  if (endPoint == "CR"){
+    # print('hi6')
+    res[[ AU_name ]] <-  mean(x = apply(X = area_dat,
+                                        MARGIN = 1L,
+                                        FUN = optfunc))
+  } else{ # N/A for RE
+    # print('hi7')
+    res[[ AU_name ]] <- NULL
+  }
+
   return( res )
 }
 
@@ -309,6 +323,8 @@ setMethod(f = ".Predict",
 .itrSurvStep <- function(...,
                          Phase,
                          eps0 = NULL,
+                         epName,
+                         idName,
                          model_surv,
                          model_ep,
                          # model_cause,
@@ -353,6 +369,7 @@ setMethod(f = ".Predict",
     x <- stats::model.frame(formula = mod,
                             data = dataset, # dataset for survival
                             na.action = na.pass)
+    x_ep = x
     message("model ", appendLF = FALSE)
     tm <- as.character(mod)
     message(tm[2], " ~ ", tm[3])
@@ -379,11 +396,12 @@ setMethod(f = ".Predict",
     ############################ PHASE 2: ENDPOINT ############################
     ###########################################################################
   } else{ # endpoint Phase 2
-    dataset = data[[2]]
+    dataset <<- data[[2]]
+    testing_new_data <<- data[[1]]
     # print(0)
 
-    mod <- model_ep$models # for endpoint model
-    mod_surv <- model_surv$models
+    mod <<- model_ep$models # for endpoint model
+    mod_surv <<- model_surv$models
     # print(1)
 
     # identify order 1 terms in formula
@@ -401,15 +419,26 @@ setMethod(f = ".Predict",
 
     # extract model frame
     x_endpoint <<- stats::model.frame(formula = mod,
-                                     data = dataset, # data_ep (endpoint dataset)
+                                     data = dataset,
                                      na.action = na.pass)
     message("model_endpoint ", appendLF = FALSE)
     tm <- as.character(mod)
     message(tm[2], " ~ ", tm[3])
 
     # identify individuals with complete data
-    elig <- stats::complete.cases(x_endpoint)
+    elig <<- stats::complete.cases(x_endpoint)
     # print(2)
+    if (Phase == "RE"){
+      long_x <<- cbind(dataset %>%
+              dplyr::select(!!sym(idName)), x_endpoint)
+      elig <<- long_x %>%
+        mutate(eligible = complete.cases(.)) %>%  # Determine eligibility for each row
+        group_by(!!sym(idName)) %>%                          # Group by individual (ID)
+        summarise(elig1 = all(eligible)) %>%       # Check if all rows are eligible for the person
+        pull(elig1)                                # Extract the eligibility vector for each ID
+      # View(elig)
+      # stop('testing elig')
+    }
 
     # extract response and delta from model frame
     response_tmp <<- stats::model.response(data = x_endpoint)
@@ -417,34 +446,53 @@ setMethod(f = ".Predict",
       delta_endpoint <<- response_tmp[,2L] # priority cause delta
       response_endpoint <<- response_tmp[,1L]
       response = response_endpoint # response of endpoint dataset
+      x_surv <<- stats::model.frame(formula = mod_surv,
+                                    data = dataset,
+                                    na.action = na.pass)
+      response_surv <<- stats::model.response(data = x_surv)
+      delta <<- response_surv[,2L] # survival delta
+      x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
     }
     if (endPoint == "RE"){
       delta_endpoint <<- response_tmp[,3L] # RE delta
       response_endpoint_start <<- response_tmp[,1L]
       response_endpoint_stop <<- response_tmp[,2L]
       response = response_endpoint_stop
+      # Create d3 by joining data[[2]] with data[[1]] based on "id"
+      d1 <<- data[[1]]
+      d2 <<- data[[2]]
+      var_names <- all.vars(mod_surv[[3]])
+      # Extract the parts from `models_RE`
+      survival_status_name <<- all.vars(model_surv[[1]])[2]
+      tstop_name <<- all.vars(model_ep[[1]])[2]
+
+      d3 <<- d2 %>%
+        dplyr::select(!!sym(idName), !!sym(survival_status_name),
+                      all_of(var_names)) %>%
+        left_join(d1 %>%
+                    dplyr::select(!!sym(idName),
+                                  !!sym(tstop_name)),
+                  by = idName)
+
+      x_surv <<- stats::model.frame(formula = mod_surv,
+                                    # we want to Phase 2 Dataset because multiple records per person for RE; and for CR they are the same dataset
+                                    data = d3,
+                                    na.action = na.pass)
+      response_surv <<- stats::model.response(data = x_surv)
+      delta <<- response_surv[,2L] # survival delta
+      x = stats::model.frame(formula = mod_surv,
+                             # covariates of survival dataset b/c 1 row per person
+                             data = d1,
+                             na.action = na.pass)
+      x_ep = x_endpoint
     }
-    # Create d3 by joining data[[2]] with data[[1]] based on "id"
-    d1 <<- data[[1]]
-    d2 <<- data[[2]]
-    d3 <<- d2 %>%
-      dplyr::select(id, Status_D, Z1) %>%
-      left_join(d1 %>% dplyr::select(id, TStop), by = "id")
-    mod_surv <<- mod_surv
-    x_surv <<- stats::model.frame(formula = mod_surv,
-                                  # we want to Phase 2 Dataset because multiple records per person for RE; and for CR they are the same dataset
-                                  data = d3,
-                                  na.action = na.pass)
-    response_surv <<- stats::model.response(data = x_surv)
-    delta <<- response_surv[,2L] # survival delta
-    x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
   }
 
   # View(data)
   # print(3)
   # print(data[[3]])
   # set id_vec which is needed for Phase2RE, in fortran, to calculate mff stuff with pr2 to get at risk for death in RE setting
-  id_vec = data[[3]] %>% unlist()
+  id_vec <<- data[[3]] %>% unlist()
   # idvec_test <<- id_vec
   # print(id_vec)
   # stop(" testing id_vec ")
@@ -452,9 +500,15 @@ setMethod(f = ".Predict",
  # old stuff located in scratch: old itrsurvstep code.R
 
   # remove response from x TO JSUT GET COVARIATES
+  # print(head(x,10))
   if (attr(x = terms(x = mod), which = "response") == 1L) {
     x <- x[,-1L,drop = FALSE]
   }
+  if (attr(x = terms(x = mod), which = "response") == 1L) {
+    x_ep <- x_ep[,-1L,drop = FALSE]
+  }
+  # print(head(x,10))
+  # if (Phase == "RE"){stop('tesitng x')}
 
   # we aren't doing multistage.
   # # responses that are zero indicate censored at a previous stage
@@ -658,9 +712,11 @@ setMethod(f = ".Predict",
   if (.Pooled(object = params)) {
       message("pooled analysis; treatments ", paste(txLevels,collapse=" "))
       # this will be a SurvRF object
-      result <- .survRF(Phase = Phase,
+      result <- .survRF(endPoint = endPoint,
+                        Phase = Phase,
                         eps0 = eps0,
                         x = x[elig,,drop=FALSE],
+                        x_ep = x_ep[elig,,drop=FALSE],
                         y = response[elig],
                         idvec = id_vec[elig],
                         pr = pr,
@@ -679,7 +735,7 @@ setMethod(f = ".Predict",
                         sampleSize = sampleSize)
 
   } else {
-    message("stratified analysis")
+    # message("stratified analysis")
     # result will be a list of SurvRF objects
     result <- list()
     # message("number of txLevels:", length(txLevels))
@@ -698,9 +754,11 @@ setMethod(f = ".Predict",
       use <- elig & {dataset[,txName] == txLevels[i]}
       # print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))
 
-      result[[ nms ]] <- .survRF(Phase = Phase,
+      result[[ nms ]] <- .survRF(endPoint = endPoint,
+                                 Phase = Phase,
                                  eps0 = eps0,
                                  x = x[use,,drop=FALSE], # subset of covariates for the current treatment level
+                                 x_ep = x_ep[use,,drop=FALSE],
                                  y = response[use],
                                  idvec = id_vec[use], # only matters for Phase2RE
                                  pr = pr[,di],
@@ -717,6 +775,24 @@ setMethod(f = ".Predict",
                                  txLevels = txLevels[i],
                                  model = mod,
                                  sampleSize = sampleSize)
+      # print(Phase)
+      if (Phase == "Survival"){
+        if (nms == 1){
+          res_1_1 <<- result[[nms]]
+          # View(res_1_1)
+        } else{
+          res_1_2 <<- result[[nms]]
+          # View(res_1_2)
+        }
+      } else{
+        if (nms == 1){
+          res_2_1 <<- result[[nms]]
+          # View(res_2_1)
+        } else{
+          res_2_2 <<- result[[nms]]
+          # View(res_2_2)
+        }
+      }
     }
     # print(0)
     result <- new(Class = "SurvRFStratified", "strat" = result)
@@ -730,20 +806,26 @@ setMethod(f = ".Predict",
   # print("WHAT2")
 
   # stop("testing")
-
-
   resV <- .PredictAll(Phase = Phase,
                       eps0 = eps0,
+                      epName = epName,
                       object = result,
                       newdata = dataset[elig,],
                       params = params,
                       model = mod,
                       txName = txName,
                       txLevels = txLevels)
+  # if (Phase == "Survival"){stop("testing mean")}
   # print("WHAT3")
+  # View(dataset[elig,])
   # message("View(resV)")
-  # View(resV)
-  # print(resV[["predicted"]][["Func"]][[1]])
+    # View(resV)
+  if (Phase == "RE"){
+    # View(resV[["predicted"]][["Func"]][[1]])
+    # View(resV[["predicted"]][["Func"]][[2]])
+    # View(resV[["predicted"]][["mean"]])
+    # stop("testing resV")
+  }
 
   result <- new(Class = "ITRSurvStep",
                 "txName" = txName,

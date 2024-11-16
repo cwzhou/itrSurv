@@ -3740,7 +3740,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
   ! for Phase1/2CR: nt=nt_death
   ! for Phase2RE: nt != nt_death
 
-  !PRINT *, "******************** calcValueSingle ********************"
+  PRINT *, "******************** calcValueSingle ********************"
   !PRINT *, "estimate the survival/cif function and mean survival/cif time"
   Func = 0.d0
   mean = 0.d0
@@ -3795,7 +3795,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
       !PRINT *, "Kaplan Meier Estimate Survival Function: ", Func
       ! mean survival time
       mean = sum(Func * dt)
-      !PRINT *, "mean survial time: ", mean
+      PRINT *, "mean survial time: ", mean
       IF (mean < 0.0) PRINT *, "ERROR: mean < 0"
     END IF
 
@@ -3826,7 +3826,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
   END IF 
 
   IF (isPhase2RE) THEN
-    !PRINT *, "STEP2RE estimate MFF"
+    PRINT *, "STEP2RE estimate MFF"
     ! Terminal Event Nj and Oj
     ! We now calculate the number of at risk cases at each time point using pr2 {nt}
     Nj_m = sum(pr2(casesIn,:), DIM = 1) ! at risk
@@ -3861,8 +3861,8 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
     CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
                     Nj_m, Oj_m, Nj, Oj, &
                     survRE, dRhat, Func, dmu) ! name mu to be Func
-    ! mean MFF
-    mean = sum(Func * dt)
+    ! 
+    mean = Func(nt)
     PRINT *, "mean:", mean
 
       IF (mean < 0.0) THEN
@@ -3971,15 +3971,15 @@ END SUBROUTINE tCalculateValue
 ! =================================================================================
 
 ! grow each tree
-! forestSurvFunc, real(:), survival function averaged over forest
-! forestMean, real, mean survival averaged over forest
-! forestSurvProb, real, survival probability averaged over forest
-SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
+! forestFunc, real(:), function averaged over forest
+! forestMean, real, Phase1/2CR: integration from 0 to tau of function averaged over forest, Phase2RE: mff(tau)
+! forestProb, real, probability averaged over forest, not applicable for Phase2RE.
+SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   IMPLICIT NONE
 
-  REAL(dp), DIMENSION(1:nAll*nt), INTENT(OUT) :: forestSurvFunc
-  REAL(dp), DIMENSION(1:nAll), INTENT(OUT) :: forestMean
-  REAL(dp), DIMENSION(1:nAll), INTENT(OUT) :: forestSurvProb
+  REAL(dp), DIMENSION(1:nAll_surv*nt), INTENT(OUT) :: forestFunc
+  REAL(dp), DIMENSION(1:nAll_surv), INTENT(OUT) :: forestMean
+  REAL(dp), DIMENSION(1:nAll_surv), INTENT(OUT) :: forestProb
 
   INTEGER :: i, iTree, j, k, lft, m, nc, ncur, splitFound, splitVar, i_surv
   INTEGER, DIMENSION(1:sampleSize) :: indices, jdex, xrand
@@ -3988,7 +3988,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   INTEGER, DIMENSION(1:np) :: newstat, pindices
   INTEGER, DIMENSION(1:np, 1:nrNodes) :: cstat
   INTEGER, DIMENSION(1:nrNodes, 1:2) :: stm
-  INTEGER, DIMENSION(1:nAll) :: allStatus
+  INTEGER, DIMENSION(1:nAll_surv) :: allStatus
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, indOut, leftCases, rightCases, pind, ind_surv_RE
   INTEGER, DIMENSION(:), ALLOCATABLE :: unique_ind_surv_RE
   
@@ -3999,7 +3999,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   REAL(dp), DIMENSION(1:nAll) :: xm
   REAL(dp), DIMENSION(1:nt, 1:nrNodes) :: Func
   REAL(dp), DIMENSION(1:nrNodes, 1:(5+nLevs)) :: nMatrix
-  REAL(dp), DIMENSION(1:nt, 1:nAll) :: tforestSurvFunc
+  REAL(dp), DIMENSION(1:nt, 1:nAll_surv) :: tforestSurvFunc
 
   LOGICAL, DIMENSION(1:np) :: cand
   LOGICAL, DIMENSION(1:nAll) :: tst
@@ -4025,7 +4025,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   end if
   tforestSurvFunc = 0.d0
   forestMean = 0.d0
-  forestSurvProb = 0.d0
+  forestProb = 0.d0
 
   DO iTree = 1, nTree
     !PRINT *, "iTree: ", iTree
@@ -4192,7 +4192,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
             nMatrix(1,1) = -2
           END IF
         ELSE 
-          nMatrix(1,1) = -1 ! Phase1/2CR:
+          nMatrix(1,1) = -1 ! isPhase2CR:
         END IF
       ELSE
         nMatrix(1,1) = -2
@@ -4223,6 +4223,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     !if (isPhase2RE) PRINT *, "Starting do loop for each node..."
     DO k = 1, nrNodes
       PRINT *, "******** node: #", k
+      PRINT *, "first ncur:", ncur
 
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
@@ -4230,8 +4231,6 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       !PRINT *, "TEST7"
 
       IF (isPhase2RE) THEN
-          !PRINT *, "k", k
-          ! Check if k equals 3
           IF (print_check) THEN
             PRINT *
             PRINT *, "nrNodes", nrNodes
@@ -4246,10 +4245,6 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
             PRINT *, "======"
             PRINT *          
           END IF
-          ! Stop if k is greater than or equal to 4
-          !IF (k .GE. 4) THEN 
-          !STOP
-          !END IF
       END IF
 
 
@@ -4360,7 +4355,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
       !! left node
       !PRINT *, "!!!!! left node !!!!!"
 
+      PRINT *, "left node ncur:", ncur
       ncur = ncur + 1
+      PRINT *, "left node ncur + 1:", ncur
 
       ! index boundaries for cases in left node
       stm(ncur,1) = stm(k,1)
@@ -4418,7 +4415,9 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
       !! right node
       !PRINT *, "!!!!! right node !!!!!"
+      PRINT *, "right node ncur:", ncur
       ncur = ncur + 1
+      PRINT *, "right node ncur + 1:", ncur
 
       ! index boundaries for cases in right node
       stm(ncur,1) = stm(k,1) + lft
@@ -4500,7 +4499,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
         END DO
       END IF
 
-      DO j = 1, nAll
+      DO j = 1, nAll_surv
         IF (allStatus(j) .NE. k) CYCLE
         IF (tst(j)) THEN
           allStatus(j) = nint(nMatrix(k,2))
@@ -4514,6 +4513,13 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
     ! ensure that all nodes that are not "interior" are "terminal"
     WHERE (nMatrix(:,1) .EQ. -2) nMatrix(:,1) = -1
 
+    PRINT *, "end ncur:", ncur
+    PRINT *, "mean"
+    PRINT *, mean
+    PRINT *
+    PRINT *, "allStatus"
+    PRINT *, allStatus
+
     trees(iTree)%Func = Func(:,1:ncur)
     trees(iTree)%mean = mean(1:ncur)
     trees(iTree)%Prob = Prob(1:ncur)
@@ -4522,7 +4528,7 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
 
     tforestSurvFunc = tforestSurvFunc + Func(:,allStatus)
     forestMean = forestMean + mean(allStatus)
-    forestSurvProb = forestSurvProb + Prob(allStatus)
+    forestProb = forestProb + Prob(allStatus)
 
   END DO
 
@@ -4530,20 +4536,29 @@ SUBROUTINE tsurvTree(forestSurvFunc, forestMean, forestSurvProb)
   !PRINT *, "################# Line 1617"
 
   ! This change is to eliminate a strange lto warning from R
-  ! forestSurvFunc = reshape(tforestSurvFunc, (/nt*nAll/)) / nTree
+  ! forestFunc = reshape(tforestSurvFunc, (/nt*nAll/)) / nTree
   j = 0
   DO i = 1, SIZE(tforestSurvFunc,2)
-    forestSurvFunc(j+1:j+SIZE(tforestSurvFunc,1)) = tforestSurvFunc(:,i)
+    forestFunc(j+1:j+SIZE(tforestSurvFunc,1)) = tforestSurvFunc(:,i)
     j = j + SIZE(tforestSurvFunc,1)
   END DO
 
-  forestSurvFunc = forestSurvFunc / nTree
+  forestFunc = forestFunc / nTree
   forestMean = forestMean / nTree
-  forestSurvProb = forestSurvProb / nTree
+  forestProb = forestProb / nTree
 
-  !PRINT *, "forestSurvFunc: ", forestSurvFunc
-  PRINT *, "forestMean: ", forestMean
-  !PRINT *, "forestSurvProb: ", forestSurvProb
+  PRINT *
+  PRINT *
+  PRINT *
+  !PRINT *, "forestFunc: ", forestFunc
+  PRINT *
+  PRINT *
+  PRINT *
+  !PRINT *, "forestMean: ", forestMean
+  PRINT *
+  PRINT *
+  PRINT *
+  !PRINT *, "forestProb: ", forestProb
 
   PRINT *, "END OF SUBROUTINE TSURVTREE"
 
@@ -5036,6 +5051,9 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_person_ind, t_np, t_x, &
 
   nrNodes = t_nrNodes
   nrNodes_surv = t_nrNodes_surv
+  IF (isPhase2RE) THEN
+    nrNodes = nrNodes_surv
+  END IF
 
   IF (isPhase2RE) THEN
     !PRINT *, "******************** setUpInners ********************"
@@ -5061,7 +5079,7 @@ SUBROUTINE survTree(tFunc, mean, Prob)
   USE INNERS
   IMPLICIT NONE
 
-  REAL(dp), DIMENSION(1:nrNodes*nt), INTENT(OUT) :: tFunc
+  REAL(dp), DIMENSION(1:nrNodes*nt_death), INTENT(OUT) :: tFunc
   REAL(dp), DIMENSION(1:nrNodes), INTENT(OUT) :: mean
   REAL(dp), DIMENSION(1:nrNodes), INTENT(OUT) :: Prob
 
@@ -5072,7 +5090,7 @@ END SUBROUTINE survTree
 ! =================================================================================
 
 ! access function for calculating forest
-SUBROUTINE cifTree(tFunc, mean, Prob)
+SUBROUTINE endpointTree(tFunc, mean, Prob)
   USE INNERS
   IMPLICIT NONE
 
@@ -5080,10 +5098,10 @@ SUBROUTINE cifTree(tFunc, mean, Prob)
   REAL(dp), DIMENSION(1:nrNodes), INTENT(OUT) :: mean
   REAL(dp), DIMENSION(1:nrNodes), INTENT(OUT) :: Prob
 
-  !PRINT *, "******************** cifTree ********************"
+  !PRINT *, "******************** endpointTree ********************"
   CALL tsurvTree(tFunc, mean, Prob)
 
-END SUBROUTINE cifTree
+END SUBROUTINE endpointTree
 ! =================================================================================
 
 

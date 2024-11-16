@@ -59,6 +59,8 @@ setMethod(f = ".VerifyData",
               # Determining Phase 1 and Phase 2 Datasets (in case they differ like in RE)
               # message("First, we identify failure dataset")
               # epName = "status" #equal to 1 if recurrent event.
+              # below holds because we assumed an event cannot be both terminal and recurrent.
+              # so below gives non-recurrent events - either terminal event (death) or censoring
               data_surv = data %>% filter(!!sym(epName) == 0) #filter to NON RE (one row per id)
               # message("Next, we identify recurrent event dataset")
               data_ep = data # entire dataset

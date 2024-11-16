@@ -320,6 +320,9 @@ itrSurv <- function(data,
                     pooled = FALSE,
                     stratifiedSplit = NULL) {
 
+  if (pooled == TRUE & endPoint == "RE"){
+    stop("This package is not coded for pooled trees when endpoint is 'RE'. Please set POOLED = FALSE if endPoint = RE.")
+  }
   # print(endPoint)
   #######################################################################################################
   #######################################################################################################
@@ -653,6 +656,8 @@ itrSurv <- function(data,
   # print(txName[nDP]); print(mTry[nDP]); print(sampleSize1[nDP])
   Phase1Results <<- .itrSurvStep(Phase = "Survival",
                                 eps0 = tol1,
+                                epName = epName,
+                                idName = idName,
                                 model_surv = models_surv,
                                 model_ep = models_ep,
                                 # model_cause = NULL, #discontinued July 2024 after adding in RE endpoint
@@ -778,6 +783,8 @@ itrSurv <- function(data,
   }
   Phase2Results <<- .itrSurvStep(Phase = Phase,
                                  eps0 = tol1, # don't really even need b/c dont use in Phase 2
+                                 epName = epName,
+                                 idName = idName,
                                  model_surv = models_surv,
                                  model_ep = models_ep,
                                  # model_cause = get(sprintf("models%s", cause)), #discontinued July 2024 after adding in RE endpoint
@@ -825,11 +832,15 @@ itrSurv <- function(data,
   # this is in class_ITRSurvSTEP = need to make sure it uses MIN for CIF and max for CI or something
 
 # print("itrSurv.R: Value Functions (line 607)")
-message("\n\n--- itrSurv: Value Functions ---\n\n")
+# print(endPoint)
+message("\n\n--- itrSurv: Value Functions ---")
 value1Train <- .meanValue(object = phaseResults,
-                          Phase = "Survival")
+                          Phase = "Survival",
+                          endPoint = endPoint)
+# print(endPoint)
+# proportion that goes to phase 2
 value2Train <- mean(phaseResults[[1]]@optimal@Ratio_Stopping_Ind == 0)
-
+# print(endPoint)
 if (endPoint == "CR" | endPoint == "RE"){
   # print(endPoint)
   # amongst those in value2Train (aka Phase1Results@optimal@Ratio_Stopping_Ind == 0), find mean CIF curve
@@ -838,8 +849,10 @@ if (endPoint == "CR" | endPoint == "RE"){
                             endPoint = endPoint)
 } else{
   message("NULL value3Train b/c no endPoint")
+  # print(endPoint)
   value3Train = NULL
 }
+# print(endPoint)
 valueTrain = list(value1Train, list(value2Train), value3Train)
 vtrain <<- valueTrain
 names(valueTrain[[2]]) = "PropPhase2"

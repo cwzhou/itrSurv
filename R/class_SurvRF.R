@@ -17,6 +17,8 @@ setMethod(f = ".Predict", # method cannot be used on object of class "SurvRFObje
           signature = c(object = "ANY",
                         newdata = "ANY"),
           definition = function(object, newdata, ...) {
+            View(object)
+            View(newdata)
             stop("class_SurvRF Line 18: not allowed")
             })
 
@@ -561,18 +563,31 @@ setMethod(f = ".Predict",
 #-------------------------------------------------------------------------------
 setMethod(f = ".PredictAll",
           signature = c(object = "SurvRFStratified"),
-          definition = function(Phase, eps0, object, ..., newdata, model, params, txLevels) {
+          definition = function(Phase, eps0, epName = epName, object, ..., newdata, model, params, txLevels) {
             # message("class_SurvRF.R: LINE 392")
             # message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s\n", Phase))
-            # extract new model frame
-            x <- stats::model.frame(formula = model, data = newdata)
+
+            if (Phase == "RE"){
+              newdata_cov = newdata %>%
+                     filter(!!sym(epName) == 0)
+              # extract new model frame
+              x <- stats::model.frame(formula = model, data = newdata_cov)
+            } else{
+              # extract new model frame
+              x <- stats::model.frame(formula = model, data = newdata)
+            }
             # remove response from x
             if (attr(x = terms(x = model), which = "response") == 1L) {
               x <- x[,-1L,drop=FALSE]
             }
+
             # calculate the estimated values for this treatment level
             # .Predict() is a method; called here for objects of class SurvRFStratified, which
             # is defined in this file
+
+            # object <<- object
+            # x <<- x
+            # params <<- params
 
             # define object and params so it's phase-specific
             # predicting for first trt
@@ -586,212 +601,233 @@ setMethod(f = ".PredictAll",
             # message("end of .Predict from class_SurvRF.R: .Predict from LINE 14")
             res0 <<- res
 
-            # CZ adding in AUS
-            # message('class_SurvRF.R: Line 419: calculating AUS')
-            Func_res = as.matrix(res$Func)
-            new_tp0 = list()
+            # below is updated for this section for stratified analysis
+            # need to update code following this for pooled analysis (have not done yet as of Nov 2024 for RE.)
+            if (Phase == "RE"){
+              res$Func <- list(res$Func)
+              res$mean <- list(res$mean)
+              res$Prob <- list(res$Prob)
+              i <- 2L
+              while (i <= length(x = object@strat)) {
+                tt_RE <<- .Predict(object = object@strat[[ i ]],
+                               newdata = x,
+                               params = params, ...)
 
-            # below. we obtain the time points to calculate AUS_cut which is for AUS under timepoints from 0 to tiempoint after last event for each subject (varies by subject)
-            for (subj in 1:ncol(Func_res)){
-              # message("for subject: ", subj)
-              probabilities0 = Func_res[,subj]
-              # Find the index right after the last change in probability
-              last_change_index0 <- 1
-              for (i0 in 2:length(probabilities0)) {
-                if (probabilities0[i0] != probabilities0[i0 - 1]) {
-                  last_change_index0 <- i0
-                }
+                res[[ "Func" ]][[ i ]] <- tt_RE$Func
+                res[[ "mean" ]][[ i ]] <- tt_RE$mean #cbind(res$mean, tt_RE$mean)
+                res[[ "Prob" ]][[ i ]] <- tt_RE$Prob #cbind(res$Prob, tt_RE$Prob)
+
+                i <- i + 1L
               }
-              # Time point (index) right after the last change in probability
-              time_point_after_last_change0 <- last_change_index0 + 1
-              new_tp0[[subj]] = params@timePoints[1:time_point_after_last_change0] #testing_paramstp
             }
 
-            res$Func <- list(res$Func)
-            res$mean <- list(res$mean)
-            res$Prob <- list(res$Prob)
-            res$AUS_cut_tp <- list(new_tp0)
+            if (Phase == "Survival" | Phase == 1 | Phase == "CR"){
+              # CZ adding in AUS
+              # message('class_SurvRF.R: Line 419: calculating AUS')
+              Func_res = as.matrix(res$Func)
+              new_tp0 = list()
 
-            # other treatments
-            i <- 2L
-            while (i <= length(x = object@strat)) {
-              # message(i)
-              tt <- .Predict(object = object@strat[[ i ]],
-                             newdata = x,
-                             params = params, ...)
-              Func_tt = as.matrix(tt$Func)
-
-              new_tp_tt = list()
-              for (subj in 1:ncol(Func_tt)){
+              # below. we obtain the time points to calculate AUS_cut which is for AUS under timepoints from 0 to tiempoint after last event for each subject (varies by subject)
+              for (subj in 1:ncol(Func_res)){
                 # message("for subject: ", subj)
-
-                probabilities_tt = Func_tt[,subj]
+                probabilities0 = Func_res[,subj]
                 # Find the index right after the last change in probability
-                last_change_index_tt <- 1
-                for (itt in 2:length(probabilities_tt)) {
-                  if (probabilities_tt[itt] != probabilities_tt[itt - 1]) {
-                    last_change_index_tt <- itt
+                last_change_index0 <- 1
+                for (i0 in 2:length(probabilities0)) {
+                  if (probabilities0[i0] != probabilities0[i0 - 1]) {
+                    last_change_index0 <- i0
                   }
                 }
                 # Time point (index) right after the last change in probability
-                time_point_after_last_change_tt <- last_change_index_tt + 1
-                # print(time_point_after_last_change_tt)
-                new_tp_tt[[subj]] = params@timePoints[1:time_point_after_last_change_tt] #testing_paramstp
+                time_point_after_last_change0 <- last_change_index0 + 1
+                new_tp0[[subj]] = params@timePoints[1:time_point_after_last_change0] #testing_paramstp
               }
 
-              res[[ "Func" ]][[ i ]] <- tt$Func
-              res[[ "mean" ]][[ i ]] <- tt$mean
-              res[[ "Prob" ]][[ i ]] <- tt$Prob
-              res[[ "AUS_cut_tp"]][[i]] <- new_tp_tt
+              res$Func <- list(res$Func)
+              res$mean <- list(res$mean)
+              res$Prob <- list(res$Prob)
+              res$AUS_cut_tp <- list(new_tp0)
 
-              i <- i + 1L
-            }
-            stratobject <<- object@strat
-            current_res <<- res
+              # other treatments
+              i <- 2L
+              while (i <= length(x = object@strat)) {
+                # message(i)
+                tt <- .Predict(object = object@strat[[ i ]],
+                               newdata = x,
+                               params = params, ...)
+                Func_tt = as.matrix(tt$Func)
 
-            # message("%%%%%%%%%%")
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
-            # OLD: only for 2 trts - current code is generalized to more than 2 treatments
-            # area_trt0 = numeric()
-            # area_trt1 = numeric()
-            #
-            # print("CURRENTLY THIS IS ONLY CODED FOR TWO TREATMENTS")
-            # ## CURRENTLY THIS IS ONLY CODED FOR TWO TREATMENTS
-            # for (subject in 1:ncol(res[["Func"]][[1]])){
-            #   t0_tp = length(res[["AUS_cut_tp"]][[1]][[subject]])
-            #   t1_tp = length(res[["AUS_cut_tp"]][[2]][[subject]])
-            #   # WE WANT TO CALCULATE THE AREA UNDER THE CURVE FROM 0 TO THE MAXIMUM TIMEPOINT OF THE TWO
-            #   tp_ind = max(t0_tp, t1_tp)
-            #   if (tp_ind == t0_tp){
-            #     tp = res[["AUS_cut_tp"]][[1]][[subject]]
-            #   } else if (tp_ind == t1_tp){
-            #     tp = res[["AUS_cut_tp"]][[2]][[subject]]
-            #   } else{
-            #     stop("class_SurvRF.R LINE 583")
-            #   }
-            #   area_trt0[subject] =
-            #     .calculate_area_under_curve(time_points = tp,
-            #                                 survival_probabilities = res[["Func"]][[1]][,subject])
-            #   #time_points = params@timePoints,
-            #   # survival_probabilities = Func_res[,subj])
-            #   area_trt1[subject] =
-            #     .calculate_area_under_curve(time_points = tp,
-            #                                 survival_probabilities = res[["Func"]][[2]][,subject])
-            #   # area_trt1[subj] =
-            #   #   .calculate_area_under_curve(time_points = params@timePoints,
-            #   #                               survival_probabilities = Func_tt[,subj])
-            # }
-            #
-            # res[["AUS"]][[1]] = area_trt0
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
-            #######################################################################################################################################################################
+                new_tp_tt = list()
+                for (subj in 1:ncol(Func_tt)){
+                  # message("for subject: ", subj)
 
-
-            # message("%%%%%%%%%% AUS start")
-            # Calculate AUS using all timepoints from params@timepoints
-
-            # Initialize a list to store the areas under the curve for each treatment
-            area_trt_list <- vector("list", length = length(x = stratobject))
-            # Iterate over each treatment level
-            treatment_index = 1L # start w/ treatment one then go through each treatment
-            while (treatment_index <= length(x = stratobject)) {
-              # message("treatment index: ", treatment_index)
-              # Initialize variable to store the areas under the curve for the current treatment
-              area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
-
-              # Iterate over each subject
-              for (subject in seq_len(ncol(res[["Func"]][[treatment_index]]))) {
-                tp_data = params@timePoints
-                # Calculate the length of treatment data for the current subject and treatment
-                length_tp <- length(tp_data)
-                # Calculate the area under the curve for the current treatment level
-                area_trt[subject] <- .calculate_area_under_curve(time_points = tp_data,
-                                                                 survival_probabilities = res[["Func"]][[treatment_index]][, subject])
-              }
-              # Store the areas under the curve for the current treatment level
-              area_trt_list[[treatment_index]] <- area_trt
-              treatment_index <- treatment_index + 1L
-            }
-
-            # Assign the calculated areas under the curve to the result object
-            i = 1L # start w/ treatment one then go through each treatment
-            while (i <= length(x = stratobject)) {
-              res[["AUS"]][[i]] <- area_trt_list[[i]]
-              i = i + 1L
-            }
-            # message("%%%%%%%%%% AUS end")
-
-
-
-
-
-            # message("%%%%%%%%%% AUS_cut start")
-            # NOW WE CALCULATE AUS FOR THE CUT OFF TPS , AKA VARIES PER PERSON, USUALLY FOR WHEN TIMEPOINTS OR NTIMES WAS ENTERED - NOT WHEN TIMEPOITNSSURVIVAL/ENDPOINT WERE ENTERED
-            # WE DO THIS TO AVOID WHEN THERE ARE LONG TAILS IN THE CURVES
-            # Initialize lists to store the maximum time points and corresponding treatment index for each subject
-            max_tp_list <- vector("list", length = ncol(res[["Func"]][[1]]))
-            max_tp_trtindex_list <- vector("list", length = ncol(res[["Func"]][[1]]))
-            # Iterate over each subject
-            for (subject in seq_len(ncol(res[["Func"]][[1]]))) {
-              # Initialize max_tp and corresponding trt index for the current subject
-              max_tp_subject <- 0
-              max_tp_index_subject <- 0
-
-              # Iterate over each treatment index
-              for (treatment_index in seq_along(stratobject)) {
-                # Get the length of treatment data for the current subject and treatment
-                t_tp <- length(res[["AUS_cut_tp"]][[treatment_index]][[subject]])
-
-                # Update max_tp_subject and max_tp_index_subject if necessary
-                if (t_tp > max_tp_subject) {
-                  max_tp_subject <- t_tp
-                  max_tp_index_subject <- treatment_index
+                  probabilities_tt = Func_tt[,subj]
+                  # Find the index right after the last change in probability
+                  last_change_index_tt <- 1
+                  for (itt in 2:length(probabilities_tt)) {
+                    if (probabilities_tt[itt] != probabilities_tt[itt - 1]) {
+                      last_change_index_tt <- itt
+                    }
+                  }
+                  # Time point (index) right after the last change in probability
+                  time_point_after_last_change_tt <- last_change_index_tt + 1
+                  # print(time_point_after_last_change_tt)
+                  new_tp_tt[[subj]] = params@timePoints[1:time_point_after_last_change_tt] #testing_paramstp
                 }
-              }
-              # Store the maximum time point and corresponding index for the current subject
-              max_tp_list[[subject]] <- max_tp_subject
-              max_tp_trtindex_list[[subject]] <- max_tp_index_subject
-            }
-            # Initialize a list to store the areas under the curve for each treatment
-            area_trt_list <- vector("list", length = length(x = stratobject))
-            # Iterate over each treatment level
-            treatment_index = 1L # start w/ treatment one then go through each treatment
-            while (treatment_index <= length(x = stratobject)) {
-              # message("treatment index: ", treatment_index)
-              # Initialize variable to store the areas under the curve for the current treatment
-              area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
 
+                res[[ "Func" ]][[ i ]] <- tt$Func
+                res[[ "mean" ]][[ i ]] <- tt$mean
+                res[[ "Prob" ]][[ i ]] <- tt$Prob
+                res[[ "AUS_cut_tp"]][[i]] <- new_tp_tt
+
+                i <- i + 1L
+              }
+              stratobject <<- object@strat
+              current_res <<- res
+
+              # message("%%%%%%%%%%")
+              #######################################################################################################################################################################
+              #######################################################################################################################################################################
+              #######################################################################################################################################################################
+              #######################################################################################################################################################################
+              # OLD: only for 2 trts - current code is generalized to more than 2 treatments
+              # area_trt0 = numeric()
+              # area_trt1 = numeric()
+              #
+              # print("CURRENTLY THIS IS ONLY CODED FOR TWO TREATMENTS")
+              # ## CURRENTLY THIS IS ONLY CODED FOR TWO TREATMENTS
+              # for (subject in 1:ncol(res[["Func"]][[1]])){
+              #   t0_tp = length(res[["AUS_cut_tp"]][[1]][[subject]])
+              #   t1_tp = length(res[["AUS_cut_tp"]][[2]][[subject]])
+              #   # WE WANT TO CALCULATE THE AREA UNDER THE CURVE FROM 0 TO THE MAXIMUM TIMEPOINT OF THE TWO
+              #   tp_ind = max(t0_tp, t1_tp)
+              #   if (tp_ind == t0_tp){
+              #     tp = res[["AUS_cut_tp"]][[1]][[subject]]
+              #   } else if (tp_ind == t1_tp){
+              #     tp = res[["AUS_cut_tp"]][[2]][[subject]]
+              #   } else{
+              #     stop("class_SurvRF.R LINE 583")
+              #   }
+              #   area_trt0[subject] =
+              #     .calculate_area_under_curve(time_points = tp,
+              #                                 survival_probabilities = res[["Func"]][[1]][,subject])
+              #   #time_points = params@timePoints,
+              #   # survival_probabilities = Func_res[,subj])
+              #   area_trt1[subject] =
+              #     .calculate_area_under_curve(time_points = tp,
+              #                                 survival_probabilities = res[["Func"]][[2]][,subject])
+              #   # area_trt1[subj] =
+              #   #   .calculate_area_under_curve(time_points = params@timePoints,
+              #   #                               survival_probabilities = Func_tt[,subj])
+              # }
+              #
+              # res[["AUS"]][[1]] = area_trt0
+            }
+
+            #######################################################################################################################################################################
+            #######################################################################################################################################################################
+            #######################################################################################################################################################################
+            #######################################################################################################################################################################
+
+            if (Phase == "Survival" | Phase == "CR"){
+              # message("%%%%%%%%%% AUS start")
+              # Calculate AUS using all timepoints from params@timepoints
+
+              # Initialize a list to store the areas under the curve for each treatment
+              area_trt_list <- vector("list", length = length(x = stratobject))
+              # Iterate over each treatment level
+              treatment_index = 1L # start w/ treatment one then go through each treatment
+              while (treatment_index <= length(x = stratobject)) {
+                # message("treatment index: ", treatment_index)
+                # Initialize variable to store the areas under the curve for the current treatment
+                area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
+
+                # Iterate over each subject
+                for (subject in seq_len(ncol(res[["Func"]][[treatment_index]]))) {
+                  tp_data = params@timePoints
+                  # Calculate the length of treatment data for the current subject and treatment
+                  length_tp <- length(tp_data)
+                  # Calculate the area under the curve for the current treatment level
+                  area_trt[subject] <- .calculate_area_under_curve(time_points = tp_data,
+                                                                   survival_probabilities = res[["Func"]][[treatment_index]][, subject])
+                }
+                # Store the areas under the curve for the current treatment level
+                area_trt_list[[treatment_index]] <- area_trt
+                treatment_index <- treatment_index + 1L
+              }
+
+              # Assign the calculated areas under the curve to the result object
+              i = 1L # start w/ treatment one then go through each treatment
+              while (i <= length(x = stratobject)) {
+                res[["AUS"]][[i]] <- area_trt_list[[i]]
+                i = i + 1L
+              }
+              # message("%%%%%%%%%% AUS end")
+
+              # message("%%%%%%%%%% AUS_cut start")
+              # NOW WE CALCULATE AUS FOR THE CUT OFF TPS , AKA VARIES PER PERSON, USUALLY FOR WHEN TIMEPOINTS OR NTIMES WAS ENTERED - NOT WHEN TIMEPOITNSSURVIVAL/ENDPOINT WERE ENTERED
+              # WE DO THIS TO AVOID WHEN THERE ARE LONG TAILS IN THE CURVES
+              # Initialize lists to store the maximum time points and corresponding treatment index for each subject
+              max_tp_list <- vector("list", length = ncol(res[["Func"]][[1]]))
+              max_tp_trtindex_list <- vector("list", length = ncol(res[["Func"]][[1]]))
               # Iterate over each subject
-              for (subject in seq_len(ncol(res[["Func"]][[treatment_index]]))) {
-                # Identify maximum time points per subject over all treatments
-                tp_ind = max_tp_list[[subject]]
-                tp_trtindex_ind = max_tp_trtindex_list[[subject]]
-                # message("for subject ", subject, "the max time point is :", tp_ind, " and this is from treatment:", tp_trtindex_ind)
-                tp_data = res[["AUS_cut_tp"]][[tp_trtindex_ind]][[subject]]
-                # Calculate the length of treatment data for the current subject and treatment
-                length_tp <- length(tp_data)
-                # Calculate the area under the curve for the current treatment level
-                area_trt[subject] <- .calculate_area_under_curve(time_points = tp_data,
-                                                                 survival_probabilities = res[["Func"]][[treatment_index]][, subject])
+              for (subject in seq_len(ncol(res[["Func"]][[1]]))) {
+                # Initialize max_tp and corresponding trt index for the current subject
+                max_tp_subject <- 0
+                max_tp_index_subject <- 0
+
+                # Iterate over each treatment index
+                for (treatment_index in seq_along(stratobject)) {
+                  # Get the length of treatment data for the current subject and treatment
+                  t_tp <- length(res[["AUS_cut_tp"]][[treatment_index]][[subject]])
+
+                  # Update max_tp_subject and max_tp_index_subject if necessary
+                  if (t_tp > max_tp_subject) {
+                    max_tp_subject <- t_tp
+                    max_tp_index_subject <- treatment_index
+                  }
+                }
+                # Store the maximum time point and corresponding index for the current subject
+                max_tp_list[[subject]] <- max_tp_subject
+                max_tp_trtindex_list[[subject]] <- max_tp_index_subject
               }
-              # Store the areas under the curve for the current treatment level
-              area_trt_list[[treatment_index]] <- area_trt
-              treatment_index <- treatment_index + 1L
-            }
+              # Initialize a list to store the areas under the curve for each treatment
+              area_trt_list <- vector("list", length = length(x = stratobject))
+              # Iterate over each treatment level
+              treatment_index = 1L # start w/ treatment one then go through each treatment
+              while (treatment_index <= length(x = stratobject)) {
+                # message("treatment index: ", treatment_index)
+                # Initialize variable to store the areas under the curve for the current treatment
+                area_trt <- numeric(length = ncol(res[["Func"]][[treatment_index]]))
 
-            # Assign the calculated areas under the curve to the result object
-            i = 1L # start w/ treatment one then go through each treatment
-            while (i <= length(x = stratobject)) {
-              res[["AUS_cut"]][[i]] <- area_trt_list[[i]]
-              i = i + 1L
-            }
-            # message("%%%%%%%%%% AUS_cut end")
+                # Iterate over each subject
+                for (subject in seq_len(ncol(res[["Func"]][[treatment_index]]))) {
+                  # Identify maximum time points per subject over all treatments
+                  tp_ind = max_tp_list[[subject]]
+                  tp_trtindex_ind = max_tp_trtindex_list[[subject]]
+                  # message("for subject ", subject, "the max time point is :", tp_ind, " and this is from treatment:", tp_trtindex_ind)
+                  tp_data = res[["AUS_cut_tp"]][[tp_trtindex_ind]][[subject]]
+                  # Calculate the length of treatment data for the current subject and treatment
+                  length_tp <- length(tp_data)
+                  # Calculate the area under the curve for the current treatment level
+                  area_trt[subject] <- .calculate_area_under_curve(time_points = tp_data,
+                                                                   survival_probabilities = res[["Func"]][[treatment_index]][, subject])
+                }
+                # Store the areas under the curve for the current treatment level
+                area_trt_list[[treatment_index]] <- area_trt
+                treatment_index <- treatment_index + 1L
+              }
 
+              # Assign the calculated areas under the curve to the result object
+              i = 1L # start w/ treatment one then go through each treatment
+              while (i <= length(x = stratobject)) {
+                res[["AUS_cut"]][[i]] <- area_trt_list[[i]]
+                i = i + 1L
+              }
+              # message("%%%%%%%%%% AUS_cut end")
+            } # end of AUS for Phase 1 or Phase 2CR
+
+            # below is old stuff. I think I can delete.
             # if (Phase == 1 | Phase == "Survival"){
             #   res_tmp1 <<- res
             # }
@@ -818,6 +854,7 @@ setMethod(f = ".PredictAll",
             # if (Phase == "Survival"){
             #   View(res)
             # }
+
             # print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
             opt <- .optimal(Phase = Phase,
                             eps0 = eps0,
@@ -828,7 +865,7 @@ setMethod(f = ".PredictAll",
             if (Phase == "Survival" | Phase == 1){
               opt_p1 <<- opt
             }
-            if (Phase == "CR" | Phase == 2){
+            if (Phase == "CR" | Phase == "RE" | Phase == 2){
               opt_p2 <<- opt
             }
             result_list =  list("predicted" = res,
@@ -846,9 +883,11 @@ setMethod(f = ".PredictAll",
 
   # print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
   # message("Phase:", Phase)
-  # if (Phase == "Survival"){
+  # if (Phase == "RE"){
     # View(predicted)
   # }
+  # print(length(optTx))
+  # if (Phase == "RE"){stop("stpoing")}
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
@@ -873,7 +912,9 @@ setMethod(f = ".PredictAll",
   # View(predicted)
   for (trt in seq_along(txLevels)){
     mean_trts[, trt] <- unlist(predicted$mean[[trt]])
-    area_trts[, trt] <- unlist(predicted$AUS[[trt]])
+    if (Phase != "RE"){
+      area_trts[, trt] <- unlist(predicted$AUS[[trt]])
+    }
     if (crit == "mean.prob.combo" | crit == "prob"){
       ttmp <<-  unlist(predicted$Prob[[trt]])
       prob_trts[, trt] <- unlist(predicted$Prob[[trt]])
@@ -928,7 +969,6 @@ setMethod(f = ".PredictAll",
     V_star <- matrix(data = 0.0,
                      nrow = length(x = optTx),
                      ncol = 1)
-
     for (i in 1L:length(optTx)) { # i = subject
       # message("subject:", i)
       V_star[i] <- pred_trts[[optTx[i]]][i]
