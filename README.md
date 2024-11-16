@@ -32,7 +32,7 @@ Currently, itrSurv is only applicable to competing risks with a priority cause o
 To install in cluster (linux):
 First, build source .tar.gz file from .RProj on local machine, then copy to cluster location. Then, unzip the file by doing the following:
 1) go to the folder that has the R scripts you want to run
-2) open R by typing R (make sure you module load r/X.X.X the right version)
+2) open R by typing R (make sure you module load r/4.1.2 the right version)
 3) type: install.packages('[location of .tar.gz file]/itrSurv_0.1.0.tar.gz', repos = NULL, type='source')
 4) library(itrSurv)
 5) exit and run bash CR_S2run.sh
