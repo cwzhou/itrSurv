@@ -4228,7 +4228,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
       IF (k .GT. ncur .OR. ncur .GT. (nrNodes - 2)) EXIT
-      !PRINT *, "TEST7"
+      PRINT *, "DID NOT EXIT: k is not beyond current node count"
 
       IF (isPhase2RE) THEN
           IF (print_check) THEN
