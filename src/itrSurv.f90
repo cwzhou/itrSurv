@@ -408,7 +408,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   are_equal = .TRUE.
   print_check = .FALSE.
 
-  IF (isPhase2RE) THEN
+  !WRITE(*,'(/,A)') '============================ tfindSplit ============================'
+
+  !IF (isPhase2RE) THEN
   IF (print_check) THEN
     WRITE(*,'(/,A)') '============================ tfindSplit ============================'
     PRINT *, "******************** tfindSplit ********************"
@@ -424,7 +426,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     PRINT *
     PRINT *
   END IF
-  END IF
+  !END IF
 
   ! determine if this is to be a random split
   randomSplit = rnd(0.d0, 1.d0) <= rs
@@ -794,9 +796,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
       splitLeftFinal = splitLeftFinal_m
     END IF
 
-    IF (isPhase1 .OR. isPhase2CR) THEN
+    rUnifSet = 0
 
-      rUnifSet = 0
+    IF (isPhase1 .OR. isPhase2CR) THEN
       IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1)) THEN
         !PRINT *, "randomSplit:", randomSplit
         !PRINT *, "ERT:", ERT
@@ -1241,7 +1243,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         are_equal = .FALSE.
       END IF
     END DO
-        !print *, "tt8"
+    
+    !print *, "tt8"
 
     IF (isPhase2RE) THEN
       ! FIRST: WE WANT TO OBTAIN RE START/STOP INDICES FOR EACH PERSON
@@ -1491,6 +1494,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         ! if the case is not the last case with this covariate value, cycle
         IF (xSorted(doend) .GE. (xSorted(doend+1) - 1d-8)) CYCLE
 
+        !PRINT *, "rule is ", rule
         IF (rule == 5) THEN
           PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
           !atRiskLeft_m_loop(1) = atRiskLeft_m_loop(2)
@@ -1643,19 +1647,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
             & dmu_right, dPsi_right)
 
           IF (print_check) THEN
-            !ALLOCATE(dPsi_left(size(leftCases_loop), nt))
             PRINT *, "end of CALL RE_INFO FOR LEFT NODE"
             PRINT *, "dPsi_left with dim:", size(dPsi_left,1), size(dPsi_left,2)
             PRINT *, dPsi_left
             PRINT *
-            PRINT *
-            PRINT *
-            !ALLOCATE(dPsi_right(size(rightCases_loop), nt))
             PRINT *, "end of CALL RE_INFO FOR RIGHT NODE"
             PRINT *, "dPsi_right with dim:", size(dPsi_right,1), size(dPsi_right,2)
             PRINT *, dPsi_right
-            PRINT *
-            PRINT *
             PRINT *
           END IF
           !PRINT *, "starting generalized weighted logrank (RE test)"
@@ -1670,6 +1668,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
           IF (ieee_is_nan(valuej)) then
             ! Make sure there are no NaN test statistics
             PRINT *, "The test statistic is NaN. Stopping the execution."
+            PRINT *, "Test statistic is: ", valuej
+            PRINT *, "Num:", valuej_num
+            PRINT *, "Denom:", valuej_denom
+            PRINT *, "Variable number #", i, " amongst total ", nv, " variables."
             STOP
           ELSE
             PRINT "(A, F6.2)", "Q_LR test statistic valuej = ", valuej
@@ -1680,7 +1682,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
           STOP ! do not delete this stop error condition
         END IF ! end of RULE == 5
 
+        PRINT *, "set:", set, " and valuej: ", valuej, " and maxValueXm:", maxValueXm
+
         IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
+          IF (print_check) PRINT *, "valuej 1"
           ! if first value or value > current max, save
           IF (rUnifSet .EQ. 1) THEN
             cutoff = rUnif
@@ -1848,14 +1853,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         ! Make sure there are no NaN test statistics
         IF (ieee_is_nan(valuej)) then
           PRINT *, "The test statistic is NaN. Stopping the execution."
+          PRINT *, valuej
           STOP
         END IF
 
         IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
           ! if first value or value > current max, save
           IF (rUnifSet .EQ. 1) THEN
-            PRINT *, "rUnifSet: ", rUnifSet
-            PRINT *, "rUnif: ", rUnif
+            !PRINT *, "rUnifSet: ", rUnifSet
+            !PRINT *, "rUnif: ", rUnif
             cutoff = rUnif
           ELSE
             cutoff = (xSorted(j) + xSorted(j+1))/2.d0
@@ -1898,7 +1904,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         PRINT "(A, F6.2, A, F6.2)", "maxValueXm: ", maxValueXm, " and maxValueSplit: ", maxValueSplit
         PRINT "(A, F6.2)", "cutoff:", cutoff
         PRINT *, "---------------------"
-      END IF
+    END IF
 
     ! if not successful, cycle to next covariate
     ! this condition should never be true
@@ -1908,10 +1914,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     ! covariates considered
     IF ((splitVar .EQ. -1) .OR. (maxValueXm .GT. maxValueSplit)) THEN
       !PRINT *, "SuCCESSful."
+      !PRINT *, "splitVar: ", splitVar, "and kv = ", kv
 
       ! if first non-zero or largest value, keep cutoff and value and
       ! reset tie counter to 1
       splitVar = kv
+      !PRINT *, "splitVar: ", splitVar
       maxValueSplit = maxValueXm
       tieCovariate = 1
 
@@ -1923,8 +1931,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         casesOut = recordID
       END IF
       IF (print_check) THEN
-      PRINT *, "casesOut at end with size:", size(casesOut)
-      PRINT *, casesOut
+        PRINT *, "casesOut at end with size:", size(casesOut)
+        PRINT *, casesOut
       END IF
 
       cutoffBest = 0
@@ -1968,8 +1976,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
           casesOut = recordID
         END IF
         IF (print_check) THEN
-        PRINT *, "casesOut at end with size:", size(casesOut)
-        PRINT *, casesOut
+          PRINT *, "casesOut at end with size:", size(casesOut)
+          PRINT *, casesOut
         END IF
 
         cutoffBest = 0
@@ -1996,29 +2004,31 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
 
   END DO ! end of covariate do-loop
 
+  !PRINT *, "splitVar: ", splitVar
   ! if no split was possible return
   if (splitVar .EQ. -1) RETURN
 
   ! if successful at finding a split set flag and return
   splitFound = 1
+  
   IF (print_check) THEN
-  PRINT *
-  PRINT *
-  PRINT *
-  PRINT *
-  PRINT *, "---------- POST -----------"
-  PRINT *, "splitFound: ", splitFound
-  PRINT *, "splitVar: ", splitVar
-  PRINT *, "cutoffBest: ", cutoffBest
-  PRINT *, "splitFound: ", splitFound
-  PRINT *, "nCuts: ", nCuts
-  PRINT *, "lft: ", lft
-  PRINT *
-  PRINT *, "casesIn with size ", size(casesIn)
-  PRINT *, casesIn
-  PRINT *, "casesOut with size ", size(casesOut)
-  PRINT *, casesOut
-  PRINT *, "---------------------"
+    PRINT *
+    PRINT *
+    PRINT *
+    PRINT *
+    PRINT *, "---------- POST -----------"
+    PRINT *, "splitFound: ", splitFound
+    PRINT *, "splitVar: ", splitVar
+    PRINT *, "cutoffBest: ", cutoffBest
+    PRINT *, "splitFound: ", splitFound
+    PRINT *, "nCuts: ", nCuts
+    PRINT *, "lft: ", lft
+    PRINT *
+    PRINT *, "casesIn with size ", size(casesIn)
+    PRINT *, casesIn
+    PRINT *, "casesOut with size ", size(casesOut)
+    PRINT *, casesOut
+    PRINT *, "---------------------"
   END IF
 
   !IF (isPhase2RE) THEN
@@ -2204,6 +2214,7 @@ CALL dPsi_indiv(nrecords, ngroupPeople_loop, nt_endpoint, nt_survival, &
 !PRINT *, "end of call dPsi_indiv"
 !PRINT *, "dPsi_group with dim:", size(dPsi_group,1), size(dPsi_group,2)
 !PRINT *, dPsi_group
+!PRINT *, "ngroupPeople_loop:", ngroupPeople_loop, " and nrecords:", nrecords
 
 END SUBROUTINE RE_INFO
 
@@ -2386,6 +2397,8 @@ SUBROUTINE weightKLR(ns, n1, n2, atrisk1, atrisk2, output_weight)
 
 
 END SUBROUTINE weightKLR
+
+
 ! ==================================================
 SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, outer_sum)
     IMPLICIT NONE
@@ -2478,6 +2491,11 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !------------------ Calculate Weight ------------------
   !------------------------------------------------------
   CALL weightKLR(ns, n1, n2, atrisk1, atrisk2, K_LR) 
+  PRINT *, "ns: ", ns, "and n1: ", n1, " and n2: ", n2
+  !PRINT *, "atrisk1"
+  !PRINT *, atrisk1
+  !PRINT *, "atrisk2"
+  !PRINT *, atrisk2
   !PRINT *, "K_LR with size:", size(K_LR)
   !PRINT *, K_LR
   !PRINT *
@@ -2497,10 +2515,18 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   ! Call CalculateDenominator for group 1
   CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
                               outer_sum1)
-
+  !PRINT *, "outer_sum1:", outer_sum1
+  !PRINT *, "dPsi1"
+  !PRINT *, dPsi1
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2)
+  !PRINT *, "dPsi2"
+  !PRINT *, dPsi2
+  !PRINT *, "nrecords2:", nrecords2
+  !PRINT *, "rightPeople_loop"
+  !PRINT *, rightPeople_loop
+  !PRINT *, "outer_sum2:", outer_sum2
   
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
   !PRINT *, "sigma2_LR denominator: ", sigma2_LR
@@ -2562,28 +2588,65 @@ if (print_check) then
 end if
 
   ! Compute TERM A for each time point
-  IF (ANY(Ybar /= 0.0_dp)) THEN
-      termA = spread(survRE, 1, nrecords) * dMi / (spread(Ybar, 1, nrecords) / n)
-  ELSE
-      termA = 0.0_dp
-  END IF
+  DO i = 1, ns
+    IF (Ybar(i) > 1d-8) THEN
+      termA(:,i) = spread(survRE(i), 1, nrecords) * dMi(:,i) / (spread(Ybar(i), 1, nrecords) / n)
+    ELSE
+      termA(:,i) = 0.0_dp
+    END IF
+  END DO
+  !below is old code that doesnt work because NaN produced
+  !IF (ANY(Ybar /= 0.0_dp)) THEN
+  !    termA = spread(survRE, 1, nrecords) * dMi / (spread(Ybar, 1, nrecords) / n)
+  !ELSE
+  !    termA = 0.0_dp
+  !END IF
 
-if (print_check) then
-  PRINT *, "termA with dim: ", size(termA,1), " x ", size(termA,2)
-  !PRINT termA
-  PRINT *
-  PRINT *
-  PRINT *
-  PRINT *
-  PRINT *
-end if
 
   ! spread(mu, 1, nrecords)
-  IF (ANY(Ybar /= 0.0_dp)) THEN
-      termB1 = dMiD / (spread(Ybar, 1, nrecords) / n)
-  ELSE
-      termB1 = 0.0_dp
+  DO i = 1, ns
+    IF (Ybar(i) > 1d-8) THEN
+      termB1(:,i) = dMiD(:,i) / (spread(Ybar(i), 1, nrecords) / n)
+    ELSE
+      termB1(:,i) = 0.0_dp
+    END IF
+  END DO
+  !BELOW IS OLD CODE THAT DOESNT WORK B/C NAN produced
+  !IF (ANY(Ybar /= 0.0_dp)) THEN
+  !    PRINT *, "no Ybar is 0"
+  !    termB1 = dMiD / (spread(Ybar, 1, nrecords) / n)
+  !ELSE
+  !    PRINT *, "at least one Ybar is 0"
+  !    termB1 = 0.0_dp
+  !END IF
+  !IF (isPhase2RE .AND. size(termA,1) .EQ. 8) STOP
+
+
+
+  IF (print_check) THEN
+    PRINT *, "ybar with size:", size(ybar)
+    PRINT *, Ybar
+    PRINT *, "dmid with size:", size(dMiD)
+    PRINT *, dMiD
+    PRINT *, "denom"
+    PRINT *, spread(Ybar, 1, nrecords) / n
+    PRINT *
+
+    DO j = 1, size(termA,1)
+      PRINT *, "termA with dim: ", size(termA,1), " x ", size(termA,2)
+      PRINT *, "row: ", j
+      PRINT *, termA(j,:)
+    END DO
+
+    DO j = 1, size(termB1,1)
+      PRINT *, "termB1 with dim: ", size(termB1,1), " x ", size(termB1,2)
+      PRINT *, "row: ", j
+      PRINT *, termB1(j,:)
+    END DO
+
+
   END IF
+
   ! first timepoint is equal to first column of B1, the first timepoint of B1
   ! initialize first timepoint
   int_termB1(:,1) = termB1(:,1)
@@ -2595,6 +2658,11 @@ end if
   dPsi_mat = termA + termB
 
 if (print_check) then
+  PRINT *, "int_termB1"
+  PRINT *, int_termB1
+  PRINT *, "spread(dmu, 1, nrecords)"
+  PRINT *, spread(dmu, 1, nrecords)
+  PRINT *
   PRINT *, "termB1 with dim: ", size(termB1,1), " x ", size(termB1,2)
   PRINT *, "int_termB1 with dim: ", size(int_termB1,1), " x ", size(int_termB1,2)
   PRINT *, "spread(dmu, 1, nrecords) with dim: ", size(spread(dmu, 1, nrecords),1), " x ", size(spread(dmu, 1, nrecords),2)
@@ -4219,16 +4287,20 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
     ! --===----= here
 
-    PRINT *, "nrNodes: ", nrNodes
+    IF (print_check) PRINT *, "nrNodes: ", nrNodes
     !if (isPhase2RE) PRINT *, "Starting do loop for each node..."
     DO k = 1, nrNodes
-      PRINT *, "******** node: #", k
-      PRINT *, "first ncur:", ncur
+      !PRINT *, "******** node: #", k
+      !PRINT *, "first ncur:", ncur
+
+      !PRINT *, "k:", k
+      !PRINT *, "ncur:", ncur
+      !PRINT *, "nrNodes - 2:", nrNodes-2
 
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
       IF (k .GT. ncur .OR. ncur .GT. (nrNodes - 2)) EXIT
-      PRINT *, "DID NOT EXIT: k is not beyond current node count"
+      !PRINT *, "DID NOT EXIT: k is not beyond current node count"
 
       IF (isPhase2RE) THEN
           IF (print_check) THEN
@@ -4313,11 +4385,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         PRINT *, "lft",lft
       END IF 
 
-      !PRINT *, "################# Line 1441"
+      !IF (isPhase2RE) PRINT *, "################# Line 4386"
       CALL tfindSplit(size(ind), ind, size_ind_surv_RE, ind_surv_RE, & ! need to change last bit to subject based
                     & size(pind), pind, splitVar, cutoffBest, &
                     & splitFound, indOut, nc, lft)
-      !IF (isPhase2RE) PRINT *, "### end of tfindSplit for node", k
+      !IF (isPhase2RE) PRINT *, "### end of tfindSplit for node=", k
+      !PRINT *, "splitFound:", splitFound
 
       IF (splitFound .EQ. 0 ) THEN
         ! if no split available, set node k as terminal node
@@ -4328,7 +4401,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       !PRINT *, "TEST11"
 
       ! set node k to be interior (i.e. has split)
-      IF (isPhase2RE) PRINT *, "Line 2642: Setting node ", k, "to be interior (has split), so nMatrix(k,1) = -3"
+      !IF (isPhase2RE) PRINT *, "Line 2642: Setting node ", k, "to be interior (has split), so nMatrix(k,1) = -3"
       nMatrix(k,1) = -3
       !PRINT *, "TEST12"
 
@@ -4355,9 +4428,9 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       !! left node
       !PRINT *, "!!!!! left node !!!!!"
 
-      PRINT *, "left node ncur:", ncur
+      !PRINT *, "left node ncur:", ncur
       ncur = ncur + 1
-      PRINT *, "left node ncur + 1:", ncur
+      !PRINT *, "left node ncur + 1:", ncur
 
       ! index boundaries for cases in left node
       stm(ncur,1) = stm(k,1)
@@ -4415,9 +4488,9 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       !! right node
       !PRINT *, "!!!!! right node !!!!!"
-      PRINT *, "right node ncur:", ncur
+      !PRINT *, "right node ncur:", ncur
       ncur = ncur + 1
-      PRINT *, "right node ncur + 1:", ncur
+      !PRINT *, "right node ncur + 1:", ncur
 
       ! index boundaries for cases in right node
       stm(ncur,1) = stm(k,1) + lft
@@ -4432,7 +4505,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       CALL calcValueSingle(size(rightCases), rightCases, Func(:,ncur), &
                          & mean(ncur))
 
-      !PRINT *, "################# Line 1545"
+      !PRINT *, "################# Line 4506"
       IF (isSurvival) THEN
         Prob(ncur) = Func(sIndex,ncur) * (1.d0 - sFraction) + &
                        & Func(sIndex+1,ncur) * sFraction
@@ -4513,12 +4586,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     ! ensure that all nodes that are not "interior" are "terminal"
     WHERE (nMatrix(:,1) .EQ. -2) nMatrix(:,1) = -1
 
-    PRINT *, "end ncur:", ncur
-    PRINT *, "mean"
-    PRINT *, mean
-    PRINT *
-    PRINT *, "allStatus"
-    PRINT *, allStatus
+    !PRINT *, "end ncur:", ncur
+    !PRINT *, "mean"
+    !PRINT *, mean
+    !PRINT *
+    !PRINT *, "allStatus"
+    !PRINT *, allStatus
 
     trees(iTree)%Func = Func(:,1:ncur)
     trees(iTree)%mean = mean(1:ncur)
