@@ -431,13 +431,18 @@ setMethod(f = ".Predict",
     if (Phase == "RE"){
       long_x <<- cbind(dataset %>%
               dplyr::select(!!sym(idName)), x_endpoint)
-      elig <<- long_x %>%
-        mutate(eligible = complete.cases(.)) %>%  # Determine eligibility for each row
-        group_by(!!sym(idName)) %>%                          # Group by individual (ID)
-        summarise(elig1 = all(eligible)) %>%       # Check if all rows are eligible for the person
-        pull(elig1)                                # Extract the eligibility vector for each ID
-      # View(elig)
-      # stop('testing elig')
+      # elig <<- long_x %>%
+      #   mutate(eligible = complete.cases(.)) %>%  # Determine eligibility for each row
+      #   group_by(!!sym(idName)) %>%                          # Group by individual (ID)
+      #   summarise(elig1 = all(eligible)) %>%       # Check if all rows are eligible for the person
+      #   pull(elig1)                             # Extract the eligibility vector for each ID
+      elig0 <<- long_x %>%
+        mutate(eligible = complete.cases(.)) %>%    # Determine eligibility for each row
+        group_by(!!sym(idName)) %>%                  # Group by individual (ID)
+        summarise(elig00 = all(eligible)) %>%         # Check if all rows are eligible for the person
+        dplyr::select(!!sym(idName), elig00)
+      elig <<- merge(long_x, elig0, by = idName) %>%
+        pull(elig00)
     }
 
     # extract response and delta from model frame
@@ -750,6 +755,7 @@ setMethod(f = ".Predict",
       di <- {dataset[elig,txName] == txLevels[i]}
       # Creates another logical vector use that combines eligibility (elig) with the condition that the treatment variable (txName)
       # matches the current treatment level.
+
       # This is used to subset the dataset for the current treatment level.
       use <- elig & {dataset[,txName] == txLevels[i]}
       # print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))

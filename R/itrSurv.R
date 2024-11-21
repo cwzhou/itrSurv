@@ -360,7 +360,7 @@ itrSurv <- function(data,
     # Extract the indicator for Phase2RE
     person_indicator <- data_ep %>%
       group_by(!!sym(idName)) %>%
-      summarise(last_row_indicator = as.integer(row_number() == n())) %>%
+      reframe(last_row_indicator = as.integer(row_number() == n())) %>%
       pull(last_row_indicator)
     # print(person_indicator)
   } else{

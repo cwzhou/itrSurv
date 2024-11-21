@@ -315,7 +315,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   INTEGER :: splitLeft_loop
   INTEGER :: tieValue, variablesTried
   INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases, subjects, tsubjects
-  INTEGER, DIMENSION(1:nCases) :: recordID_new,recordID, personID_og, tsubjind, person_ind_sorted, personID_new
+  INTEGER, DIMENSION(1:nCases) :: recordID, personID_og, tsubjind, person_ind_sorted, personID_new
   INTEGER, DIMENSION(:), ALLOCATABLE :: uniqueID, firstIndex, lastIndex
   INTEGER :: uniqueCount, doi, doj, doitmp, dojtmp
   INTEGER :: dostart, doend, numCases
@@ -354,8 +354,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   LOGICAL, DIMENSION(:), ALLOCATABLE :: singles, singles_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: unique_uncensoredIndices_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: unique_uncensoredIndices_m1
-  INTEGER, DIMENSION(:), ALLOCATABLE :: x_splitLeft_m_vec, x_splitRight_m_vec
-  INTEGER, ALLOCATABLE :: nUncensored_m1, x_splitLeft_m, x_splitRight_m
+  REAL(dp), DIMENSION(:), ALLOCATABLE :: x_splitLeft_m_vec, x_splitRight_m_vec
+  INTEGER, ALLOCATABLE :: nUncensored_m1
+  REAL(dp) :: x_splitLeft_m, x_splitRight_m
 
   REAL(dp), DIMENSION(1:nt) :: survRE_right, survRE_left
   REAL(dp), DIMENSION(1:nt) :: dRhat_right, dRhat_left
@@ -477,7 +478,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
   ELSE
     ! Ensure nodeSizeSurv equals nodeSizeEnd in non-Phase2RE cases
     IF (nodeSizeSurv .NE. nodeSizeEnd) THEN 
-      PRINT *, "Error: nodeSizeSurv and nodeSizeEnd mismatch"
+      PRINT *, "Error: nodeSizeSurv and nodeSizeEnd mismatch so stopping"
       STOP
     ELSE
       ! nodeSizeSurv = nodeSizeEnd for isPhase1 and isPhase2CR
@@ -586,7 +587,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     !================================================================
     !================================================================
     ELSE 
-      PRINT *, "ERROR: Phase not recognized. Check isPhase1, isPhase2CR, or isPhase2RE."
+      PRINT *, "ERROR: Phase not recognized. Check isPhase1, isPhase2CR, or isPhase2RE, so stopping."
       STOP
     END IF
     !================================================================
@@ -740,25 +741,43 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
       ! move splitLeft up to include cases with equivalent values of x
       
       ! original: !splitLeft_m = count(xSorted .LE. (xSorted(splitLeft_m) + 1e-8)) ! original
-      !PRINT *, "splitLeft_m: ", splitLeft_m
-      !PRINT *, "personID_new"
-      !PRINT *, personID_new
-      !PRINT *, xSorted
-      !PRINT *, "TESTINGGGG" 
       x_splitLeft_m_vec = pack(xSorted, personID_new .EQ. splitLeft_m)!we want xSorted(personID_new = splitLeft_m)
+
       x_splitLeft_m = x_splitLeft_m_vec(1) ! take one of them
       splitLeft_m = count(xSorted .LE. (x_splitLeft_m + 1e-8)) ! 
 
-      !PRINT *, "x_splitLeft_m_vec"
-      !PRINT *, x_splitLeft_m_vec
-      !PRINT *, "Finished packing vec."
-      !PRINT *, "x_splitLeft_m: ", x_splitLeft_m
-      !PRINT *, "splitLeft_m"
-      !PRINT *, splitLeft_m
-      !PRINT *, "xSorted(splitLeft_m)"
-      !PRINT *, xSorted(splitLeft_m)
-      !PRINT *, "xSorted(splitLeft_m+1)"
-      !PRINT *, xSorted(splitLeft_m+1)
+      if (print_check) then
+        PRINT *, "Line 743: splitLeft_m: ", splitLeft_m
+        PRINT *, "personID_new with length:", size(personID_new)
+        PRINT *, personID_new
+        PRINT *, "xSorted with length:", size(xSorted)
+        PRINT *, xSorted
+        PRINT *, "TESTINGGGG" 
+        PRINT *, "Mask: ", personID_new .EQ. splitLeft_m
+        PRINT *, "Length of personID_new: ", SIZE(personID_new)
+        PRINT *, "Length of xSorted: ", SIZE(xSorted)
+        PRINT *, "Logical Mask: ", personID_new .EQ. splitLeft_m
+        PRINT *, "x_splitLeft_m_vec"
+        PRINT *, x_splitLeft_m_vec
+        PRINT *, "x_splitLeft_m_vec(1)"
+        PRINT *, x_splitLeft_m_vec(1)
+        PRINT *
+        PRINT *, "x_splitLeft_m + 1e-8: ", x_splitLeft_m + 1e-8
+        PRINT *, "xSorted .LE. (x_splitLeft_m + 1e-8)"
+        PRINT *, xSorted .LE. (x_splitLeft_m + 1e-8)
+        PRINT *
+        PRINT *, "Line 751: splitLeft_m: ", splitLeft_m
+        !PRINT *, "x_splitLeft_m_vec"
+        !PRINT *, x_splitLeft_m_vec
+        !PRINT *, "Finished packing vec."
+        !PRINT *, "x_splitLeft_m: ", x_splitLeft_m
+        !PRINT *, "splitLeft_m"
+        !PRINT *, splitLeft_m
+        !PRINT *, "xSorted(splitLeft_m)"
+        !PRINT *, xSorted(splitLeft_m)
+        !PRINT *, "xSorted(splitLeft_m+1)"
+        !PRINT *, xSorted(splitLeft_m+1)
+      end if
     
       ! cases to right
       ! include all indices down to and including nUncensored - minEvent + 1 case
@@ -862,6 +881,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
 
     IF (splitLeft <= 0) THEN
       PRINT *, "Line 718 ERROR: splitLeft <= 0"
+      PRINT *, "splitLeft:", splitLeft
       STOP
     END IF
 
@@ -892,7 +912,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
     !*******************************************************************
     
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
-    PRINT *, "SPLITTING IS DONE"
+    !PRINT *, "SPLITTING IS DONE"
     if (splitLeft <= 0) then
       PRINT *, "ERROR: splitLeft is 0 or negative:", splitLeft
       STOP
@@ -919,7 +939,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
       PRINT *, leftCases
       PRINT *, "rightCases with size:", size(rightCases)
       PRINT *, rightCases
-
 
       ! Print the first 5 elements of the prsurv array in a readable way
       PRINT *, "prsurv array for the first 10 elements of leftCases:"
@@ -1336,6 +1355,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
                 PRINT *, "ERROR: Not all records are the same."
                 PRINT "(A, I5, A, F6.2)", "doj: xSorted for record", doj, ": ", xSorted(doj)
                 PRINT "(A, I5, A, F6.2)", "dstart: xSorted for record", dostart, ": ", xSorted(dostart)
+                PRINT "(A, I5, A, F6.2)", "dend: xSorted for record", doend, ": ", xSorted(doend)
+                PRINT *, personID_new
+                PRINT *, recordID
+                PRINT *, xSorted
                 STOP
             END IF
         END DO
@@ -1451,7 +1474,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
           DO testi = 1, SIZE(eventsLeft_loop)  ! Loop over elements in the 1D array
               PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", eventsLeft_loop(testi)
           END DO
-          STOP
 
           if (print_check) then
             ! Print the entire pr2 array in a readable way
@@ -1462,8 +1484,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
             END DO
           end if
 
-          PRINT *, "stopping"
-          if (isPhase2RE) STOP
+          !PRINT *, "stopping"
+          !if (isPhase2RE) STOP
         END IF
 
         !PRINT *, pr2(1,:) ! rows are people
@@ -1481,6 +1503,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
         atRiskLeft_m_loop = pd1_m_loop
         atRiskRight_m_loop = pd2_m_loop
 
+IF (print_check) THEN
+          PRINT *, "---"
+          ! Print the entire eventsLeft_loop array in a readable way
+          PRINT *, "AT RISK: atRiskLeft_m_loop array:"
+          DO testi = 1, SIZE(atRiskLeft_m_loop)  
+              PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", atRiskLeft_m_loop(testi)
+          END DO
+END IF
+
         pr2survl_loop = pr2surv(leftCases_loop,:) 
         pr2survr_loop = pr2surv(rightCases_loop,:) 
         pd1_loop = sum(pr2survl_loop, DIM = 1)
@@ -1496,7 +1527,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
 
         !PRINT *, "rule is ", rule
         IF (rule == 5) THEN
-          PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
+          IF (PRINT_CHECK) PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
           !atRiskLeft_m_loop(1) = atRiskLeft_m_loop(2)
           !atRiskLeft_loop(1) = atRiskLeft_loop(2)
           !atRiskRight_m_loop(1) = atRiskRight_m_loop(2)
@@ -1673,8 +1704,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
             PRINT *, "Denom:", valuej_denom
             PRINT *, "Variable number #", i, " amongst total ", nv, " variables."
             STOP
-          ELSE
-            PRINT "(A, F6.2)", "Q_LR test statistic valuej = ", valuej
+          !ELSE
+            !PRINT "(A, F10.5)", "Q_LR test statistic valuej = ", valuej
           END IF 
         
         ELSE ! for rule == 5
@@ -1682,7 +1713,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, nSubj, subjIn, &
           STOP ! do not delete this stop error condition
         END IF ! end of RULE == 5
 
-        PRINT *, "set:", set, " and valuej: ", valuej, " and maxValueXm:", maxValueXm
+        if (print_check) PRINT *, "set:", set, " and valuej: ", valuej, " and maxValueXm:", maxValueXm
 
         IF ((set .EQ. 0) .OR. (valuej .GT. maxValueXm)) THEN
           IF (print_check) PRINT *, "valuej 1"
@@ -2048,6 +2079,7 @@ END SUBROUTINE tfindSplit
 ! oj real(:), events
 ! z real(:), estimator
 SUBROUTINE kaplan(ns, nj, oj, z)
+  use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: ns
@@ -2079,15 +2111,17 @@ SUBROUTINE kaplan(ns, nj, oj, z)
   END DO
 
   DO i = 1, ns
-    IF (z(i) < 0.0 .OR. z(i) > 1.0) THEN
+    IF (z(i) < 0.0 .OR. z(i) > 1.0 .OR. ieee_is_nan(z(i))) THEN
         PRINT *, "CHECK Kaplan Meier estimate!!"
         PRINT *, "z(i) wrong at time point ", i, ": ", z(i)
         PRINT *, "num(i): ", num(i)
         PRINT *, "nj(i): ", nj(i)
         PRINT *, "oj(i): ", oj(i)
-        PRINT *, "delta", delta
-        PRINT *, "delta_m", delta_m
-        STOP  ! Terminate the entire program if any element
+        PRINT *, "delta:", delta
+        PRINT *, "delta_m:", delta_m
+        PRINT *, "at risk total:", nj
+        PRINT *, "events total:", oj
+        !STOP  ! Terminate the entire program if any element
     END IF
 END DO
 
@@ -2225,6 +2259,7 @@ END SUBROUTINE RE_INFO
 SUBROUTINE MeanFreqFunc(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 Nj_endpoint, Oj_endpoint, Nj_survival, Oj_survival, &
 survRE, dRhat, mu, dmu)
+  use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: nt_endpoint
@@ -2248,10 +2283,22 @@ survRE, dRhat, mu, dmu)
 
   print_check = .FALSE. 
 
-  mu = 0.d0
-  dmu = 0.d0
-
   if (print_check) then
+    PRINT *, 'nt_endpoint = ', nt_endpoint
+      ! Print tp_endpoint array with index, rounded to 1 decimal point
+    PRINT *, 'tp_endpoint: '
+    DO i = 1, nt_endpoint
+        PRINT '(A, I3, A, F6.1)', 'tp_endpoint(', i, ') = ', tp_endpoint(i)
+    END DO
+    PRINT *, 'nt_survival = ', nt_survival
+    ! Print tp_survival array with index, rounded to 1 decimal point
+    PRINT *, 'tp_survival: '
+    DO i = 1, nt_survival
+        PRINT '(A, I3, A, F6.4)', 'tp_survival(', i, ') = ', tp_survival(i)
+    END DO
+  END IF
+
+if (print_check) then
   PRINT *, "******************** mean frequency function ********************"
     PRINT *, "Input Parameters"
     ! Print scalar integer values
@@ -2259,19 +2306,19 @@ survRE, dRhat, mu, dmu)
         ! Print tp_endpoint array with index, rounded to 1 decimal point
     PRINT *, 'tp_endpoint: '
     DO i = 1, nt_endpoint
-        PRINT '(A, I2, A, F6.1)', 'tp_endpoint(', i, ') = ', tp_endpoint(i)
+        PRINT '(A, I3, A, F6.1)', 'tp_endpoint(', i, ') = ', tp_endpoint(i)
     END DO
 
     ! Print Nj_endpoint array with index, rounded to 1 decimal point
     PRINT *, 'Nj_endpoint: '
     DO i = 1, nt_endpoint
-        PRINT '(A, I2, A, F6.1)', 'Nj_endpoint(', i, ') = ', Nj_endpoint(i)
+        PRINT '(A, I3, A, F6.1)', 'Nj_endpoint(', i, ') = ', Nj_endpoint(i)
     END DO
 
     ! Print Oj_endpoint array with index, rounded to 1 decimal point
     PRINT *, 'Oj_endpoint: '
     DO i = 1, nt_endpoint
-        PRINT '(A, I2, A, F6.1)', 'Oj_endpoint(', i, ') = ', Oj_endpoint(i)
+        PRINT '(A, I3, A, F6.1)', 'Oj_endpoint(', i, ') = ', Oj_endpoint(i)
     END DO
 
     PRINT *, 'nt_survival = ', nt_survival
@@ -2279,77 +2326,170 @@ survRE, dRhat, mu, dmu)
     ! Print tp_survival array with index, rounded to 1 decimal point
     PRINT *, 'tp_survival: '
     DO i = 1, nt_survival
-        PRINT '(A, I2, A, F6.1)', 'tp_survival(', i, ') = ', tp_survival(i)
+        PRINT '(A, I3, A, F6.4)', 'tp_survival(', i, ') = ', tp_survival(i)
     END DO
 
     ! Print Nj_survival array with index, rounded to 1 decimal point
     PRINT *, 'Nj_survival: '
     DO i = 1, nt_survival
-        PRINT '(A, I2, A, F6.1)', 'Nj_survival(', i, ') = ', Nj_survival(i)
+        PRINT '(A, I3, A, F6.1)', 'Nj_survival(', i, ') = ', Nj_survival(i)
     END DO
 
     ! Print Oj_survival array with index, rounded to 1 decimal point
     PRINT *, 'Oj_survival: '
     DO i = 1, nt_survival
-        PRINT '(A, I2, A, F6.1)', 'Oj_survival(', i, ') = ', Oj_survival(i)
+        PRINT '(A, I3, A, F6.1)', 'Oj_survival(', i, ') = ', Oj_survival(i)
     END DO
 
     PRINT *, "Starting MeanFreqFunc now..."
-  end if
+end if
+
+  mu = 0.d0
+  dmu = 0.d0
+  dRhat = 0.d0
+  ! Initialize survRE to avoid NaN issues
+  survRE = 0.0_dp ! make sure this is OK, otherwise delete
+  !survD = 0.0_dp ! make sure this is OK, otherwise delete
   
   !PRINT *, "******************** obtain survival KM (deaths) ********************"
+
   call kaplan(nt_survival, Nj_survival, Oj_survival, survD)
-  !PRINT *, "survD"
-  !PRINT *, survD
+
+  IF (print_check) THEN
+    PRINT *, "survD with size ", size(survD)
+    PRINT *, survD
+    PRINT *, " at risk" 
+    PRINT *, Nj_survival
+    PRINT *, "events"
+    PRINT *, Oj_survival
+  DO i = 1, nt_survival
+    IF (ieee_is_nan(survD(i))) then
+      PRINT *, i
+      PRINT *, "timepoint", tp_survival(i)
+      PRINT *, "survD(",i,"): ", survD(i)
+      PRINT *, "survD(",i-1,"): ", survD(i-1)
+      PRINT *, "survD(",i+1,"): ", survD(i+1)
+      PRINT *
+      PRINT *, "survD with size ", size(survD)
+      PRINT *, survD(i)
+      PRINT *, Nj_survival(i)
+      PRINT *, Oj_survival(i)
+      PRINT *, Nj_survival
+      STOP
+    END IF
+  END DO
+  END IF
   
   DO i = 1, nt_endpoint ! Loop over all elements in tp_endpoint (or another array of length nt_endpoint)
-
     !PRINT *, "i: ", i
+
+    !PRINT '(A, I3, A, F6.4, A, F6.1, A, F6.1)', "For i = ", i, ", timepoint is ", tp_endpoint(i), & 
+    !  " with ", Nj_endpoint(i), " at risk and ", Oj_endpoint(i), " events."
 
     ! to get the time points that have individuals at risk
     ! if number at risk is equal to 0, then skip to next time point index (i)
     IF (Nj_endpoint(i) .LT. 1d-8) CYCLE
     !PRINT *, "******************** dRhat ********************"
     dRhat(i) = Oj_endpoint(i) / Nj_endpoint(i) ! dRhat at each timepoint
-    !IF (i .LE. 5) THEN
-    !  PRINT '(A, I2, A, F6.1, A, F6.1, A, F6.1)', "For i = ", i, ", timepoint is ", tp_endpoint(i), & 
-    !  " with ", Nj_endpoint(i), " at risk and ", Oj_endpoint(i), " events."
-    !END IF
-      
-      !PRINT *, "dRhat(i) = ", dRhat(i)
-    
+    IF (ieee_is_nan(dRhat(i))) then
+      PRINT *, "NaN: dRhat(",i,") = ", dRhat(i)
+    END IF
+    !PRINT *, "dRhat(",i,") = ", dRhat(i)
+
     !PRINT *, "******************** Recurrent KM (using RE times) ********************"
     ! survRE is the survival curve at the recurrent event times
+    ! Handle timepoints before tp_survival(1)
+    IF (tp_endpoint(i) < tp_survival(1)) THEN
+      survRE(i) = survD(1)  ! Assign the survival at the first timepoint
+    END IF
+
+    ! Handle timepoints after tp_survival(nt_survival)
+    IF (tp_endpoint(i) >= tp_survival(nt_survival)) THEN
+      survRE(i) = survD(nt_survival)  ! Assign the survival at the last timepoint
+    END IF
+
     DO j = 1, nt_survival-1  ! Loop over elements in tp_survival, up to tp_survival-1 (need to check interval between nt-1 and nt)
+      ! Check if tp_endpoint(i) falls within the interval [tp_survival(j), tp_survival(j+1)]
       IF (tp_survival(j) <= tp_endpoint(i) .AND. tp_endpoint(i) < tp_survival(j+1)) THEN
         survRE(i) = survD(j) ! Assign survD(j) to survRE(i) if condition is met
         EXIT                 ! Exit the inner loop if condition is met
       END IF
-    END DO
-    !IF (i == 1) PRINT *, "survRE(1) = ", survRE(i)
-    !IF (i == 1) PRINT *, "survD(1) = ", survD(1)
-  END DO
+    END DO ! j do-loop
 
-  survRE(nt_endpoint) = survD(nt_survival)
-    
+  END DO ! i do-loop
+
+  !survRE(nt_endpoint) = survD(nt_survival)
+
+  IF (print_check) THEN
+  PRINT *
+  PRINT *, "endpoint"
+  DO i = 1, nt_endpoint
+    PRINT *, i
+    PRINT *, tp_endpoint(i)
+    PRINT *, survRE(i)
+  END DO
+  PRINT *
+  PRINT *, "survival"
+  DO i = 1, nt_survival
+    PRINT *, i
+    PRINT *, tp_survival(i)
+    PRINT *, survD(i)
+  END DO
+  PRINT *
+  END IF
+
+  IF (print_check) then
+    PRINT *, "survD has size: ", size(survD) ! 121
+    PRINT *, "survRE has size: ", size(survRE) ! 324
+  DO i = 1, nt_endpoint
+    IF (ieee_is_nan(survRE(i))) then
+      PRINT *, "i:",i
+      PRINT *, "timepoint:", j, " = ", tp_survival(j)
+      PRINT *, tp_survival(j)
+      PRINT *, tp_endpoint(i)
+      PRINT *, tp_survival(j+1)
+      PRINT *, "survRE at timepoint ", tp_endpoint(i), " for ", i, " is: ", survRE(i)
+      PRINT *, "survRE at timepoint ", tp_endpoint(i-1), " for ", i-1, "is: ", survRE(i-1)
+      PRINT *, "survRE at timepoint ", tp_endpoint(i+1), " for ", i+1, "is: ", survRE(i+1)
+      PRINT *, "size survRE", size(survRE)
+      PRINT *, j, ": survD(", tp_survival(j),") is:", survD(j)
+      PRINT *, "previous survD(", tp_survival(j-1),") is:", survD(j-1)
+      PRINT *, "next survD(", tp_survival(j+1),") is:", survD(j+1)
+        STOP
+    END IF
+  END DO
+  END IF
+
   mu(1) = 0
   dmu(1) = 0
   if (nt_endpoint .LT. 2) RETURN
-  !PRINT *, "survRE with size ", size(survRE)
-  !PRINT *, survRE
   DO i = 2, nt_endpoint
     dmu(i) = survRE(i) * dRhat(i)
     mu(i) = mu(i-1) + dmu(i)
-    if (mu(i) .NE. mu(i-1)) THEN
-      !PRINT *, "i: ",i
-      !PRINT *, "mu(i-1): ", mu(i-1)
-      !PRINT *, "survRE(i): ", survRE(i)
-      !PRINT *, "dRhat(i): ", dRhat(i)
-      !PRINT *, "dmu(i): ", dmu(i)      
-      !PRINT *, "mu(i): ", mu(i)
-      !PRINT *, ""
-    END IF
+    !IF (ieee_is_nan(dmu(i))) then
+    !  PRINT *, "survRE(",i,"): ", survRE(i)
+    !  PRINT *, "dRhat(",i,"): ", dRhat(i)
+    !  PRINT *, "dmu(",i,"): ", dmu(i)      
+    !END IF
+    !if (mu(i) .NE. mu(i-1)) THEN
+    !  PRINT *, "mu(",i,") is not equal to mu(",i-1,")."
+    !END IF
   END DO
+
+  IF (print_check) THEN
+    DO i = 1, nt_endpoint
+      IF (ieee_is_nan(dmu(i))) then
+        PRINT *, "timepoint: ",i
+        PRINT *, "dmu(",i,"): ", dmu(i)
+        !PRINT *, "mu(",i-1,"): ", mu(i-1)
+        !PRINT *, "mu(",i,"): ", mu(i)
+        PRINT *, "survRE(",i,"): ", survRE(i)
+        !PRINT *, "dRhat(",i,"): ", dRhat(i)
+        STOP
+      END IF
+    END DO
+  END IF
+
 
   !PRINT *, "end of MeanFreqFunc"
 
@@ -2412,6 +2552,9 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     REAL(dp), DIMENSION(1:n_people) :: inner_sum
     REAL(dp) :: denom_sum
     INTEGER :: person_ind, record_ind
+    LOGICAL :: print_check
+
+    print_check = .FALSE.
 
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
@@ -2424,12 +2567,12 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     ! Sum over records for each person
     DO person_ind = 1, n_people
-        !PRINT *, "PERSON ", person_ind
         denom_sum = 0.0_dp
         ! Sum contributions for records belonging to the current person
         DO record_ind = 1, n_records
-          !PRINT *, "record ", record_ind
           IF (people_loop(record_ind) == person_ind) THEN
+            !PRINT *, "PERSON ", person_ind
+            !PRINT *, "record ", record_ind
             denom_sum = denom_sum + inner_integral(record_ind)
             !print *, "denom_sum:", denom_sum
           END IF
@@ -2440,10 +2583,12 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     ! Calculate the outer sum
     outer_sum = SUM(inner_sum)
-    !PRINT *, "inner_sum with size: ", SIZE(inner_sum)
-    !PRINT *, inner_sum
-    !PRINT *, "outer_sum: ", outer_sum
-    !PRINT *
+    if (print_check) then
+    PRINT *, "inner_sum with size: ", SIZE(inner_sum)
+    PRINT *, inner_sum
+    PRINT *, "outer_sum: ", outer_sum
+    PRINT *
+    end if
 
 END SUBROUTINE CalculateREDenominator
 
@@ -2453,6 +2598,7 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
                                     leftCases_loop, leftPeople_loop, &
                                     rightCases_loop, rightPeople_loop, &
                                     dmu1, dmu2, dPsi1, dPsi2, Q_LR, sigma2_LR, test_statistic)
+  use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: ns ! # time points for unique observed RE times
@@ -2491,7 +2637,7 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !------------------ Calculate Weight ------------------
   !------------------------------------------------------
   CALL weightKLR(ns, n1, n2, atrisk1, atrisk2, K_LR) 
-  PRINT *, "ns: ", ns, "and n1: ", n1, " and n2: ", n2
+  !PRINT *, "ns: ", ns, "and n1: ", n1, " and n2: ", n2
   !PRINT *, "atrisk1"
   !PRINT *, atrisk1
   !PRINT *, "atrisk2"
@@ -2507,6 +2653,16 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   Q_LR = SUM(Q_LR_vec)
   !PRINT *, "************** numerator Q_LR is: **************"
   !PRINT *, Q_LR
+  !PRINT *, "K_LR"
+  !PRINT *, K_LR
+  !PRINT *, "dmu1"
+  !PRINT *, dmu1
+  !PRINT *, "dmu2"
+  !PRINT *, dmu2
+  !PRINT *, "dmu1-dmu2"
+  !PRINT *, dmu1-dmu2
+  !PRINT *, "numvec"
+  !PRINT *, Q_LR_vec
   !PRINT *
   !------------------------------------------------------
   !---------------- Calculate Denominator ---------------
@@ -2521,18 +2677,30 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2)
-  !PRINT *, "dPsi2"
-  !PRINT *, dPsi2
-  !PRINT *, "nrecords2:", nrecords2
-  !PRINT *, "rightPeople_loop"
-  !PRINT *, rightPeople_loop
   !PRINT *, "outer_sum2:", outer_sum2
+  !PRINT *, "dPsi2"
+  !PRINT *, dPsi2                        
   
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
   !PRINT *, "sigma2_LR denominator: ", sigma2_LR
 
   test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/sigma2_LR
   !PRINT *, "test statistic z^2 = ", test_statistic
+
+  IF (ieee_is_nan(test_statistic)) then
+    !PRINT *, "dPsi1"
+    !PRINT *, dPsi1
+    !PRINT *, "dPsi2"
+    !PRINT *, dPsi2
+
+    PRINT *, "test stat:", test_statistic
+    PRINT *, "numerator:", Q_LR**2
+    PRINT *, "denominator:", sigma2_LR
+    PRINT *, "outer_sum1:", outer_sum1
+    PRINT *, "outer_sum2:", outer_sum2
+    PRINT *, "stopping to test why test statistic is NaN."
+    STOP
+  END IF
 
 END SUBROUTINE GeneralizedWeightedLR_RE
 
@@ -2643,7 +2811,6 @@ end if
       PRINT *, "row: ", j
       PRINT *, termB1(j,:)
     END DO
-
 
   END IF
 
@@ -2915,6 +3082,7 @@ SUBROUTINE CIF_mk(nsk, Nkj, Okj, CIF, JumpCIF)
         PRINT *, "CIF(i): ", CIF(i)
         PRINT *, "JumpCIF(i): ", JumpCIF(i)
         PRINT *, "Nkj(i): ", Nkj(i)
+        PRINT *, "STOPPING TO check why jumpcif is <0 or >1"
         STOP  ! Terminate the entire program if any element satisfies the condition
     END IF
   END DO
@@ -3789,6 +3957,7 @@ end subroutine swap_rows
 !   Func: real(:), the estimated survival/CIF function
 !   mean: real, the estimated mean/CIF survival
 SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
+use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
   INTEGER, INTENT(IN) :: nCases
@@ -3808,7 +3977,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
   ! for Phase1/2CR: nt=nt_death
   ! for Phase2RE: nt != nt_death
 
-  PRINT *, "******************** calcValueSingle ********************"
+  !PRINT *, "******************** calcValueSingle ********************"
   !PRINT *, "estimate the survival/cif function and mean survival/cif time"
   Func = 0.d0
   mean = 0.d0
@@ -3863,7 +4032,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
       !PRINT *, "Kaplan Meier Estimate Survival Function: ", Func
       ! mean survival time
       mean = sum(Func * dt)
-      PRINT *, "mean survial time: ", mean
+      !PRINT *, "mean survival time: ", mean
       IF (mean < 0.0) PRINT *, "ERROR: mean < 0"
     END IF
 
@@ -3894,7 +4063,7 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
   END IF 
 
   IF (isPhase2RE) THEN
-    PRINT *, "STEP2RE estimate MFF"
+    !PRINT *, "STEP2RE estimate MFF"
     ! Terminal Event Nj and Oj
     ! We now calculate the number of at risk cases at each time point using pr2 {nt}
     Nj_m = sum(pr2(casesIn,:), DIM = 1) ! at risk
@@ -3931,18 +4100,14 @@ SUBROUTINE calcValueSingle(nCases, casesIn, Func, mean)
                     survRE, dRhat, Func, dmu) ! name mu to be Func
     ! 
     mean = Func(nt)
-    PRINT *, "mean:", mean
 
-      IF (mean < 0.0) THEN
-        ! Print the arguments
-        PRINT *, "mean:", mean
-        PRINT *, "mu Estimate MFF: "
-        PRINT *, Func
-        !PRINT *, "Jumpsize: "
-        !PRINT *, jumpCIF
+    IF (mean < 0.0 .OR. IEEE_IS_NAN(mean)) THEN
+        PRINT *, "ERROR IN MEAN:", mean
         PRINT *, "dt: "
         PRINT *, dt
         PRINT *, "nt = ", nt
+        PRINT *, "mu Estimate MFF: "
+        PRINT *, Func
         PRINT *
       END IF
 
@@ -4292,9 +4457,6 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     DO k = 1, nrNodes
       !PRINT *, "******** node: #", k
       !PRINT *, "first ncur:", ncur
-
-      !PRINT *, "k:", k
-      !PRINT *, "ncur:", ncur
       !PRINT *, "nrNodes - 2:", nrNodes-2
 
       ! if k is beyond current node count or
@@ -4308,12 +4470,9 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
             PRINT *, "nrNodes", nrNodes
             PRINT *, "ncur", ncur
             PRINT *, "First", k, "rows of the matrix:"
-            !DO i = 1, k
-            !    PRINT *, nMatrix(i, :)  !! Print each row of the matrix
-            !END DO
             PRINT *
             PRINT *, "nMatrix"
-            PRINT *, nMatrix(1:k, :)  ! Correct slice syntax: 1 to k rows, all columns
+            PRINT *, nMatrix(k, :)  ! k-th row, all columns
             PRINT *, "======"
             PRINT *          
           END IF
@@ -4620,20 +4779,20 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   forestMean = forestMean / nTree
   forestProb = forestProb / nTree
 
-  PRINT *
-  PRINT *
-  PRINT *
+  !PRINT *
+  !PRINT *
+  !PRINT *
   !PRINT *, "forestFunc: ", forestFunc
-  PRINT *
-  PRINT *
-  PRINT *
-  !PRINT *, "forestMean: ", forestMean
+  !PRINT *
+  !PRINT *
+  !PRINT *
+  PRINT *, "forestMean: ", forestMean
   PRINT *
   PRINT *
   PRINT *
   !PRINT *, "forestProb: ", forestProb
 
-  PRINT *, "END OF SUBROUTINE TSURVTREE"
+  !PRINT *, "END OF SUBROUTINE TSURVTREE"
 
 END SUBROUTINE tSurvTree
 
@@ -4979,7 +5138,7 @@ IF (isPhase1 .OR. isPhase2CR) THEN
       PRINT *, nt
       PRINT *, "nt_death"
       PRINT *, nt_death
-      PRINT *, "itrSurv.f90: Line 2888: nt should equal nt_death for Phase1 and Phase2CR"
+      PRINT *, "itrSurv.f90: Line 5127: nt should equal nt_death for Phase1 and Phase2CR so stopping"
       STOP
    END IF
 END IF
