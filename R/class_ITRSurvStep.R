@@ -749,15 +749,15 @@ setMethod(f = ".Predict",
     for (i in 1L:length(x = txLevels)) {
       # message("-----------")
       message("  treatment level ", txLevels[i])
-      nms <- as.character(x = txLevels[i])
+      nms <<- as.character(x = txLevels[i])
       # Creates a logical vector di that checks if the treatment level in the dataset dataframe matches the current treatment level.
       # This is used for subsetting the dataset.
-      di <- {dataset[elig,txName] == txLevels[i]}
+      di <<- {dataset[elig,txName] == txLevels[i]}
       # Creates another logical vector use that combines eligibility (elig) with the condition that the treatment variable (txName)
       # matches the current treatment level.
 
       # This is used to subset the dataset for the current treatment level.
-      use <- elig & {dataset[,txName] == txLevels[i]}
+      use <<- elig & {dataset[,txName] == txLevels[i]}
       # print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))
 
       result[[ nms ]] <- .survRF(endPoint = endPoint,

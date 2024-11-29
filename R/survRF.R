@@ -61,7 +61,7 @@
   # message("---------- starting .survRF function from survRF.R ----------------")
 
   sampleSize_frac = sampleSize
-  message("sampleSize_frac", sampleSize_frac)
+  # message("sampleSize_frac", sampleSize_frac)
 
   # if x_i is an unordered factor, nCat_i is the number of levels
   # if x_i is not a factor, nCat is 0
@@ -80,12 +80,13 @@
   if (Phase == "Survival" | Phase == "CR" | Phase == 1){
     nSamples <- nrow(x = x)
     nSamples_surv <- nSamples
+    message('number of individuals in training data: ', nSamples_surv)
   } else{ # RE
     nSamples <- length(idvec) # (no. records for recurrent events (Phase2RE))
     nSamples_surv <- length(unique(idvec)) # number of people
+    message('number of records in training data: ', nSamples)
+    message('number of individuals in training data: ', nSamples_surv)
   }
-  # message('number of records in training data: ', nSamples)
-  # message('number of individuals in training data: ', nSamples_surv)
 
   # number of time points
   nTimes <<- nrow(x = pr)
@@ -97,26 +98,19 @@
   # total number of trees to be grown in the forest
   # .NTree() is a getter method defined for Parameters objects
   nTree <- .NTree(object = params)
-  # message("total number of trees to be grown in forest: ", nTree)
+  message("total number of trees to be grown in forest: ", nTree)
 
   # determine the number of samples to include in each tree
-  sampleSize <- ceiling(x = sampleSize_frac * nSamples)
-  # message("number of samples to include in each tree: ", sampleSize)
-  # for RE: this is # records
+  if (Phase == "RE"){
+    sampleSize <- ceiling(x = sampleSize_frac * nSamples_surv)
+  } else{
+    sampleSize <- ceiling(x = sampleSize_frac * nSamples)
+  }
+  message("number of samples (individuals) to include in each tree: ", sampleSize)
 
   # maximum number of nodes in a tree
   maxNodes <- 2L * sampleSize + 1L
-  # message("maximum nodes in a tree based on samples: ", maxNodes)
-
-  if (Phase == "RE"){
-    sampleSize_surv <- ceiling(x = sampleSize_frac * nSamples_surv)
-    maxNodes_surv <- 2L * sampleSize_surv + 1L
-    message("number of individuals to include in each tree: ", sampleSize_surv)
-    message("maximum nodes in a tree based on people: ", maxNodes_surv)
-  } else{
-    sampleSize_surv <- sampleSize
-    maxNodes_surv = maxNodes
-  }
+  message("maximum nodes in a tree based on samples (individuals): ", maxNodes)
 
   # convert factors to integers
   x = data.matrix(frame = x)
@@ -128,7 +122,7 @@
   # }
   message("number of individuals, nr: ", nr)
 
-  # message("setUpInners: Send info to Fortran")
+  message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
 
   dd <<- delta
@@ -142,7 +136,7 @@
     x_covar = x
   }
 
-  # message("setupInners")
+  message("setupInners")
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
@@ -161,18 +155,14 @@
                  t_mTry = as.integer(x = mTry),
                  t_nCat = as.integer(x = nCat),
                  t_sampleSize = as.integer(x = sampleSize),
-                 t_sampleSize_surv = as.integer(x = sampleSize_surv),
                  t_nTree = as.integer(x = params@nTree),
-                 t_nrNodes = as.integer(x = maxNodes), # for 2nd endpoint
-                 t_nrNodes_surv = as.integer(x = maxNodes_surv), # for survival
+                 t_nrNodes = as.integer(x = maxNodes),
                  PACKAGE = "itrSurv")
 
   # message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
     print("survTree: survTree in Fortran")
-    # nTimes = maximum number of time points
-    # nr = number of rows
     message("number of rows/people in dataset: nr = ", nr)
     message("maximum number of time points: nTimes = ", nTimes)
     Tree <- .Fortran("survTree",
@@ -182,6 +172,7 @@
                        PACKAGE = "itrSurv")
     Tree_Surv <<- Tree
     matrix_output_surv <<- matrix(Tree_Surv[["forestFunc"]], nrow = nTimes)
+    print("end of .survTreefortran for survival")
   } else{ #if (grepl("CR", Phase, ignore.case = TRUE)){
     res_pooled0_endpoint <<- res
     Tree <- .Fortran("endpointTree",

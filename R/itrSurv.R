@@ -149,7 +149,13 @@
 #'   algorithm is used to select the candidate variable.
 #'   NOTE: this is not supported in code for Endpoint RE at the moment.
 #'
-#' @param sampleSize A numeric object or NULL.
+#' @param sampleSize1 A numeric object or NULL.
+#'   The fraction (0 < sampleSize <= 1) of the data to be used for each
+#'   tree in the forest. If NULL and 'ERT' is TRUE,
+#'   sampleSize defaults to 1.0. If NULL and 'ERT'
+#'   is FALSE, sampleSize defaults to 0.632.
+#'
+#' @param sampleSize2 A numeric object or NULL.
 #'   The fraction (0 < sampleSize <= 1) of the data to be used for each
 #'   tree in the forest. If NULL and 'ERT' is TRUE,
 #'   sampleSize defaults to 1.0. If NULL and 'ERT'
@@ -625,7 +631,6 @@ itrSurv <- function(data,
                                   ERT = params1@ERT#,
                                   # nDP = nDP
                                   )
-  # message("sample size1: ", sampleSize1)
 
   # # ensure that mTry is provided as a vector. At this point, there is
   # # no verification of an appropriate value
@@ -733,7 +738,9 @@ itrSurv <- function(data,
   sampleSize2 <- .VerifySampleSize(sampleSize = sampleSize,
                                    ERT = params2@ERT)#,
                                    # nDP = nDP)
+  # message("sample size1: ", sampleSize1)
   # message("sample size2: ", sampleSize2)
+  # stop("testing sampelSize")
 
   # mTry is a scalar b/c its one decision point for single stage setting
   # # ensure that mTry is provided as a vector. At this point, there is
