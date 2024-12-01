@@ -562,7 +562,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   !WRITE(*,'(/,A)') '============================ tfindSplit ============================'
 
   !IF (isPhase2RE) THEN
-  !IF (print_check) THEN
+  IF (print_check) THEN
     WRITE(*,'(/,A)') '============================ tfindSplit ============================'
     PRINT *, "******************** tfindSplit ********************"
     PRINT *, "casesIn"
@@ -579,7 +579,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
     !PRINT *, "nodeSizeSurv:", nodeSizeSurv
     PRINT *
     PRINT *
-  !END IF
+  END IF
   !END IF
 
   ! determine if this is to be a random split
@@ -617,13 +617,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   ! tracks the number of variables tried
   variablesTried = 0
 
-  PRINT *, "x with size", size(x)
-  PRINT *, x
-  PRINT *
-  PRINT *, "casesIn with size", size(casesIn)
-  PRINT *, casesIn
-  PRINT *
-  PRINT *, "ncases:", nCases
+  !PRINT *, "x with size", size(x)
+  !PRINT *, x
+  !PRINT *
+  !PRINT *, "casesIn with size", size(casesIn)
+  !PRINT *, casesIn
+  !PRINT *
+  !PRINT *, "ncases:", nCases
 
   tcases = (/(i,i=1,nCases)/)
 
@@ -1120,8 +1120,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
     IF (isPhase2RE) THEN
       leftCases = personID_og(1:(splitLeft-1))
       rightCases = personID_og(splitLeft:nCases)
-      PRINT *, "personID_og"
-      PRINT *, personID_og
+      !PRINT *, "personID_og"
+      !PRINT *, personID_og
     END IF
   
     IF (isPhase2RE) THEN
@@ -1545,9 +1545,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
 
         !PRINT *, "dostart:", dostart
         !PRINT *, "doend:", doend
-        PRINT *, "This person (ID: ", doi, ") has ", numCases, "records."
-        PRINT *, "Starting at:", dostart, " and ending at:", doend
-        PRINT *
+        !PRINT *, "This person (ID: ", doi, ") has ", numCases, "records."
+        !PRINT *, "Starting at:", dostart, " and ending at:", doend
+        !PRINT *
         !PRINT *, "There are a total of ", nCases, " cases."
         !PRINT *, "leftCases"
         !PRINT *, leftCases
@@ -4121,13 +4121,13 @@ subroutine group_and_sort(vector1, vector2, vector3, vector4, vector5, n, combin
     end do
 
     ! Output the sorted array
-    print *, "Grouped and Sorted Data:"
-    PRINT *, "covar_sorted_RE, personID_og, recordID, delta, delta_m"
-    do i = 1, 10 !n
-        print '(F6.4, 1X, I6, 1X, I6, 1X, I6, 1X, I6)', &
-              combinedArray(i, 1), INT(combinedArray(i, 2)), INT(combinedArray(i, 3)), &
-              INT(combinedArray(i, 4)), INT(combinedArray(i, 5))
-    end do
+    !print *, "Grouped and Sorted Data:"
+    !PRINT *, "covar_sorted_RE, personID_og, recordID, delta, delta_m"
+    !do i = 1, 10 !n
+    !    print '(F6.4, 1X, I6, 1X, I6, 1X, I6, 1X, I6)', &
+    !          combinedArray(i, 1), INT(combinedArray(i, 2)), INT(combinedArray(i, 3)), &
+    !          INT(combinedArray(i, 4)), INT(combinedArray(i, 5))
+    !end do
 
 end subroutine group_and_sort
 
@@ -4549,6 +4549,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         delta = deltaAll(sampledArray_index)
         delta_m = deltaAll_m(sampledArray_index)
         
+                IF (print_check) THEN
           PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
           PRINT *, sampledArray
           PRINT *, "Sampled Array Indices with size:", size(sampledArray_index)
@@ -4559,7 +4560,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
           PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
           PRINT *, sampledArray_index_new
 
-        IF (print_check) THEN
+
           
           PRINT *, "nAll_surv:", nAll_surv
           PRINT *, "sampleSize:", sampleSize
@@ -4775,18 +4776,19 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
             PRINT *
             PRINT *, "jdex_surv_RE(stm(k,1):stm(k,2))"
             PRINT *, jdex_surv_RE(stm(k,1):stm(k,2))
+            PRINT *
+            PRINT *, "jdex"
+            PRINT *, jdex
+            PRINT *
+            PRINT *, "sampledArray_index"
+            PRINT *, sampledArray_index
+            PRINT *, "sampledArray_new"
+            PRINT *, sampledArray_new
+            PRINT *, "ind"
+            PRINT *, ind
+            PRINT *, "record_ind"
+            PRINT *, record_ind
           END IF
-          PRINT *, "jdex"
-          PRINT *, jdex
-          PRINT *
-          PRINT *, "sampledArray_index"
-          PRINT *, sampledArray_index
-          PRINT *, "sampledArray_new"
-          PRINT *, sampledArray_new
-          PRINT *, "ind"
-          PRINT *, ind
-          PRINT *, "record_ind"
-          PRINT *, record_ind
       END IF
 
       ! if there are deficient variables, use only these variables
