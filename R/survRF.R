@@ -120,9 +120,9 @@
   # } else{
   #   nr = nrow(x = x)
   # }
-  message("number of individuals, nr: ", nr)
+  # message("number of individuals, nr: ", nr)
 
-  message("setUpInners: Send info to Fortran")
+  # message("setUpInners: Send info to Fortran")
   # send step specific x, pr, delta, mTry, nCat to Fortran
 
   dd <<- delta
@@ -136,7 +136,7 @@
     x_covar = x
   }
 
-  message("setupInners")
+  # message("setupInners")
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
@@ -162,9 +162,9 @@
   # message(" dfgdfgd ================= Phase: ", Phase)
   if (grepl("surv", Phase, ignore.case = TRUE) | Phase == 1){
     res_pooled0_surv <<- res
-    print("survTree: survTree in Fortran")
-    message("number of rows/people in dataset: nr = ", nr)
-    message("maximum number of time points: nTimes = ", nTimes)
+    # print("survTree: survTree in Fortran")
+    # message("number of rows/people in dataset: nr = ", nr)
+    # message("maximum number of time points: nTimes = ", nTimes)
     Tree <- .Fortran("survTree",
                        forestFunc = as.double(numeric(nTimes*nr)),#survival function averaged over forest
                        forestMean = as.double(numeric(nr)),#mean survival time averaged over forest
