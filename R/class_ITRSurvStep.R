@@ -631,6 +631,7 @@ setMethod(f = ".Predict",
         as.integer(((row[1] < tp & row[1] > 0) | (row[1] <= tp & row[1] == 0)) & row[2] >= tp)
       })
     })
+    print(dim(pr2))
     pr2.tmp<<-pr2
     # August 2024: number of ppl at risk for recurrent event and death are the same because
     # if they are at-risk for RE then they are also at risk for death and vise versa
@@ -657,7 +658,7 @@ setMethod(f = ".Predict",
       # USING SURVIVAL TIME POINTS (includes 0 and tau)
       sapply(.TimePoints(object = phase1_params), function(tp) {
         # 1 means at risk; 0 means NOT at risk (opposite of tSurv)
-        # this is old: doens't account for 0 : as.integer(row[1] < tp & row[2] >= tp)
+        # old: doens't account for 0 : as.integer(row[1] < tp & row[2] >= tp)
         as.integer(((row[1] < tp & row[1] > 0) | (row[1] <= tp & row[1] == 0)) & row[2] >= tp)
       })
     })

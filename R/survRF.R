@@ -136,6 +136,12 @@
     x_covar = x
   }
 
+  # if (Phase == "RE"){
+  #
+  #   print(as.double(x = t(x = pr2)))
+  #   print(as.double(x = t(x = pr2_surv)))
+  #
+  #   stop("testing pr2surv and pr2")}
   # message("setupInners")
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
