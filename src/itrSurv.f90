@@ -697,9 +697,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
 
     IF (isPhase2RE) THEN
       ! this is for pr2, pr, prsurv, pr2surv
-      pr_sub = pr(record_ind,:)
+      pr_sub = pr
+      prsurv_sub = prsurv
       pr2_sub = pr2(record_ind,:)
-      prsurv_sub = prsurv(record_ind,:)
       pr2surv_sub = pr2surv(record_ind,:)
     END IF
 
@@ -1161,13 +1161,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
       rightCases = cases(splitLeft:nSubj)
     END IF
     IF (isPhase2RE) THEN
-      PRINT *, "splitLeft: ", splitLeft
+      !PRINT *, "splitLeft: ", splitLeft
       leftCases = recordID(1:(splitLeft)) ! 12/3/24: make this splitLeft not splitLeft-1 (diff from Phase1/2CR)
       rightCases = recordID(splitLeft+1:nCases)
-      PRINT *, "leftCases with size:", size(leftCases)
-      PRINT *, leftCases
-      PRINT *, "rightCases with size:", size(rightCases)
-      PRINT *, rightCases
+      !PRINT *, "leftCases with size:", size(leftCases)
+      !PRINT *, leftCases
+      !PRINT *, "rightCases with size:", size(rightCases)
+      !PRINT *, rightCases
     END IF
 
 
@@ -1236,20 +1236,22 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "size(prsurv_sub)",size(prsurv_sub,1), " x ", size(prsurv_sub,2)
-      !PRINT *, "size(pr2surv_sub)",size(pr2surv_sub,1 ), " x ", size(pr2surv_sub,2)
-      !PRINT *, "size(pr_sub)",size(pr_sub,1), " x ", size(pr_sub,2)
-      !PRINT *, "size(pr2_sub)",size(pr2_sub,1 ), " x ", size(pr2_sub,2)
-      PRINT *, "Use below to double check against atrisk/events using checking_atrisk_events.R"
-      PRINT *, "left:", size(personID_og(1:(splitLeft)))
-      PRINT *, personID_og(1:(splitLeft))
-      PRINT *, "right:", size(personID_og(splitLeft+1:nCases))
-      PRINT *, personID_og(splitLeft+1:nCases)
+! USE THIS WITH RE_INFO CHECK STATEMENTS AT BEGINNING FOR ATRISK/EVENTS
+!                  PRINT *, "Use below to double check against atrisk/events using checking_atrisk_events.R"
+!                  PRINT *, "left:", size(personID_og(1:(splitLeft)))
+!                  PRINT *, personID_og(1:(splitLeft))
+!                  PRINT *, "right:", size(personID_og(splitLeft+1:nCases))
+!                  PRINT *, personID_og(splitLeft+1:nCases)
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *
+      !PRINT *, "size(prsurv_sub)",size(prsurv_sub,1), " x ", size(prsurv_sub,2)
+      !PRINT *, "size(pr2surv_sub)",size(pr2surv_sub,1 ), " x ", size(pr2surv_sub,2)
+      !PRINT *, "size(pr_sub)",size(pr_sub,1), " x ", size(pr_sub,2)
+      !PRINT *, "size(pr2_sub)",size(pr2_sub,1 ), " x ", size(pr2_sub,2)
+      
       prl = prsurv_sub(leftCases,:) ! survival times
       prr = prsurv_sub(rightCases,:)
       prl_m = pr_sub(leftCases,:) ! recurrent event times
@@ -1993,10 +1995,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
                     PRINT *
           END IF
 
-          PRINT *, "starting RE_INFO"
+          !PRINT *, "starting RE_INFO"
 
           !IF (print_check) THEN
-          PRINT *, "calling re_info for LEFT!!! "
+          !PRINT *, "calling re_info for LEFT!!! "
           !PRINT *, "endpoint at risk"
           !PRINT *, atRiskLeft_m_loop
           !PRINT *, "survival at risk"
@@ -2013,8 +2015,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
             & dmu_left, dPsi_left)
 
           !IF (print_check) THEN
-          PRINT *
-          PRINT *, "calling re_info for RIGHT !!!"
+          !PRINT *
+          !PRINT *, "calling re_info for RIGHT !!!"
           !PRINT *, "endpoint at risk"
           !PRINT *, atRiskRight_m_loop
           !PRINT *, "survival at risk"
@@ -2417,7 +2419,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
     PRINT *, "---------------------"
   END IF
 
-  IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
+  !IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
   RETURN
 
 END SUBROUTINE tfindSplit
@@ -2464,10 +2466,10 @@ SUBROUTINE kaplan(ns, nj, oj, z)
     IF (nj(i) > 1d-8) THEN
       z(i) = (num(i)/nj(i)) * z(i-1)
     ELSE
-      IF (isPhase2RE) PRINT *, "z(",i-1,") = ", z(i-1)
+      !IF (isPhase2RE) PRINT *, "z(",i-1,") = ", z(i-1)
       z(i) = z(i-1)
     END IF
-    IF (isPhase2RE) PRINT *, "z(",i,") = ", z(i)
+    !IF (isPhase2RE) PRINT *, "z(",i,") = ", z(i)
   END DO
 
   DO i = 1, ns
@@ -2561,27 +2563,28 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 
   INTEGER :: tmp_i, i
 
-! Check At Risk and Events Inputs
-PRINT *
-PRINT *, nt_survival, " timepoints:"
-PRINT *, "------------------------------------------"
-PRINT '(A)', "TimePoint        AtRisk        TerminalEvents"
-PRINT *, "------------------------------------------"
-! Loop through each survival time point
-DO i = 1, nt_survival
-    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_survival(i), INT(Nj_survival(i)), INT(Oj_survival(i))
-END DO
-PRINT *, "------------------------------------------"
-PRINT *
-PRINT *, nt_endpoint, " timepoints:"
-PRINT *, "------------------------------------------"
-PRINT '(A)', "TimePoint        AtRisk        RecurrentEvents"
-PRINT *, "------------------------------------------"
-! Loop through each RE time point
-DO i = 1, nt_endpoint
-    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_endpoint(i), INT(Nj_endpoint(i)), INT(Oj_endpoint(i))
-END DO
-PRINT *, "------------------------------------------"
+! use below to check, can use checking_atrisk_events.R in R
+!! Check At Risk and Events Inputs
+!PRINT *
+!PRINT *, nt_survival, " timepoints:"
+!PRINT *, "------------------------------------------"
+!PRINT '(A)', "TimePoint        AtRisk        TerminalEvents"
+!PRINT *, "------------------------------------------"
+!! Loop through each survival time point
+!DO i = 1, nt_survival
+!    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_survival(i), INT(Nj_survival(i)), INT(Oj_survival(i))
+!END DO
+!PRINT *, "------------------------------------------"
+!PRINT *
+!PRINT *, nt_endpoint, " timepoints:"
+!PRINT *, "------------------------------------------"
+!PRINT '(A)', "TimePoint        AtRisk        RecurrentEvents"
+!PRINT *, "------------------------------------------"
+!! Loop through each RE time point
+!DO i = 1, nt_endpoint
+!    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_endpoint(i), INT(Nj_endpoint(i)), INT(Oj_endpoint(i))
+!END DO
+!PRINT *, "------------------------------------------"
 
 
 ! FIRST: get GROUP INFORMATION
@@ -2716,7 +2719,7 @@ end if
   survRE = 0.0_dp ! make sure this is OK, otherwise delete
   !survD = 0.0_dp ! make sure this is OK, otherwise delete
   
-  PRINT *, "******************** obtain survival KM (deaths) ********************"
+  !PRINT *, "******************** obtain survival KM (deaths) ********************"
 
   IF (Nj_survival(1) .LT. 1) THEN
     PRINT *, 'nt_survival = ', nt_survival
@@ -2733,9 +2736,8 @@ end if
         PRINT '(A, I3, A, F6.4, A, F6.1)', 'Index(', i, '): tp_endpoint = ', tp_endpoint(i), ', Nj_endpoint = ', Nj_endpoint(i)
     END DO
 
-
   END IF
-  PRINT *, "call kaplan within MeanFreqFunc subroutine - LINE 2710"
+  !PRINT *, "call kaplan within MeanFreqFunc subroutine - LINE 2710"
   call kaplan(nt_survival, Nj_survival, Oj_survival, survD)
 
   IF (print_check) THEN
@@ -4558,8 +4560,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
   print_check = .FALSE.
   are_equal = .TRUE.
-
-IF (isPhase2RE) PRINT *, "-- calcValueSingle --"
+  
+  !IF (isPhase2RE) PRINT *, "-- calcValueSingle --"
 
   if (print_check) THEN
     PRINT *, "nAll: ", nAll
@@ -5021,10 +5023,10 @@ IF (isPhase2RE) PRINT *, "-- calcValueSingle --"
       ! IF (isPhase1) PRINT *, "get basic node information for left daughter."
       !PRINT *, "tsurvTree: Line 4616: CALL calcValueSingle"
       IF (isPhase2RE) THEN
-        PRINT *, "----------"   
+        !PRINT *, "----------"   
         leftCasesRE = jdexRE(stm(ncur,1):stm(ncur,2))
-        PRINT *, "leftCasesRE with size ", size(leftCasesRE)
-        PRINT *, leftCasesRE
+        !PRINT *, "leftCasesRE with size ", size(leftCasesRE)
+        !PRINT *, leftCasesRE
         !PRINT *, "calcValueSingle for leftRE"
         CALL calcValueSingle(size(leftCasesRE), leftCasesRE, Func(:,ncur), &
                           & mean(ncur))
@@ -5094,14 +5096,14 @@ IF (isPhase2RE) PRINT *, "-- calcValueSingle --"
       IF (isPhase2RE) THEN
         ! retrieve left and right cases
         rightCasesRE = jdexRE(stm(ncur,1):stm(ncur,2))
-        PRINT *, "rightCasesRE with size", size(rightCasesRE)
-        PRINT *, rightCasesRE
+        !PRINT *, "rightCasesRE with size", size(rightCasesRE)
+        !PRINT *, rightCasesRE
         ! calculate survival function and mean survival time for right node
         ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
         !PRINT *, "calcValueSingle for rightRE"
         CALL calcValueSingle(size(rightCasesRE), rightCasesRE, Func(:,ncur), &
                           & mean(ncur))
-        PRINT *, "----------"   
+        !PRINT *, "----------"   
       ELSE
         ! calculate survival function and mean survival time for right node
         ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
