@@ -432,11 +432,11 @@ END SUBROUTINE sampleCasesWithoutReplacement
 !     otherwise
 !   nCuts : integer, the number of cutoff values returned
 !   lft : integer, the number of cases in the left node
-! CALL tfindSplit(size(ind), ind, size(pind), pind, splitVar, cutoffBest, splitFound, indOut, indOutRE, nc, lft)
+! CALL tfindSplit(size(ind), ind, indRE, size(pind), pind, splitVar, cutoffBest, splitFound, indOut, indOutRE, nc, lft)
 !
 ! for RE: this is each record and nCases is number of records
 ! we need a nCases_person and 
-SUBROUTINE tfindSplit(nCases, casesIn, &
+SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
                     nSubj, subjIn, record_ind, &
                     nv, varsIn, &
                     splitVar, cutoffBest, splitFound, casesOut, casesOutRE, nCuts, lft)
@@ -446,6 +446,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   INTEGER, INTENT(IN) :: nCases
   INTEGER, INTENT(IN) :: nSubj
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: casesIn
+  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: casesInRE
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: subjIn
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_ind
   INTEGER, INTENT(IN) :: nv
@@ -466,8 +467,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   INTEGER :: splitLeft_m, splitLeftFinal_m, splitLeft_doloop, splitLeftFinal_doloop
   INTEGER :: splitLeft_loop
   INTEGER :: tieValue, variablesTried
-  INTEGER, DIMENSION(1:nCases) :: cases, cases1, dSorted, dSorted_m, tcases, subjects!, tsubjects
-  INTEGER, DIMENSION(1:nCases) :: recordID, recordID_og, personID_og, person_ind_sorted, personID_new !tsubjind
+  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases, subjects!, tsubjects
+  INTEGER, DIMENSION(1:nCases) :: recordID, recordID_og, personID_og, personID, person_ind_sorted, personID_new !tsubjind
   INTEGER, DIMENSION(:), ALLOCATABLE :: uniqueID, firstIndex, lastIndex
   INTEGER :: uniqueCount, doi, doj, doitmp, dojtmp
   INTEGER :: dostart, doend, numCases
@@ -562,19 +563,27 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   are_equal = .TRUE.
   print_check = .FALSE.
 
-  !WRITE(*,'(/,A)') '============================ tfindSplit ============================'
 
   IF (isPhase2RE) THEN
-  !IF (print_check) THEN
+  IF (print_check) THEN
+      WRITE(*,'(/,A)') '============================ tfindSplit ============================'
+    PRINT *, "subjIn with size", size(subjIn)
+    PRINT *, subjIn
+    PRINT *, "casesIn with size", size(casesIn)
+    PRINT *, casesIn
+    PRINT *, "casesInRE with size", size(casesInRE)
+    PRINT *, casesInRE
+    PRINT *, "record_ind with size", size(record_ind)
+    PRINT *, record_ind
     WRITE(*,'(/,A)') '============================ tfindSplit ============================'
     !PRINT *, "******************** tfindSplit ********************"
     PRINT *, "nCases:", nCases, "and nSubj:", nSubj
     PRINT *, "nodeSizeEnd:", nodeSizeEnd
     PRINT *, "nodeSizeSurv:", nodeSizeSurv
-!    PRINT *
+    PRINT *
     PRINT *, "casesIn with size", size(casesIn)
     PRINT *, casesIn
-  !END IF
+  END IF
   END IF
 
   ! determine if this is to be a random split
@@ -614,7 +623,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
   variablesTried = 0
 
   tcases = (/(i,i=1,nCases)/)
-  PRINT *, "hi1"
 
   ! Terminal node criteria     
   IF (isPhase2RE) THEN
@@ -630,10 +638,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
     END IF
   END IF
   
-  print *, "nv:", nv
   DO i = 1, nv
-    print *, "covar:", i
-
+  
     ! if mTry successful splits already explored, exit
     IF (variablesTried .EQ. mTry) EXIT
 
@@ -655,27 +661,27 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
       IF (.NOT. isPhase2RE) THEN
         CALL getCovariate(nCases, casesIn, kv, xSorted)
       ELSE
+        !PRINT *, "RE: ================================================================"
         !PRINT *, "get covar"
+        PRINT *, "WARNING: This may not be coded up yet for RE"
         CALL getCovariate(nCases, casesIn, kv, covar_sorted_RE)
+        !PRINT *, "shape x:", shape(x)
+        !PRINT *, "sahpe covar_sorted_RE:", shape(covar_sorted_RE)
       END IF
     ELSE
       !PRINT *, "nCat(kv) is either 0 = continuous or 1 = ordered factors"
       IF (.NOT. isPhase2RE) THEN
         xSorted = x(casesIn,kv)
       ELSE ! Phase2RE- use record_ind
+        !PRINT *, "RE: ================================================================"
         !PRINT *, "not get covar"
         covar_sorted_RE = x(record_ind,kv)
+        !PRINT *, "shape x:", shape(x)
+        !PRINT *, "sahpe covar_sorted_RE:", shape(covar_sorted_RE)
         IF (print_check) THEN
           PRINT *, "kv=", kv
           PRINT *, "x with size", size(x)
           PRINT *, x
-          PRINT *
-          PRINT *, "casesIn with size", size(casesIn)
-          PRINT *, casesIn
-          PRINT *
-          PRINT *, "record_ind with size", size(record_ind)
-          PRINT *, record_ind
-          PRINT *
           PRINT *, size(covar_sorted_RE)
           PRINT *, covar_sorted_RE
           PRINT *
@@ -689,8 +695,17 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
     PRINT *, "`````````````````"
     END IF 
 
-    cases = casesIn
+    IF (isPhase2RE) THEN
+      ! this is for pr2, pr, prsurv, pr2surv
+      pr_sub = pr(record_ind,:)
+      pr2_sub = pr2(record_ind,:)
+      prsurv_sub = prsurv(record_ind,:)
+      pr2surv_sub = pr2surv(record_ind,:)
+    END IF
 
+    cases = casesIn
+    !IF (isPhase2RE) PRINT *, "casesIn with size", size(casesIn)
+    !IF (isPhase2RE) PRINT *, casesIn
     !================================================================
     !================================================================
     IF (isPhase1 .OR. isPhase2CR) THEN
@@ -730,37 +745,72 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
       END IF
 
       CALL group_and_sort(covar_sorted_RE, subjIn(tcasesSorted), &
-                    tcasesSorted, &
+                    tcasesSorted, casesIn(tcasesSorted), &
                     delta(tcasesSorted), delta_m(tcasesSorted), &
                     size(covar_sorted_RE), combArray)
       xSorted = combArray(:, 1) ! xSorted
       personID_og = combArray(:, 2) ! personID_og
       recordID = combArray(:, 3) ! recordID
-      dSorted = combArray(:, 4) ! dSorted
-      dSorted_m = combArray(:, 5) ! dSorted_m
-      cases1 = cases(recordID)
-
-      pr2surv_sub = pr2surv
-      pr2_sub = pr2
-      prsurv_sub = prsurv
-      pr_sub = pr
-
-      ! Print sizes after executing the main block of code
-      PRINT *, "Derived array sizes:"
-      PRINT *, "xSorted size:       ", SIZE(xSorted)
-      PRINT *, "personID_og size:   ", SIZE(personID_og)
-      PRINT *, "recordID size:      ", SIZE(recordID)
-      PRINT *, "dSorted size:       ", SIZE(dSorted)
-      PRINT *, "dSorted_m size:     ", SIZE(dSorted_m)
-      PRINT *, "prsurv_sub size:    ", SIZE(prsurv_sub, 1), " x ", SIZE(prsurv_sub, 2)
-      PRINT *, "pr_sub size:        ", SIZE(pr_sub, 1), " x ", SIZE(pr_sub, 2)
-      PRINT *, "pr2surv_sub size:   ", SIZE(pr2surv_sub, 1), " x ", SIZE(pr2surv_sub, 2)
-      PRINT *, "pr2_sub size:       ", SIZE(pr2_sub, 1), " x ", SIZE(pr2_sub, 2)
-      PRINT *, "---------------------------------------------"
-
+      personID = combArray(:, 4) ! personID
+      dSorted = combArray(:, 5) ! dSorted
+      dSorted_m = combArray(:, 6) ! dSorted_m
       CALL create_new_vector(personID_og, size(personID_og), personID_new)
 
+
+!      PRINT *, "personID with size", size(personID)
+!      PRINT *, personID
+
       IF (print_check) THEN
+
+
+            IF (size(prsurv_sub,1) .NE. size(prsurv,1)) THEN
+              ! Print sizes after executing the main block of code
+              PRINT *, "Derived array sizes:"
+              !PRINT *, "xSorted size:       ", SIZE(xSorted)
+              !PRINT *, "personID_og size:   ", SIZE(personID_og)
+              !PRINT *, "recordID size:      ", SIZE(recordID)
+              !PRINT *, "dSorted size:       ", SIZE(dSorted)
+              !PRINT *, "dSorted_m size:     ", SIZE(dSorted_m)
+              PRINT *, "prsurv_sub size:    ", SIZE(prsurv_sub, 1), " x ", SIZE(prsurv_sub, 2)
+              PRINT *, "pr_sub size:        ", SIZE(pr_sub, 1), " x ", SIZE(pr_sub, 2)
+              PRINT *, "pr2surv_sub size:   ", SIZE(pr2surv_sub, 1), " x ", SIZE(pr2surv_sub, 2)
+              PRINT *, "pr2_sub size:       ", SIZE(pr2_sub, 1), " x ", SIZE(pr2_sub, 2)
+              PRINT *, "prsurv size:    ", SIZE(prsurv, 1), " x ", SIZE(prsurv, 2)
+              PRINT *, "pr size:        ", SIZE(pr, 1), " x ", SIZE(pr, 2)
+              PRINT *, "pr2surv size:   ", SIZE(pr2surv, 1), " x ", SIZE(pr2surv, 2)
+              PRINT *, "pr2 size:       ", SIZE(pr2, 1), " x ", SIZE(pr2, 2)
+              !PRINT *, "---------------------------------------------"
+            END IF
+
+
+        PRINT *, "cases with size:", size(cases)
+        PRINT *, cases
+        PRINT *, "subjIn with size", size(subjIn)
+        PRINT *, subjIn
+        PRINT *
+        PRINT *, "tcasesSorted with size:", size(tcasesSorted)
+        PRINT *, tcasesSorted
+        PRINT *, "recordID with size:", size(recordID)
+        PRINT *, recordID
+        PRINT *
+        PRINT *
+
+        PRINT *, "Combined Details:"
+        PRINT *, "------------------"
+        PRINT *, size(personID_og)
+        PRINT *, size(recordID)
+        PRINT *, size(personID_new)
+        PRINT *, shape(pr2)
+        PRINT *, " personID_og   recordID   personID    personID_new   xSorted"
+        PRINT *, "-----------------------------------------------------------"
+        DO tmp_i = 1, SIZE(personID_og)
+        PRINT '(I12, I12, I12, I12, 3X, F6.3)', personID_og(tmp_i), &
+          & recordID(tmp_i), personID(tmp_i), personID_new(tmp_i), &
+          xSorted(tmp_i)
+        END DO
+        PRINT *, "-----------------------------------------------------------"
+        PRINT *
+
         ! Assuming all arrays have the same size
         PRINT *, " personID_og   recordID   personID_new"
         PRINT *, "------------------------------------"
@@ -1190,10 +1240,11 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
       !PRINT *, "size(pr2surv_sub)",size(pr2surv_sub,1 ), " x ", size(pr2surv_sub,2)
       !PRINT *, "size(pr_sub)",size(pr_sub,1), " x ", size(pr_sub,2)
       !PRINT *, "size(pr2_sub)",size(pr2_sub,1 ), " x ", size(pr2_sub,2)
-      PRINT *, "left:", size(cases1(1:(splitLeft)))
-      PRINT *, cases1(1:(splitLeft))
-      PRINT *, "right:", size(cases1(splitLeft+1:nCases))
-      PRINT *, cases1(splitLeft+1:nCases)
+      PRINT *, "Use below to double check against atrisk/events using checking_atrisk_events.R"
+      PRINT *, "left:", size(personID_og(1:(splitLeft)))
+      PRINT *, personID_og(1:(splitLeft))
+      PRINT *, "right:", size(personID_og(splitLeft+1:nCases))
+      PRINT *, personID_og(splitLeft+1:nCases)
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
       !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
@@ -1431,7 +1482,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
       !PRINT *, "end of testing"
 
       !TESTINGpd1 = 0.0_dp  ! Initialize to zero
-      !PRINT *, "size(leftCases_m)", size(leftCases_m)
       !PRINT *, "size(leftCases)", size(leftCases)
       !do iiii = 1, 21
       !    TESTINGpd1 = TESTINGpd1 + pr2survl(iiii, :)
@@ -1544,22 +1594,13 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
         PRINT *, recordID
         PRINT *
 
+
+ 
+
+
+
       END IF
 
-        PRINT *, "Combined Details:"
-        PRINT *, "------------------"
-        PRINT *, size(personID_og)
-        PRINT *, size(recordID)
-        PRINT *, size(personID_new)
-        PRINT *, size(cases1)
-        PRINT *, " personID_og   recordID   personID_new   cases1 "
-        PRINT *, "----------------------------------------------"
-        DO tmp_i = 1, SIZE(personID_og)
-            PRINT '(I12, I12, I12, I12)', personID_og(tmp_i), &
-            & recordID(tmp_i), personID_new(tmp_i), cases1(tmp_i)
-        END DO
-        PRINT *, "----------------------------------------------"
-        PRINT *
 
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1643,8 +1684,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
         CALL find_unique(rightPeople_loop, unique_rightPeople_loop, nrightPeople_loop)
 
                       IF (print_check) THEN
-        PRINT *, "cases1 with size", size(cases1)
-        PRINT *, cases1
         PRINT *, "recordID with size", size(recordID)
         PRINT *, recordID
         PRINT *, "personID_new with size", size(personID_new)
@@ -1660,9 +1699,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
         PRINT *, "rightPeople_loop with size", size(rightPeople_loop)
         PRINT *, rightPeople_loop
 
-  
-        PRINT *, "pr2_sub array by columns:"
-        DO j = 1, 1
+
+        PRINT *, "pr2_sub (", shape(pr2_sub), ") array by columns:"
+          DO j = 1, 1
             WRITE(*, '(A, I5)') "Column: ", j
             WRITE(*, '(A)') "---------------------------------------------"
 
@@ -1679,10 +1718,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
             !WRITE(*, '(20F6.1)') (pr2(leftCases_loop(testi), j), testi = 1, SIZE(leftCases_loop))
 
             WRITE(*, '(A)') "---------------------------------------------"
-        END DO
-        END IF
-
-
+          END DO
+       
+        END IF  
+         
         ! Assuming all arrays have the same size
         !PRINT *, "From 1:", doend
         !PRINT *, " personID_og   recordID   personID_new"
@@ -1807,8 +1846,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
               PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", atRiskLeft_m_loop(testi)
           END DO
 
-        PRINT *, "leftCases_Loop"
-        PRINT *, leftCases_loop
+          PRINT *, "leftCases_Loop"
+          PRINT *, leftCases_loop
 
         END IF
 
@@ -1954,16 +1993,18 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
                     PRINT *
           END IF
 
-          !PRINT *, "starting RE_INFO"
+          PRINT *, "starting RE_INFO"
 
-          IF (print_check) THEN
-          PRINT *, "calling re_info for left"
-          PRINT *, "endpoint at risk"
-          PRINT *, atRiskLeft_m_loop
-          PRINT *, "survival at risk"
-          PRINT *, atRiskLeft_loop
-          PRINT *
-          END IF
+          !IF (print_check) THEN
+          PRINT *, "calling re_info for LEFT!!! "
+          !PRINT *, "endpoint at risk"
+          !PRINT *, atRiskLeft_m_loop
+          !PRINT *, "survival at risk"
+          !PRINT *, atRiskLeft_loop
+          !PRINT *, "survival events"
+          !PRINT *, eventsLeft_loop
+          !PRINT *
+          !END IF
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(leftCases_loop), leftCases_loop, dSorted_m(1:splitLeft_loop), &
             & dSorted(1:splitLeft_loop), nleftPeople_loop, &
@@ -1971,15 +2012,17 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
             & prl_m_loop, pr2l_loop, &
             & dmu_left, dPsi_left)
 
-          IF (print_check) THEN
+          !IF (print_check) THEN
           PRINT *
-          PRINT *, "calling re_info for right"
-          PRINT *, "endpoint at risk"
-          PRINT *, atRiskRight_m_loop
-          PRINT *, "survival at risk"
-          PRINT *, atRiskRight_loop
-          PRINT *
-          END IF
+          PRINT *, "calling re_info for RIGHT !!!"
+          !PRINT *, "endpoint at risk"
+          !PRINT *, atRiskRight_m_loop
+          !PRINT *, "survival at risk"
+          !PRINT *, atRiskRight_loop
+          !PRINT *, "survival events"
+          !PRINT *, eventsRight_loop
+          !PRINT *
+          !END IF
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(rightCases_loop), rightCases_loop, dSorted_m(splitLeft_loop+1:nCases), &
             & dSorted(splitLeft_loop+1:nCases), nrightPeople_loop, &
@@ -2274,7 +2317,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
       IF (isPhase1 .OR. isPhase2CR) THEN
         casesOut = cases
       ELSE IF (isPhase2RE) THEN
-        casesOut =  cases1
+        casesOut = personID
         casesOutRE = recordID
       END IF
 
@@ -2316,7 +2359,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
         IF (isPhase1 .OR. isPhase2CR) THEN
           casesOut = cases
         ELSE IF (isPhase2RE) THEN
-          casesOut = cases1
+          casesOut = personID
           casesOutRE = recordID
         END IF
         IF (print_check) THEN
@@ -2374,7 +2417,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, &
     PRINT *, "---------------------"
   END IF
 
-  !IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
+  IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
   RETURN
 
 END SUBROUTINE tfindSplit
@@ -2421,8 +2464,10 @@ SUBROUTINE kaplan(ns, nj, oj, z)
     IF (nj(i) > 1d-8) THEN
       z(i) = (num(i)/nj(i)) * z(i-1)
     ELSE
+      IF (isPhase2RE) PRINT *, "z(",i-1,") = ", z(i-1)
       z(i) = z(i-1)
     END IF
+    IF (isPhase2RE) PRINT *, "z(",i,") = ", z(i)
   END DO
 
   DO i = 1, ns
@@ -2432,11 +2477,11 @@ SUBROUTINE kaplan(ns, nj, oj, z)
         PRINT *, "num(i): ", num(i)
         PRINT *, "nj(i): ", nj(i)
         PRINT *, "oj(i): ", oj(i)
-        PRINT *, "delta:", delta
-        PRINT *, "delta_m:", delta_m
+        !PRINT *, "delta:", delta
+        !PRINT *, "delta_m:", delta_m
         PRINT *, "at risk total:", nj
         PRINT *, "events total:", oj
-        !STOP  ! Terminate the entire program if any element
+        STOP  ! Terminate the entire program if any element
     END IF
 END DO
 
@@ -2514,7 +2559,30 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
   REAL(dp), DIMENSION(1:nt_endpoint) :: dRhat_group
   REAL(dp), DIMENSION(1:nt_endpoint) :: mu_group
 
-  INTEGER :: tmp_i
+  INTEGER :: tmp_i, i
+
+! Check At Risk and Events Inputs
+PRINT *
+PRINT *, nt_survival, " timepoints:"
+PRINT *, "------------------------------------------"
+PRINT '(A)', "TimePoint        AtRisk        TerminalEvents"
+PRINT *, "------------------------------------------"
+! Loop through each survival time point
+DO i = 1, nt_survival
+    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_survival(i), INT(Nj_survival(i)), INT(Oj_survival(i))
+END DO
+PRINT *, "------------------------------------------"
+PRINT *
+PRINT *, nt_endpoint, " timepoints:"
+PRINT *, "------------------------------------------"
+PRINT '(A)', "TimePoint        AtRisk        RecurrentEvents"
+PRINT *, "------------------------------------------"
+! Loop through each RE time point
+DO i = 1, nt_endpoint
+    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_endpoint(i), INT(Nj_endpoint(i)), INT(Oj_endpoint(i))
+END DO
+PRINT *, "------------------------------------------"
+
 
 ! FIRST: get GROUP INFORMATION
 CALL MeanFreqFunc(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
@@ -2648,8 +2716,7 @@ end if
   survRE = 0.0_dp ! make sure this is OK, otherwise delete
   !survD = 0.0_dp ! make sure this is OK, otherwise delete
   
-  !PRINT *, "******************** obtain survival KM (deaths) ********************"
-
+  PRINT *, "******************** obtain survival KM (deaths) ********************"
 
   IF (Nj_survival(1) .LT. 1) THEN
     PRINT *, 'nt_survival = ', nt_survival
@@ -2668,7 +2735,7 @@ end if
 
 
   END IF
-
+  PRINT *, "call kaplan within MeanFreqFunc subroutine - LINE 2710"
   call kaplan(nt_survival, Nj_survival, Oj_survival, survD)
 
   IF (print_check) THEN
@@ -4094,112 +4161,12 @@ subroutine create_new_vector(personID_og, n, personID_new)
 end subroutine create_new_vector
 
 
-
-
- subroutine group_and_sort_old(vector1, vector2, vector3, vector4, vector5, n, combinedArray)
-        implicit none
-        INTEGER, INTENT(IN) :: n
-        REAL(dp), DIMENSION(1:n) :: vector1
-        INTEGER, DIMENSION(1:n) :: vector2, vector3, vector4, vector5
-        REAL(dp), DIMENSION(1:n, 5), INTENT(OUT) :: combinedArray  ! Six columns for combined array
-        INTEGER :: i, j
-        REAL(dp) :: tempReal
-        INTEGER :: tempInt
-
-        ! Combine vectors into a 2D array
-        combinedArray(:, 1) = vector1
-        combinedArray(:, 2) = vector2
-        combinedArray(:, 3) = vector3
-        combinedArray(:, 4) = vector4
-        combinedArray(:, 5) = vector5
-        !combinedArray(:, 6) = vector6
-
-        ! Sort combinedArray based on vector1 and then vector2
-        do i = 1, n-1
-            do j = i+1, n
-                ! First sort by vector1
-                if (combinedArray(i, 1) > combinedArray(j, 1)) then
-                    ! Swap vector1
-                    tempReal = combinedArray(i, 1)
-                    combinedArray(i, 1) = combinedArray(j, 1)
-                    combinedArray(j, 1) = tempReal
-                    
-                    ! Swap vector2
-                    tempInt = combinedArray(i, 2)
-                    combinedArray(i, 2) = combinedArray(j, 2)
-                    combinedArray(j, 2) = tempInt
-                    
-                    ! Swap vector3
-                    tempReal = combinedArray(i, 3)
-                    combinedArray(i, 3) = combinedArray(j, 3)
-                    combinedArray(j, 3) = tempReal
-                    
-                    ! Swap vector4
-                    tempReal = combinedArray(i, 4)
-                    combinedArray(i, 4) = combinedArray(j, 4)
-                    combinedArray(j, 4) = tempReal
-
-                    ! Swap vector5
-                    tempReal = combinedArray(i, 5)
-                    combinedArray(i, 5) = combinedArray(j, 5)
-                    combinedArray(j, 5) = tempReal
-
-                    !! Swap vector6
-                    !tempReal = combinedArray(i, 6)
-                    !combinedArray(i, 6) = combinedArray(j, 6)
-                    !combinedArray(j, 6) = tempReal
-                else if (combinedArray(i, 1) == combinedArray(j, 1)) then
-                    ! Then sort by vector2 if vector1 values are equal
-                    if (combinedArray(i, 2) > combinedArray(j, 2)) then
-                        ! Swap vector2
-                        tempInt = combinedArray(i, 2)
-                        combinedArray(i, 2) = combinedArray(j, 2)
-                        combinedArray(j, 2) = tempInt
-                        
-                        ! Swap vector1
-                        tempReal = combinedArray(i, 1)
-                        combinedArray(i, 1) = combinedArray(j, 1)
-                        combinedArray(j, 1) = tempReal
-                        
-                        ! Swap vector3
-                        tempReal = combinedArray(i, 3)
-                        combinedArray(i, 3) = combinedArray(j, 3)
-                        combinedArray(j, 3) = tempReal
-                        
-                        ! Swap vector4
-                        tempReal = combinedArray(i, 4)
-                        combinedArray(i, 4) = combinedArray(j, 4)
-                        combinedArray(j, 4) = tempReal
-
-                        ! Swap vector5
-                        tempReal = combinedArray(i, 5)
-                        combinedArray(i, 5) = combinedArray(j, 5)
-                        combinedArray(j, 5) = tempReal
-
-                        !! Swap vector6
-                        !tempReal = combinedArray(i, 6)
-                        !combinedArray(i, 6) = combinedArray(j, 6)
-                        !combinedArray(j, 6) = tempReal
-                    end if
-                end if
-            end do
-        end do
-
-        ! Output the sorted array
-        !print *, "Grouped and Sorted Data:"
-        !PRINT *, "covar_sorted_RE, subjSorted, tcasesSorted, tcases, delta, delta_m"
-        !do i = 1, n
-        !    print *, combinedArray(i, :)
-        !end do
-
-    end subroutine group_and_sort_old
-
-subroutine group_and_sort(vector1, vector2, vector3, vector4, vector5, n, combinedArray)
+subroutine group_and_sort(vector1, vector2, vector3, vector4, vector5, vector6, n, combinedArray)
     implicit none
     INTEGER, INTENT(IN) :: n
     REAL(dp), DIMENSION(1:n) :: vector1
-    INTEGER, DIMENSION(1:n) :: vector2, vector3, vector4, vector5
-    REAL(dp), DIMENSION(1:n, 5), INTENT(OUT) :: combinedArray  ! Five columns for combined array
+    INTEGER, DIMENSION(1:n) :: vector2, vector3, vector4, vector5, vector6
+    REAL(dp), DIMENSION(1:n, 6), INTENT(OUT) :: combinedArray  ! Five columns for combined array
     INTEGER :: i, j
 
     ! Combine vectors into a 2D array
@@ -4208,18 +4175,19 @@ subroutine group_and_sort(vector1, vector2, vector3, vector4, vector5, n, combin
     combinedArray(:, 3) = REAL(vector3, dp)
     combinedArray(:, 4) = REAL(vector4, dp)
     combinedArray(:, 5) = REAL(vector5, dp)
+    combinedArray(:, 6) = REAL(vector6, dp)
 
-    ! Sort combinedArray based on vector1, vector2, and vector3
+    ! Sort combinedArray ONLY based on vector1, vector2, and vector3
     do i = 1, n-1
         do j = i+1, n
             if (combinedArray(i, 1) > combinedArray(j, 1)) then
-                call swap_rows(combinedArray, i, j, 5)
+                call swap_rows(combinedArray, i, j, 6)
             else if (combinedArray(i, 1) == combinedArray(j, 1)) then
                 if (combinedArray(i, 2) > combinedArray(j, 2)) then
-                    call swap_rows(combinedArray, i, j, 5)
+                    call swap_rows(combinedArray, i, j, 6)
                 else if (combinedArray(i, 2) == combinedArray(j, 2)) then
                     if (combinedArray(i, 3) > combinedArray(j, 3)) then
-                        call swap_rows(combinedArray, i, j, 5)
+                        call swap_rows(combinedArray, i, j, 6)
                     end if
                 end if
             end if
@@ -4228,11 +4196,11 @@ subroutine group_and_sort(vector1, vector2, vector3, vector4, vector5, n, combin
 
     ! Output the sorted array
     !print *, "Grouped and Sorted Data:"
-    !PRINT *, "covar_sorted_RE, personID_og, recordID, delta, delta_m"
-    !do i = 1, 10 !n
-    !    print '(F6.4, 1X, I6, 1X, I6, 1X, I6, 1X, I6)', &
+    !PRINT *, "covar_sorted_RE, personID_og, recordID, personID, delta, delta_m"
+    !do i = 1, n
+    !    print '(5X, F7.4, 6X, I6, 6X, I6, 6X, I6, 3X, I6, 3X, I6)', &
     !          combinedArray(i, 1), INT(combinedArray(i, 2)), INT(combinedArray(i, 3)), &
-    !          INT(combinedArray(i, 4)), INT(combinedArray(i, 5))
+    !          INT(combinedArray(i, 4)), INT(combinedArray(i, 5)), INT(combinedArray(i, 6))
     !end do
 
 end subroutine group_and_sort
@@ -4386,11 +4354,11 @@ use, intrinsic :: ieee_arithmetic
   END IF 
 
   IF (isPhase2RE) THEN
-    PRINT *, "STEP2RE estimate MFF"
-    PRINT *, "dim of pr2", shape(pr2)
-    PRINT *, "dim of pr2surv", shape(pr2surv)
-    PRINT *, "dim of pr", shape(pr)
-    PRINT *, "dim of prsurv", shape(prsurv)
+    !PRINT *, "STEP2RE estimate MFF"
+    !PRINT *, "dim of pr2", shape(pr2)
+    !PRINT *, "dim of pr2surv", shape(pr2surv)
+    !PRINT *, "dim of pr", shape(pr)
+    !PRINT *, "dim of prsurv", shape(prsurv)
     ! Terminal Event Nj and Oj
     ! We now calculate the number of at risk cases at each time point using pr2 {nt}
     Nj_m = sum(pr2(casesIn,:), DIM = 1) ! at risk
@@ -4558,7 +4526,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   INTEGER, DIMENSION(1:np, 1:nrNodes) :: cstat
   INTEGER, DIMENSION(1:nrNodes, 1:2) :: stm
   INTEGER, DIMENSION(1:nAll_surv) :: allStatus
-  INTEGER, DIMENSION(:), ALLOCATABLE :: ind, indOut, indOutRE
+  INTEGER, DIMENSION(:), ALLOCATABLE :: ind, indOut, indOutRE, indRE
   INTEGER, DIMENSION(:), ALLOCATABLE :: leftCases, rightCases, leftCasesRE, rightCasesRE, pind, ind_surv_RE
   INTEGER, DIMENSION(:), ALLOCATABLE :: unique_ind_surv_RE, record_ind
 
@@ -4591,7 +4559,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   print_check = .FALSE.
   are_equal = .TRUE.
 
-    !PRINT *, "******************** tsurvTree ********************"
+IF (isPhase2RE) PRINT *, "-- calcValueSingle --"
 
   if (print_check) THEN
     PRINT *, "nAll: ", nAll
@@ -4602,14 +4570,13 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   forestMean = 0.d0
   forestProb = 0.d0
 
-  DO iTree = 1, nTree
+  DO iTree = 1, nTree ! do iTree
 
     Func = 0.d0
     mean = 0.d0
     Prob = 0.d0
     nMatrix = 0.0
     allStatus = 1
-
 
     ! sample data and set local variables x, pr, and delta to the selected subset
     IF (replace .EQ. 1) THEN
@@ -4634,20 +4601,19 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       IF (isPhase2RE) THEN ! Phase 2 RE sampling w/o replacement
         CALL sampleExpandWithoutReplacement(nAll, nAll_surv, sampleSize, id_RE, size(id_RE), sampledArray, sampledArray_index)
-        PRINT *, "size(sampledArray):", size(sampledArray)
+        !PRINT *, "size(sampledArray):", size(sampledArray)
         !PRINT *, "before assingmnet for smapling array"
         !PRINT *, isAlloc_sampledArray
         IF (isAlloc_sampledArray) DEALLOCATE(sampledArray_new)
         ALLOCATE(sampledArray_new(1:size(sampledArray)))
         isAlloc_sampledArray = .TRUE.
-        PRINT *, "after assignment for smapling array"
+        !PRINT *, "after assignment for smapling array"
         !PRINT *, isAlloc_sampledArray
         CALL create_new_vector(sampledArray, size(sampledArray), sampledArray_new)
         sampledArray_index_new = (/(i, i = 1, size(sampledArray_index))/)
         n = size(sampledArray_new) ! records
         n_surv = sampleSize ! number of people to sample for each tree (only applicable for Phase2RE) ! this differs from n_subj_from_records later, which reflects the equivlant number of people from sampleSize (records) criteria
         id_RE2 = id_RE(sampledArray_index)
-        PRINT *, "******************** tsurvTree ********************"
         pr2 = pr2All(sampledArray_index,:)
         prsurv = prsurvAll(sampledArray_index,:)
         pr2surv = pr2survAll(sampledArray_index,:)
@@ -4655,17 +4621,17 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         pr = prAll(sampledArray_index,:)
         delta = deltaAll(sampledArray_index)
         delta_m = deltaAll_m(sampledArray_index)
-        PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
-        PRINT *, sampledArray
-        PRINT *, "Sampled Array Indices with size:", size(sampledArray_index)
-        PRINT *, sampledArray_index
-        PRINT *, "new Sampled Array with size", size(sampledArray_new)
-        PRINT *, sampledArray_new
-        PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
-        PRINT *, sampledArray_index_new
-        PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
           IF (print_check) THEN
+            PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
+            PRINT *, sampledArray
+            PRINT *, "Sampled Array Indices with size:", size(sampledArray_index)
+            PRINT *, sampledArray_index
+            PRINT *, "new Sampled Array with size", size(sampledArray_new)
+            PRINT *, sampledArray_new
+            PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
+            PRINT *, sampledArray_index_new
+            PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             PRINT *, "size(id_RE)",size(id_RE)
             PRINT *, "size(id_RE2)",size(id_RE2)
             PRINT *, "size(deltaAll):",size(deltaAll)
@@ -4747,6 +4713,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     ELSE 
       indices = (/(i,i=1,n)/)
       jdex = indices
+      jdexRE = indices
     END IF
     IF (isPhase2RE) THEN
     !! to do: this is wrong and needs to be updated to the correct thing
@@ -4858,6 +4825,11 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       
       ! indices for cases contained in node
       ind = jdex(stm(k,1):stm(k,2))
+      IF (isPhase2RE) THEN
+        indRE = jdexRE(stm(k,1):stm(k,2))
+      ELSE
+        indRE = ind
+      END IF
       !PRINT *, "TEST8"
 
       IF (isPhase2RE) THEN
@@ -4906,14 +4878,15 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       ! split cases
       indOut = ind ! elements of casesIn that go left; ind if yes, 0 otherwise
-      indOutRE = ind ! fix this
       
       if (isPhase2RE) THEN
+        indOutRE = indRE ! fix this
         ! get the total number of subjects (needed for 2RE. Same as size(ind) for 1/2CR.)
         call find_unique(ind_surv_RE, &
         unique_ind_surv_RE, size_unique_ind_surv_RE)
       ELSE 
-        ind_surv_RE = ind
+        indOutRE = ind
+        unique_ind_surv_RE = ind
         size_unique_ind_surv_RE = size(ind)
       END IF
      
@@ -4924,65 +4897,71 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         PRINT *, "nc",nc
         PRINT *, "lft",lft
       END IF 
-
-    if (isPhase2RE) THEN
+      
       IF (print_check) THEN
-      PRINT *, "id_re2 with size", size(id_RE2)
-      PRINT *, id_RE2
-      PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
-      PRINT *, ind_surv_RE
-      PRINT *, "delta with size", size(delta)
-      PRINT *, delta
-      PRINT *, "delta_m with size", size(delta_m)
-      PRINT *, delta_m
-      PRINT *, "ind with size", size(ind)
-      PRINT *, ind
-      PRINT *, "x with size", size(x)
-      PRINT *, x
-      PRINT *
-      PRINT *
-      PRINT *
-      PRINT *
-      PRINT *
-      PRINT *
-      PRINT *
-      PRINT *
-      END IF
-    END IF
-    
+      if (isPhase2RE) THEN
+        PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
+        PRINT *, ind_surv_RE
+        PRINT *, "ind with size", size(ind)
+        PRINT *, ind
+        PRINT *, "indRE with size", size(indRE)
+        PRINT *, indRE
+        
+        PRINT *, "id_re2 with size", size(id_RE2)
+        PRINT *, id_RE2
+        
+        PRINT *, "delta with size", size(delta)
+        PRINT *, delta
+        PRINT *, "delta_m with size", size(delta_m)
+        PRINT *, delta_m
 
-IF (isPhase2RE) THEN
-      PRINT *, "###################################################"
-      PRINT *, " #####################Line 4386#####################"
-      PRINT *, "###################################################"
-      PRINT *, "indOut with size", size(indOut)
-      PRINT *, indOut
-      PRINT *, "ind with size", size(ind)
-      PRINT *, ind
-      PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
-      PRINT *, ind_surv_RE
-      PRINT *, "record_ind with size", size(record_ind)
-      PRINT *, record_ind
-END IF
-      CALL tfindSplit(size(ind), ind, &
+        PRINT *, "x with size", size(x)
+        PRINT *, x
+        PRINT *
+        PRINT *
+        PRINT *
+        PRINT *
+        PRINT *
+        PRINT *
+        PRINT *
+        PRINT *
+        END IF
+      END IF
+    
+      IF (print_check) THEN
+      IF (isPhase2RE) THEN
+            PRINT *, "###################################################"
+            PRINT *, " #####################Line 4386#####################"
+            PRINT *, "###################################################"
+            PRINT *, "indOut with size", size(indOut)
+            PRINT *, indOut
+            PRINT *, "ind with size", size(ind)
+            PRINT *, ind
+            PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
+            PRINT *, ind_surv_RE
+            PRINT *, "record_ind with size", size(record_ind)
+            PRINT *, record_ind
+      END IF
+      END IF
+      CALL tfindSplit(size(ind), ind, indRE, &
                     & size_unique_ind_surv_RE, ind_surv_RE, record_ind, &
                     & size(pind), pind, splitVar, cutoffBest, &
                     & splitFound, indOut, indOutRE, nc, lft)
 
-      !IF (print_check) THEN
+      IF (print_check) THEN
       IF (isPhase2RE) THEN
+      IF (splitFound .EQ. 1) THEN
         PRINT *, "splitFound:", splitFound
         PRINT *, "### end of tfindSplit for node=", k
-        IF (splitFound .EQ. 1) THEN
           PRINT *, "indOut with size:", size(indOut)
           PRINT *, indOut
           PRINT *, "indOutRE with size:", size(indOutRE)
           PRINT *, indOutRE
-          PRINT *, "lft:", lft
+          PRINT *, "size of left group: lft:", lft
         END IF
         PRINT *
       END IF
-      !END IF
+      END IF
 
 
       IF (splitFound .EQ. 0 ) THEN
@@ -5032,24 +5011,24 @@ END IF
       ! index boundaries for cases in left node
       stm(ncur,1) = stm(k,1)
       stm(ncur,2) = stm(k,1) + lft - 1
-      !PRINT *, "stm(", ncur, ",2) = ", stm(k,1) + lft - 1
+      !IF (isPhase2RE) PRINT *, "stm(", ncur, ",2) = ", stm(k,1) + lft - 1
+
+      leftCases = jdex(stm(ncur,1):stm(ncur,2))
+      !IF (isPhase2RE) PRINT *, "leftCases with size ", size(leftCases)
+      !IF (isPhase2RE) PRINT *, leftCases
 
       ! get basic node information for left daughter
       ! IF (isPhase1) PRINT *, "get basic node information for left daughter."
       !PRINT *, "tsurvTree: Line 4616: CALL calcValueSingle"
       IF (isPhase2RE) THEN
+        PRINT *, "----------"   
         leftCasesRE = jdexRE(stm(ncur,1):stm(ncur,2))
         PRINT *, "leftCasesRE with size ", size(leftCasesRE)
         PRINT *, leftCasesRE
+        !PRINT *, "calcValueSingle for leftRE"
         CALL calcValueSingle(size(leftCasesRE), leftCasesRE, Func(:,ncur), &
                           & mean(ncur))
-        PRINT *, "----------"   
-        PRINT *, "leftCases"
-        PRINT *, leftCases
       ELSE
-        leftCases = jdex(stm(ncur,1):stm(ncur,2))
-        PRINT *, "leftCases with size ", size(leftCases)
-        PRINT *, leftCases
         CALL calcValueSingle(size(leftCases), leftCases, Func(:,ncur), &
                           & mean(ncur))
       END IF
@@ -5104,8 +5083,13 @@ END IF
       ! index boundaries for cases in right node
       stm(ncur,1) = stm(k,1) + lft
       stm(ncur,2) = stm(k,2)
-      PRINT *, "lft:", lft
-      PRINT *, "stm(",ncur,",1) = ",stm(k,1) + lft
+      !IF (isPhase2RE) PRINT *, "lft:", lft
+      !IF (isPhase2RE) PRINT *, "stm(",ncur,",1) = ",stm(k,1) + lft
+
+      ! retrieve left and right cases
+      rightCases = jdex(stm(ncur,1):stm(ncur,2))
+      !IF (isPhase2RE) PRINT *, "rightCases with size", size(rightCases)
+      !IF (isPhase2RE) PRINT *, rightCases
 
       IF (isPhase2RE) THEN
         ! retrieve left and right cases
@@ -5114,20 +5098,14 @@ END IF
         PRINT *, rightCasesRE
         ! calculate survival function and mean survival time for right node
         ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
-        PRINT *, "tsurvTree: Line 4679: CALL calcValueSingle"
+        !PRINT *, "calcValueSingle for rightRE"
         CALL calcValueSingle(size(rightCasesRE), rightCasesRE, Func(:,ncur), &
                           & mean(ncur))
-        PRINT *, "rightCases"
-        PRINT *, rightCases
         PRINT *, "----------"   
       ELSE
-        ! retrieve left and right cases
-        rightCases = jdex(stm(ncur,1):stm(ncur,2))
-        PRINT *, "rightCases with size", size(rightCases)
-        PRINT *, rightCases
         ! calculate survival function and mean survival time for right node
         ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
-        PRINT *, "tsurvTree: Line 4679: CALL calcValueSingle"
+        !IF (isPhase2RE) PRINT *, "tsurvTree: Line 4679: CALL calcValueSingle"
         CALL calcValueSingle(size(rightCases), rightCases, Func(:,ncur), &
                           & mean(ncur))
         !PRINT *, "rightCases"
@@ -5233,10 +5211,10 @@ END IF
     forestMean = forestMean + mean(allStatus)
     forestProb = forestProb + Prob(allStatus)
 
-  END DO
+  END DO ! end do-loop for iTree
 
   ! -- to here
-  PRINT *, "################# Line 1617"
+  !PRINT *, "################# Line 1617"
 
   ! This change is to eliminate a strange lto warning from R
   ! forestFunc = reshape(tforestSurvFunc, (/nt*nAll/)) / nTree
