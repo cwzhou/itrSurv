@@ -10,6 +10,7 @@ setClass(Class = "SurvRFObject", # Defines a virtual class named "SurvRFObject,"
 #-------------------------------------------------------------------------------
 setGeneric(name = ".Predict", # Define a generic function named ".Predict" for making predictions on new data or retrieving fitted values.
            def = function(object, newdata, ...) {
+             # message("class_SurvRF.R: .PredictAll from LINE 13")
              standardGeneric(".Predict")
              })
 
@@ -28,7 +29,6 @@ setMethod(f = ".Predict", # method cannot be used on object of class "SurvRFObje
 setGeneric(name = ".PredictAll", #Define a generic function named ".PredictAll" for making predictions on new data at each treatment level.
            def = function(object, ...) {
                    standardGeneric(".PredictAll")
-               # message("class_SurvRF.R: .PredictAll from LINE 30")
                  })
 
 setMethod(f = ".PredictAll", # method is defined as "not allowed" for objects of class "SurvRFObject." Specific subclasses should provide their own implementations for this method.
@@ -100,7 +100,7 @@ setMethod(f = ".Predict",
           signature = c(object = "SurvRF",
                         newdata = NULL),
           definition = function(object, newdata, ...) {
-              # message("class_SurvRF.R: line 102")
+              message("class_SurvRF.R: line 104")
               return( object@forest )
             })
 
@@ -121,7 +121,7 @@ setMethod(f = ".Predict",
                                 newdata,
                                 ...,
                                 params) {
-            # message("class_SurvRF.R: LINE 123: method .Predict for SurvRF")
+            message("class_SurvRF.R: LINE 125: method .Predict for SurvRF")
 
               # verify that there are not new levels in the the data
               # this assumes that newdata has been passed in with
@@ -207,7 +207,11 @@ setMethod(f = ".Predict",
 #-------------------------------------------------------------------------------
 setMethod(f = ".PredictAll",
           signature = c(object = "SurvRF"),
-          definition = function(Phase, eps0, object, ..., newdata, model, txLevels, txName, params) {
+          definition = function(object, ..., Phase, eps0, newdata, model, txLevels, txName, params) {
+            message("warning: this is not updated as of Dec 14 for RE endpoint for pooled.")
+            if (endPoint == "RE"){
+              stop("warning: this is not updated as of Dec 14, 2024 for RE endpoint so stopping for pooled.")
+            }
             # message("method .PredictAll for SurvRF: LINE 211")
             # message("comes from class_ITRSurv.R line 355")
 
@@ -474,6 +478,7 @@ setMethod(f = ".PredictAll",
 
             trtlevel <<- txLevels
             opt <- .optimal(Phase = Phase,
+                            endPoint = endPoint,
                             eps0 = eps0,
                             params = params,
                             predicted = res,
@@ -509,7 +514,7 @@ setMethod(f = ".Predict",
                         newdata = NULL),
           definition = function(object, newdata, ...) {
 
-            # print("method .Predict for SurvRFStratified for NULL newdata: LINE 470")
+            print("method .Predict for SurvRFStratified for NULL newdata: LINE 517")
               res <- list()
               for (i in 1L:length(x = object@strat)) {
                 # print(i)
@@ -531,7 +536,7 @@ setMethod(f = ".Predict",
                         newdata = "data.frame"),
           definition = function(object, newdata, ..., params) {
 
-            # print("method .Predict for SurvRFStratified for data.frame newdata")
+            print("method .Predict for SurvRFStratified for data.frame newdata LINE 539")
 
               # trt 0
               res <- list()
@@ -563,19 +568,23 @@ setMethod(f = ".Predict",
 #-------------------------------------------------------------------------------
 setMethod(f = ".PredictAll",
           signature = c(object = "SurvRFStratified"),
-          definition = function(Phase, eps0, epName = epName, object, ..., newdata, model, params, txLevels) {
-            # message("class_SurvRF.R: LINE 392")
-            # message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s\n", Phase))
+          definition = function(object, ..., epName1, endPoint, Phase, eps0, newdata, model, params, txLevels) {
+            message("class_SurvRF.R: LINE 572")
+            message("Phase is ", Phase)
+            message("endpoint is ", endPoint)
+            # message("RE: endpoint status indicator is ", epName1)
 
-            if (Phase == "RE"){
+            if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
+              message("epName1 is:", epName1)
               newdata_cov = newdata %>%
-                     filter(!!sym(epName) == 0)
+                     filter(!!sym(epName1) == 0) # this removes datapoints where a person had a recurrent event ie IndR = 0
               # extract new model frame
               x <- stats::model.frame(formula = model, data = newdata_cov)
             } else{
               # extract new model frame
               x <- stats::model.frame(formula = model, data = newdata)
             }
+            message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s and Endpoint: %s\n", Phase, endPoint))
             # remove response from x
             if (attr(x = terms(x = model), which = "response") == 1L) {
               x <- x[,-1L,drop=FALSE]
@@ -584,26 +593,27 @@ setMethod(f = ".PredictAll",
             # calculate the estimated values for this treatment level
             # .Predict() is a method; called here for objects of class SurvRFStratified, which
             # is defined in this file
-
-            # object <<- object
-            # x <<- x
-            # params <<- params
+            objectt <<- object
+            testing_paramstp <<- params@timePoints
+            xt <<- x
+            paramst <<- params
 
             # define object and params so it's phase-specific
             # predicting for first trt
-            # message("Below uses .Predict from class_SurvRF.R: .Predict from LINE 14")
+            message("Below uses .Predict from class_SurvRF.R: .Predict from LINE 14")
             res <- .Predict(object = object@strat[[ 1L ]], # trt0
                             newdata = x,
                             params = params,
                             ...)
-
-            testing_paramstp <<- params@timePoints
-            # message("end of .Predict from class_SurvRF.R: .Predict from LINE 14")
-            res0 <<- res
+            message("end of .Predict from class_SurvRF.R: .Predict from LINE 14")
+            message("Phase is ", Phase, "and endPoint is ", endPoint)
+            if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
+              res0 <<- res
+            }
 
             # below is updated for this section for stratified analysis
             # need to update code following this for pooled analysis (have not done yet as of Nov 2024 for RE.)
-            if (Phase == "RE"){
+            if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
               res$Func <- list(res$Func)
               res$mean <- list(res$mean)
               res$Prob <- list(res$Prob)
@@ -619,9 +629,10 @@ setMethod(f = ".PredictAll",
 
                 i <- i + 1L
               }
+              res1 <<- res
             }
 
-            if (Phase == "Survival" | Phase == 1 | Phase == "CR"){
+            if ((Phase == 1 | Phase == "Survival") | ((Phase == 2 | Phase == "CR") & endPoint == "CR")){
               # CZ adding in AUS
               # message('class_SurvRF.R: Line 419: calculating AUS')
               Func_res = as.matrix(res$Func)
@@ -729,7 +740,7 @@ setMethod(f = ".PredictAll",
             #######################################################################################################################################################################
             #######################################################################################################################################################################
 
-            if (Phase == "Survival" | Phase == "CR"){
+            if ((Phase == 1 | Phase == "Survival") | ((Phase == 2 | Phase == "CR") & endPoint == "CR")){
               # message("%%%%%%%%%% AUS start")
               # Calculate AUS using all timepoints from params@timepoints
 
@@ -855,8 +866,9 @@ setMethod(f = ".PredictAll",
             #   View(res)
             # }
 
-            # print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
+            print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
             opt <- .optimal(Phase = Phase,
+                            endPoint = endPoint,
                             eps0 = eps0,
                             params = params,
                             predicted = res,
@@ -865,7 +877,7 @@ setMethod(f = ".PredictAll",
             if (Phase == "Survival" | Phase == 1){
               opt_p1 <<- opt
             }
-            if (Phase == "CR" | Phase == "RE" | Phase == 2){
+            if ((endPoint == "CR" | endPoint == "RE") & Phase == 2){
               opt_p2 <<- opt
             }
             result_list =  list("predicted" = res,
@@ -879,40 +891,41 @@ setMethod(f = ".PredictAll",
 ###############################################################################################
 ###############################################################################################
 # Phase = 1; eps0 = mean_tol1; params = pa; predicted = re; txLevels = trtlevel
-.optimal <- function(Phase, eps0, params, predicted, txLevels) {
+.optimal <- function(Phase, endPoint, eps0, params, predicted, txLevels) {
 
-  # print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
-  # message("Phase:", Phase)
-  # if (Phase == "RE"){
-    # View(predicted)
-  # }
-  # print(length(optTx))
-  # if (Phase == "RE"){stop("stpoing")}
+  print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
+  message("Phase:", Phase, " and endpoint: ", endPoint)
+
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
-  # message(".optimal function with crit: ", crit, " for Phase ", Phase)
-
-  # initialize empty matrices for mean_trts and area_trts based on trt1
-  mean_trts = area_trts = prob_trts = matrix(nrow = ncol(predicted[["Func"]][[1]]), ncol = length(txLevels))
+  message(".optimal function with crit: ", crit, " for Phase ", Phase, " with endPoint ", endPoint)
 
   # Get the function based on the Phase
   if (Phase == "Survival" | Phase == 1){
     findMax1 = TRUE # aka find max
     opp1 = FALSE # aka find min
     predd_surv <<- predicted
+    txL_surv <<- txLevels
   } else if (Phase == 2 | Phase == "CR" | Phase == "RE"){ # for now Phase = 2 means CR. but need to change/edit later when we add RE..
     findMax1 = FALSE # aka find min
     opp1 = TRUE # aka find max
     predd_ep <<- predicted
+    txL_ep <<- txLevels
   } else{
-    stop("Phase is not coded yet:", Phase)
+    stop("Phase is not coded yet:", Phase, "for endPoint", endPoint)
+  }
+  # initialize empty matrices for mean_trts and area_trts based on trt1
+  mean_trts = prob_trts = matrix(nrow = ncol(predicted[["Func"]][[1]]),
+                                 ncol = length(txLevels))
+  if (crit == "area"){
+    area_trts = matrix(nrow = ncol(predicted[["Func"]][[1]]),
+                       ncol = length(txLevels))
   }
 
-  # View(predicted)
   for (trt in seq_along(txLevels)){
     mean_trts[, trt] <- unlist(predicted$mean[[trt]])
-    if (Phase != "RE"){
+    if (crit == "area" & (Phase == 2 & endPoint != "RE")){
       area_trts[, trt] <- unlist(predicted$AUS[[trt]])
     }
     if (crit == "mean.prob.combo" | crit == "prob"){
@@ -1050,7 +1063,10 @@ setMethod(f = ".PredictAll",
     eps0_diff_prob = eps0[4]
 
     if (!(Phase %in% c(1, "Survival", 2, "CR", "RE"))) {
-      stop("Phase must be either 1, 'Survival', 2, or 'CR' or 'RE'.")
+      stop("Phase must be either 1, 'Survival', 2, 'CR', or 'RE'.")
+    }
+    if (!(endPoint %in% c("CR", "RE"))) {
+      stop("endPoint must be either 'RE' or 'CR'.")
     }
 
     if (Phase == 1 | Phase == "Survival"){
@@ -1111,7 +1127,7 @@ setMethod(f = ".PredictAll",
   }
 
   # print("test7")
-  if (Phase == 2 | Phase == "CR" | Phase == "RE"){
+  if (Phase == 2 | Phase == "RE" | Phase == "CR"){
     # message('phase 2')
     # dont care about going to another phase
     num_trts = rep(99, length(optTx))
@@ -1391,7 +1407,7 @@ setMethod(f = ".PredictAll",
   #   Ratio = rep(99, length(optTx))
   # }
 
-  # print("LAST TEST")
+  print("LAST TEST")
   return( new(Class = "Optimal",
               "optimalTx" = txLevels[optTx],
               "optimalY" = optSv,

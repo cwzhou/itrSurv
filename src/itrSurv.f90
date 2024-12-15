@@ -1090,7 +1090,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
           rUnifSet = 1
 
         ELSE IF (uniformSplit .EQ. 1) THEN
-          PRINT *, "uniformSplit = 1"
+          !PRINT *, "uniformSplit = 1"
           ! randomly select a value in the range of values that satisfy the allowed cases in the left/right nodes
           random1 = rnd(0.d0, 1.d0)
           rUnif = random1 * (xSorted(splitLeftFinal+1) - &
@@ -1790,12 +1790,19 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
           END DO
 
           if (print_check) then
-            ! Print the entire pr2 array in a readable way
-            PRINT *, "pr2 array:"
-            DO testi = 1, SIZE(pr2(:,leftCases_loop), 1)  ! Loop over rows
-                PRINT *, "id:", leftCases_loop(testi)
-                PRINT '(F6.1)', (pr2(leftCases_loop(testi), j), j = 1, SIZE(pr2, 2))
-            END DO
+                ! Print the entire pr2 array in a readable way
+        PRINT *, "pr2 array:"
+        DO testi = 1, SIZE(pr2(:,leftCases_loop), 2)  ! Loop over rows
+            PRINT *, "id:", leftCases_loop(testi)
+            PRINT '(F6.1)', (pr2(leftCases_loop(testi), j), j = 1, SIZE(pr2, 2))
+        END DO
+
+                ! Print the entire pr2 array in a readable way
+        PRINT *, "pr2_sub array:"
+        DO testi = 1, SIZE(pr2_sub(:,leftCases_loop), 2)  ! Loop over rows
+            PRINT *, "id:", leftCases_loop(testi)
+            PRINT '(F6.1)', (pr2_sub(leftCases_loop(testi), j), j = 1, SIZE(pr2_sub, 2))
+        END DO
           end if
 
           !PRINT *, "stopping"
@@ -1817,6 +1824,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
         pd2_m_loop = sum(pr2r_loop, DIM = 1)
         atRiskLeft_m_loop = pd1_m_loop
         atRiskRight_m_loop = pd2_m_loop
+
         ! pr2surv
         pr2survl_loop = pr2surv_sub(leftCases_loop,:) 
         pr2survr_loop = pr2surv_sub(rightCases_loop,:) 
@@ -1824,6 +1832,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
         pd2_loop = sum(pr2survr_loop, DIM = 1)
         atRiskLeft_loop = pd1_loop
         atRiskRight_loop = pd2_loop
+
+        PRINT *, "leftCases_Loop with size:", size(leftCases_loop)
+        PRINT *, leftCases_loop
+        PRINT *, "dim of pr2surv is:", SHAPE(pr2surv)
+        PRINT *, "dim of pr2surv_sub is:", SHAPE(pr2surv_sub)
+        PRINT *, "pd1_loop with size:", size(pd1_loop)
+        PRINT *, pd1_loop
+        PRINT *, "atRiskLeft_loop with size:", size(atRiskLeft_loop)
+        PRINT *, atRiskLeft_loop
 
         IF (print_check) THEN
         PRINT *, "------------------------------------"
@@ -1848,9 +1865,12 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
               PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", atRiskLeft_m_loop(testi)
           END DO
 
-          PRINT *, "leftCases_Loop"
-          PRINT *, leftCases_loop
-
+        ! Print the entire pr2 array in a readable way
+        PRINT *, "pr2surv_sub array:"
+        DO testi = 1, SIZE(pr2surv_sub(:,leftCases_loop), 2)  ! Loop over rows
+            PRINT *, "id:", leftCases_loop(testi)
+            PRINT '(F6.1)', (pr2surv_sub(leftCases_loop(testi), j), j = 1, SIZE(pr2surv_sub, 2))
+        END DO
         END IF
 
         !!!!!!! =============
@@ -1997,16 +2017,16 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
 
           !PRINT *, "starting RE_INFO"
 
-          !IF (print_check) THEN
-          !PRINT *, "calling re_info for LEFT!!! "
-          !PRINT *, "endpoint at risk"
-          !PRINT *, atRiskLeft_m_loop
-          !PRINT *, "survival at risk"
-          !PRINT *, atRiskLeft_loop
-          !PRINT *, "survival events"
-          !PRINT *, eventsLeft_loop
-          !PRINT *
-          !END IF
+          IF (print_check) THEN
+          PRINT *, "calling re_info for LEFT!!! "
+          PRINT *, "endpoint at risk with size:", size(atRiskLeft_m_loop)
+          PRINT *, atRiskLeft_m_loop
+          PRINT *, "survival at risk with size:", size(atRiskLeft_loop)
+          PRINT *, atRiskLeft_loop
+          PRINT *, "survival events with size", size(eventsLeft_loop)
+          PRINT *, eventsLeft_loop
+          PRINT *
+          END IF
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(leftCases_loop), leftCases_loop, dSorted_m(1:splitLeft_loop), &
             & dSorted(1:splitLeft_loop), nleftPeople_loop, &
@@ -2016,13 +2036,15 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
 
           !IF (print_check) THEN
           !PRINT *
-          !PRINT *, "calling re_info for RIGHT !!!"
-          !PRINT *, "endpoint at risk"
+          PRINT *, "calling re_info for RIGHT !!!"
+          !PRINT *, "endpoint at risk with size:", size(atRiskRight_m_loop)
           !PRINT *, atRiskRight_m_loop
-          !PRINT *, "survival at risk"
+          !PRINT *, "survival at risk with size:", size(atRiskRight_loop)
           !PRINT *, atRiskRight_loop
-          !PRINT *, "survival events"
-          !PRINT *, eventsRight_loop
+          PRINT *, "survival events with size:", size(eventsRight_loop)
+          PRINT *, eventsRight_loop
+          PRINT *, "RE events with size:", size(eventsRight_m_loop)
+          PRINT *, eventsRight_m_loop
           !PRINT *
           !END IF
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
@@ -2565,26 +2587,26 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 
 ! use below to check, can use checking_atrisk_events.R in R
 !! Check At Risk and Events Inputs
-!PRINT *
-!PRINT *, nt_survival, " timepoints:"
-!PRINT *, "------------------------------------------"
-!PRINT '(A)', "TimePoint        AtRisk        TerminalEvents"
-!PRINT *, "------------------------------------------"
+PRINT *
+PRINT *, nt_survival, " timepoints:"
+PRINT *, "------------------------------------------"
+PRINT '(A)', "TimePoint        AtRisk        TerminalEvents"
+PRINT *, "------------------------------------------"
 !! Loop through each survival time point
-!DO i = 1, nt_survival
-!    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_survival(i), INT(Nj_survival(i)), INT(Oj_survival(i))
-!END DO
-!PRINT *, "------------------------------------------"
-!PRINT *
-!PRINT *, nt_endpoint, " timepoints:"
-!PRINT *, "------------------------------------------"
-!PRINT '(A)', "TimePoint        AtRisk        RecurrentEvents"
-!PRINT *, "------------------------------------------"
+DO i = 1, nt_survival
+    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_survival(i), INT(Nj_survival(i)), INT(Oj_survival(i))
+END DO
+PRINT *, "------------------------------------------"
+PRINT *
+PRINT *, nt_endpoint, " timepoints:"
+PRINT *, "------------------------------------------"
+PRINT '(A)', "TimePoint        AtRisk        RecurrentEvents"
+PRINT *, "------------------------------------------"
 !! Loop through each RE time point
-!DO i = 1, nt_endpoint
-!    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_endpoint(i), INT(Nj_endpoint(i)), INT(Oj_endpoint(i))
-!END DO
-!PRINT *, "------------------------------------------"
+DO i = 1, nt_endpoint
+    PRINT '(F10.5, 1X, I12, 1X, I12)', tp_endpoint(i), INT(Nj_endpoint(i)), INT(Oj_endpoint(i))
+END DO
+PRINT *, "------------------------------------------"
 
 
 ! FIRST: get GROUP INFORMATION
@@ -2684,7 +2706,7 @@ survRE, dRhat, mu, dmu)
     END DO
   END IF
 
-if (print_check) then
+!if (print_check) then
     PRINT *, "******************** mean frequency function ********************"
     PRINT *, "Input Parameters"
     
@@ -2710,7 +2732,7 @@ if (print_check) then
 
 
     PRINT *, "Starting MeanFreqFunc now..."
-end if
+!end if
 
   mu = 0.d0
   dmu = 0.d0
@@ -2737,7 +2759,8 @@ end if
     END DO
 
   END IF
-  !PRINT *, "call kaplan within MeanFreqFunc subroutine - LINE 2710"
+  
+  PRINT *, "call kaplan within MeanFreqFunc subroutine - LINE 2710"
   call kaplan(nt_survival, Nj_survival, Oj_survival, survD)
 
   IF (print_check) THEN
@@ -4665,9 +4688,9 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         PRINT *, "THIS IS NOT CORRECTLY CODED UP YET FOR PHASE2RE"
         STOP
       ELSE
-        PRINT *, "replace = ", replace, "and nAll = sampleSize:", nAll, " = ", sampleSize
+        !PRINT *, "replace = ", replace, "and nAll = sampleSize:", nAll, " = ", sampleSize
         n = sampleSize
-        PRINT *, "n = ", n
+        !PRINT *, "n = ", n
         x = xAll
         pr = prAll
         delta = deltaAll

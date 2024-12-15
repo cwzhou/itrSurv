@@ -178,7 +178,7 @@
                        PACKAGE = "itrSurv")
     Tree_Surv <<- Tree
     matrix_output_surv <<- matrix(Tree_Surv[["forestFunc"]], nrow = nTimes)
-    print("end of .survTreefortran for survival")
+    # print("end of .survTreefortran for survival")
   } else{ #if (grepl("CR", Phase, ignore.case = TRUE)){
     res_pooled0_endpoint <<- res
     Tree <- .Fortran("endpointTree",
@@ -190,7 +190,7 @@
     Tree_Endpoint <<- Tree
     matrix_output <<- matrix(Tree_Endpoint[["forestFunc"]], nrow = nTimes)
   }
-  message(sprintf("%s Tree for Phase %s", Phase, Phase))
+  # message(sprintf("%s Tree for Phase %s", Phase, Phase))
 
   # retrieve trees from Fortran
   # message("survRF.R: Retrieving trees from Fortran")
@@ -216,7 +216,7 @@
                          PACKAGE = "itrSurv")
 
     # print("treeDims")
-    # # print(treeDims)
+    # print(treeDims)
     # print(treeDims$nr)
 
     temp <- .Fortran("getTree",
@@ -248,7 +248,7 @@
                                    nrow = nTimes, ncol = nr)
   forest[[ "mean" ]] <- Tree$forestMean
 
-  # print(Phase)
+  print(Phase)
   crit <- .CriticalValueCriterion(params)
   if (crit %in% c("prob", "mean.prob.combo")) {
     forest[[ "Prob" ]] <- Tree$forestProb

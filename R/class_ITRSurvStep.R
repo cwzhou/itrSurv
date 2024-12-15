@@ -200,10 +200,16 @@ setMethod(f = ".OptimalAsList",
 setMethod(f = ".Predict",
           signature = c(object = "ITRSurvStep",
                         newdata = NULL),
-          definition = function(object, newdata, ...) {
+          definition = function(object,
+                                newdata,
+                                Phase,
+                                ...) {
             print(".Predict from class_ITRSurvStep.R when newdata = NULL: LINE 165")
 
-              return( .Predict(object = object@survRF, newdata = NULL, ...) )
+              return( .Predict(object = object@survRF,
+                               newdata = NULL,
+                               Phase,
+                               ...) )
 
             })
 
@@ -223,15 +229,15 @@ setMethod(f = ".Predict",
           definition = function(object,
                                 newdata,
                                 Phase,
-                                eps0,
+                                epName1,
+                                endPoint,
                                 ...,
+                                eps0,
                                 params,
                                 findOptimal) {
-            # print("class_ITRSurvStep.R: LINE 195")
+            print("class_ITRSurvStep.R: LINE 195")
             # print(".Predict from class_ITRSurvStep.R when when newdata = dataframe")
             # print(sprintf("Phase: %s", Phase))
-            # View(object)
-            # print(eps0)
 
               # update model to remove response
               mod <- update(object@model, NULL ~ .)
@@ -251,7 +257,7 @@ setMethod(f = ".Predict",
               }
 
               if (findOptimal) {
-                # print("finding optimal. returning .PredictAll()")
+                print("finding optimal. returning .PredictAll()")
                 # if optimal is requested, make predictions for all possible
                 # treatment options
                 # print(3)
@@ -260,9 +266,13 @@ setMethod(f = ".Predict",
                   eps0 = c(eps0[[2]],eps0[[3]])
                 }
                 # View(eps0)
-                resV <- .PredictAll(Phase = Phase,
+                print("resV: class_ITRSurvStep.R: line 268")
+                message("epName1:", epName1)
+                resV <- .PredictAll(object = object@survRF,
+                                    Phase = Phase,
+                                    epName1 = epName1,
+                                    endPoint = endPoint,
                                     eps0 = eps0,
-                                    object = object@survRF,
                                     newdata = newdata,
                                     params = params,
                                     model = mod,
@@ -276,7 +286,7 @@ setMethod(f = ".Predict",
                   # message("resV_ep saved")
                   resV_ep <<- resV
                 }
-                # message("class_ITRSurvStep.R: LINE 237: resV_surv and resV_ep saved.")
+                message("class_ITRSurvStep.R: LINE 237: resV_surv and resV_ep saved.")
                 return(list("value" = resV$predicted, "optimal" = resV$optimal) )
 
               } else {
@@ -457,6 +467,7 @@ setMethod(f = ".Predict",
       response_surv <<- stats::model.response(data = x_surv)
       delta <<- response_surv[,2L] # survival delta
       x = x_endpoint # covariates of endpoint dataset (this is same for CR; diff for RE)
+      x_ep = x
     }
     if (endPoint == "RE"){
       delta_endpoint <<- response_tmp[,3L] # RE delta
@@ -810,12 +821,15 @@ setMethod(f = ".Predict",
   # calculate the estimated values for all treatment levels
   # .PredictAll() is a method; called here for objects of class SurvRF, which
   # is defined in file class_SurvRF.R
-  # print("WHAT2")
+  print("WHAT2")
+  print("epName")
+  print(epName)
 
   # stop("testing")
   resV <- .PredictAll(Phase = Phase,
                       eps0 = eps0,
-                      epName = epName,
+                      epName1 = epName,
+                      endPoint = endPoint,
                       object = result,
                       newdata = dataset[elig,],
                       params = params,
