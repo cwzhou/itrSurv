@@ -1,4 +1,4 @@
-### ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT, BUT THE REPO IS BEING UPDATED WITH ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to update until this note is removed (estimated completion: mid-November 2024). ** 
+### ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT, BUT THE REPO IS BEING UPDATED WITH ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to update until this note is removed (estimated completion: end of January 2025). ** 
 
 ## itrSurv
 
@@ -14,19 +14,19 @@ You can install the package directly from GitHub:
 devtools::install_github("cwzhou/itrSurv")
 ```
 
-Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of May 2024), and recurrent events (on-going, as of July 2024).
+Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of April 2024), and recurrent events (on-going, as of June 2024).
 
 ### Useful Code
 
-- **Simulation Studies**: R code for simulation studies is located in `cwzhou/Analyses/Simulations/Paper1_CR`.
-- **University Cohort Application**: R code for applying the methodology to the university cohort can be found in `cwzhou/Analyses/RDA/Paper1_CR`.
+- **Simulation Studies**: R code for simulation studies is located at `https://github.com/cwzhou/Analyses/tree/main/Simulations/Paper1_CR`.
+- **University Cohort Application**: R code for applying the methodology to the university cohort can be found at `https://github.com/cwzhou/Analyses/tree/main/RDA/Paper1_CR`.
   
 ***
 
 ### Updates
 
 - **CURRENTLY**: On-going updates for developing RCIF and the itrSurv estimator for RE setting.
-- **July 2024**: Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
+- **June 2024**: Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
 - **1/17/24**:
 
 To install in cluster (linux):
