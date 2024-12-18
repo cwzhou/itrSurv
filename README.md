@@ -14,7 +14,7 @@ You can install the package directly from GitHub:
 devtools::install_github("cwzhou/itrSurv")
 ```
 
-Currently, itrSurv is only applicable to competing risks with a priority cause of interest (as of April 2024), and recurrent events (on-going, as of June 2024).
+Currently, itrSurv is only applicable to settings with either 1) competing risks with a priority cause of interest (as of April 2024), or 2) recurrent events with terminal events (on-going, as of June 2024).
 
 ### Useful Code
 
@@ -26,7 +26,7 @@ Currently, itrSurv is only applicable to competing risks with a priority cause o
 ### Updates
 
 - **CURRENTLY**: On-going updates for developing RCIF and the itrSurv estimator for RE setting.
-- **June 2024**: Now incorporating a second endpoint, recurrent event. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
+- **June 2024**: Now incorporating a second endpoint, recurrent events in the recurrent with terminal events setting. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
 - **1/17/24**:
 
 To install in cluster (linux):
