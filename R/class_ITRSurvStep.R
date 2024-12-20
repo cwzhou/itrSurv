@@ -475,17 +475,18 @@ setMethod(f = ".Predict",
       response_endpoint_stop <<- response_tmp[,2L]
       response = response_endpoint_stop
       # Create d3 by joining data[[2]] with data[[1]] based on "id"
-      d1 <<- data[[1]]
-      d2 <<- data[[2]]
+      data1 <<- data[[1]]
+      data2 <<- data[[2]]
+      data3 <<- data[[3]]
       var_names <- all.vars(mod_surv[[3]])
       # Extract the parts from `models_RE`
       survival_status_name <<- all.vars(model_surv[[1]])[2]
       tstop_name <<- all.vars(model_ep[[1]])[2]
 
-      d3 <<- d2 %>%
+      d3 <<- data2 %>%
         dplyr::select(!!sym(idName), !!sym(survival_status_name),
                       all_of(var_names)) %>%
-        left_join(d1 %>%
+        left_join(data1 %>%
                     dplyr::select(!!sym(idName),
                                   !!sym(tstop_name)),
                   by = idName)
@@ -498,7 +499,7 @@ setMethod(f = ".Predict",
       delta <<- response_surv[,2L] # survival delta
       x = stats::model.frame(formula = mod_surv,
                              # covariates of survival dataset b/c 1 row per person
-                             data = d1,
+                             data = data1,
                              na.action = na.pass)
       x_ep = x_endpoint
     }
@@ -509,6 +510,7 @@ setMethod(f = ".Predict",
   # print(data[[3]])
   # set id_vec which is needed for Phase2RE, in fortran, to calculate mff stuff with pr2 to get at risk for death in RE setting
   id_vec <<- data[[3]] %>% unlist()
+  row_vec <<- c(1:length(id_vec))
   # idvec_test <<- id_vec
   # print(id_vec)
   # stop(" testing id_vec ")
@@ -722,6 +724,7 @@ setMethod(f = ".Predict",
     # print(Phase)
     # print(id_vec)
     id_vec = id_vec %>% unique()
+    row_vec = row_vec
     # print(id_vec)
     # stop()
   }
@@ -736,6 +739,7 @@ setMethod(f = ".Predict",
                         x_ep = x_ep[elig,,drop=FALSE],
                         y = response[elig],
                         idvec = id_vec[elig],
+                        rowvec = row_vec[elig],
                         pr = pr,
                         pr2 = pr2,
                         pr2_surv = pr2_surv,
@@ -779,6 +783,7 @@ setMethod(f = ".Predict",
                                  x_ep = x_ep[use,,drop=FALSE],
                                  y = response[use],
                                  idvec = id_vec[use], # only matters for Phase2RE
+                                 rowvec = row_vec[use],
                                  pr = pr[,di],
                                  pr2 = pr2[,di],
                                  pr2_surv = pr2_surv[,di],

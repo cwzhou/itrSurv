@@ -24,6 +24,8 @@ Ie can run in R: install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis
 
 install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
+IF dtrSurv loads in namespace, use: detach("package:dtrSurv", unload = TRUE)
+
 Use "git clone https://github.com/fortran-lang/stdlib.git" to install stdlib module
 
 

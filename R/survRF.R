@@ -52,7 +52,7 @@
 # model = mod,
 # sampleSize = sampleSize)
 
-.survRF <- function(..., endPoint, Phase, eps0, x, x_ep, idvec,
+.survRF <- function(..., endPoint, Phase, eps0, x, x_ep, idvec, rowvec,
                     pr, pr2, pr2_surv = NULL, pr_surv = NULL,
                     ord_causeind, ord_response,
                     delta, delta_endpoint,
@@ -129,6 +129,7 @@
   oo <<- ord_causeind
   rr <<- ord_response
   ii <<- idvec
+  roww <<- rowvec
 
   if (Phase == "RE"){
     x_covar = data.matrix(x_ep)
@@ -138,15 +139,18 @@
 
   # if (Phase == "RE"){
   #
-  #   print(as.double(x = t(x = pr2)))
-  #   print(as.double(x = t(x = pr2_surv)))
+  #   print(ii)
+  #   # print(as.double(x = t(x = pr2)))
+  #   # print(as.double(x = t(x = pr2_surv)))
   #
-  #   stop("testing pr2surv and pr2")}
+  #   stop("testing pr2surv and pr2")
+  #   }
   # message("setupInners")
     res = .Fortran("setUpInners",
                  t_n = as.integer(x = nSamples), # number of subjects for Phase1/2CR, number of records for Phase2RE
                  t_n_surv = as.integer(x = nSamples_surv), # number of subjects
                  t_idvec = as.integer(x = idvec), # id labels (1 row per person for Phase1/Phase2CR, multiple rows per person for Phase2RE to later obtain pr2 subset for at risk for death in mff in Fortran)
+                 t_rowvec = as.integer(x = rowvec), # row labels (1 row per record)
                  t_person_ind = as.integer(x = person_indicator), # needed for 2RE
                  t_np = as.integer(x = ncol(x = x)), # number of covariates
                  t_x = as.double(x = x_covar), # covariates
