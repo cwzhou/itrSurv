@@ -147,6 +147,7 @@ MODULE INNERS
         max_val = maxval(val)       ! Maximum value in the array
 
         ! Allocate memory for unique values (at most the size of val)
+        if (allocated(unique)) deallocate(unique)
         allocate(unique(size(val)))
 
         ! Loop to find unique elements
@@ -160,10 +161,9 @@ MODULE INNERS
         num_unique = i
 
         ! Allocate final array to store only the unique elements
+        if (allocated(final)) deallocate(final)
         allocate(final(num_unique))
         final = unique(1:num_unique)
-        ! Deallocate temporary array
-        deallocate(unique)
     end subroutine find_unique
 
 subroutine find_unique_subjects(id, unique_id, num_unique)
@@ -289,6 +289,7 @@ SUBROUTINE sampleExpandWithoutReplacement(nCases, nSubj, sampleSize, id_RE, nRec
   LOGICAL, ALLOCATABLE :: isSampled(:)
 
   ! Find unique IDs from id_RE
+  if (allocated(uniqueIDs)) deallocate(uniqueIDs)
   ALLOCATE(uniqueIDs(nSubj))
   uniqueIDs = 0
   k = 1
@@ -308,6 +309,7 @@ SUBROUTINE sampleExpandWithoutReplacement(nCases, nSubj, sampleSize, id_RE, nRec
   !PRINT *, xrand
 
   ! Allocate logical array to mark sampled records
+  if (allocated(isSampled)) deallocate(isSampled)
   ALLOCATE(isSampled(nRecords))
   isSampled = .FALSE.
 
@@ -325,7 +327,9 @@ SUBROUTINE sampleExpandWithoutReplacement(nCases, nSubj, sampleSize, id_RE, nRec
   recCount = COUNT(isSampled)
 
   ! Allocate output arrays
+  if (allocated(sampledArray)) deallocate(sampledArray)
   ALLOCATE(sampledArray(recCount))
+  if (allocated(sampledArray_index)) deallocate(sampledArray_index)
   ALLOCATE(sampledArray_index(recCount))
 
   ! Fill sampledArray and sampledArray_index
@@ -337,9 +341,6 @@ SUBROUTINE sampleExpandWithoutReplacement(nCases, nSubj, sampleSize, id_RE, nRec
       k = k + 1
     END IF
   END DO
-
-  ! Deallocate temporary arrays
-  DEALLOCATE(isSampled, uniqueIDs)
 
 END SUBROUTINE sampleExpandWithoutReplacement
 ! =================================================================================
@@ -431,28 +432,40 @@ END SUBROUTINE sampleCasesWithoutReplacement
 !   casesOut : integer(:), elements of casesIn that go left; subject level index if yes, 0
 !   casesOutRE : integer(:), records of casesIn that go left; record level index if yes, 0
 !     otherwise
+!   casesOut_people_RE : integer(:), records for original subject ID labels that go left.
 !   nCuts : integer, the number of cutoff values returned
 !   lft : integer, the number of cases in the left node
 ! CALL tfindSplit(size(ind), ind, indRE, size(pind), pind, splitVar, cutoffBest, splitFound, indOut, indOutRE, nc, lft)
-!
+      !CALL tfindSplit(k, size(ind), ind, indRE, &
+      !              & size_unique_ind_people_RE, ind_people_RE, &
+      !              & sampledArray_index_new, &
+      !              & record_ind, record_ind_trt, record_surv_RE, &
+      !              & size(pind), pind, splitVar, cutoffBest, &
+      !              & splitFound, indOut, indOutRE, &
+      !              & indOut_people_RE, indOut_record_RE, nc, lft)
+
 ! for RE: this is each record and nCases is number of records
 ! we need a nCases_person and 
-SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
+SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
                     nSubj, subjIn, &
-                    record_ind, record_ind1, record_surv_RE, &
-                    nv, varsIn, &
-                    splitVar, cutoffBest, splitFound, casesOut, casesOutRE, nCuts, lft)
+                    sampledArray_index_new1, &
+                    record_ind, record_ind_trt, record_people_RE, &
+                    nv, varsIn, splitVar, cutoffBest, splitFound, &
+                    casesOut, casesOutRE, casesOut_people_RE, &
+                    casesOut_record_RE, nCuts, lft)
   use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
+  INTEGER, INTENT(IN) :: node1
   INTEGER, INTENT(IN) :: nCases
   INTEGER, INTENT(IN) :: nSubj
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: casesIn
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: casesInRE
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: subjIn
+  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: sampledArray_index_new1 ! dimension(:)
   INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_ind
-  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_ind1
-  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_surv_RE
+  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_ind_trt
+  INTEGER, DIMENSION(1:nCases), INTENT(IN) :: record_people_RE
   INTEGER, INTENT(IN) :: nv
   INTEGER, DIMENSION(1:nv), INTENT(IN) :: varsIn
   INTEGER, INTENT(OUT) :: splitVar
@@ -460,6 +473,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   INTEGER, INTENT(OUT) :: splitFound
   INTEGER, DIMENSION(1:nCases), INTENT(OUT) :: casesOut
   INTEGER, DIMENSION(1:nCases), INTENT(OUT) :: casesOutRE
+  INTEGER, DIMENSION(1:nCases), INTENT(OUT) :: casesOut_people_RE
+  INTEGER, DIMENSION(1:nCases), INTENT(OUT) :: casesOut_record_RE
   INTEGER, INTENT(OUT) :: nCuts
   INTEGER, INTENT(OUT) :: lft
 
@@ -471,7 +486,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   INTEGER :: splitLeft_m, splitLeftFinal_m, splitLeft_doloop, splitLeftFinal_doloop
   INTEGER :: splitLeft_loop
   INTEGER :: tieValue, variablesTried
-  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases, tcases1, subjects!, tsubjects
+  INTEGER, DIMENSION(1:nCases) :: delta_m_sub, delta_sub
+  INTEGER, DIMENSION(1:nCases) :: cases, dSorted, dSorted_m, tcases, subjects!, tsubjects
   INTEGER, DIMENSION(1:nCases) :: recordID_og, recordID_trt, recordID, recordID_new
   INTEGER, DIMENSION(1:nCases) :: personID_og, personID, person_ind_sorted, personID_new !tsubjind
   INTEGER, DIMENSION(:), ALLOCATABLE :: uniqueID, firstIndex, lastIndex
@@ -482,7 +498,9 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   INTEGER, DIMENSION(1:nv) :: variables
   INTEGER, DIMENSION(:), ALLOCATABLE :: ind, ind_m, indSingles, indSingles_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: leftCases, leftCases_loop, rightCases, rightCases_loop
+  INTEGER :: caseR
   INTEGER, DIMENSION(:), ALLOCATABLE :: leftPeople_loop, unique_leftPeople_loop, rightPeople_loop, unique_rightPeople_loop
+  INTEGER, DIMENSION(:), ALLOCATABLE :: rightPeople_loop_og, leftPeople_loop_og
   INTEGER :: nleftPeople_loop, nrightPeople_loop
   INTEGER, DIMENSION(:), ALLOCATABLE :: uncensoredIndices, uncensoredIndices_m
 
@@ -512,9 +530,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   LOGICAL :: randomSplit
   LOGICAL, DIMENSION(:), ALLOCATABLE :: singles, singles_m
   INTEGER, DIMENSION(:), ALLOCATABLE :: unique_uncensoredIndices_m
-  INTEGER, DIMENSION(:), ALLOCATABLE :: unique_uncensoredIndices_m1
   REAL(dp), DIMENSION(:), ALLOCATABLE :: x_splitLeft_m_vec, x_splitRight_m_vec
-  INTEGER, ALLOCATABLE :: nUncensored_m1
   REAL(dp) :: x_splitLeft_m, x_splitRight_m
 
   REAL(dp), DIMENSION(1:nt) :: survRE_right, survRE_left
@@ -557,7 +573,7 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   REAL(dp), DIMENSION(:,:), ALLOCATABLE :: dNi, YidR, dMi, dNiD, YidLam, dMiD
 
   real(dp), dimension(13) :: TESTINGpd1
-  INTEGER :: iiii, tmp_i
+  INTEGER :: iiii, tmp_i, record_ind_size, irec
 
   ! below is old code that doesn't initialize
   ! REAL(dp) :: s_set(ng_set2-1), vs_set(ng_set2-1, ng_set2-1)
@@ -569,10 +585,10 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   are_equal = .TRUE.
   print_check = .FALSE.
 
+  !IF (isPhase2RE) WRITE(*,'(/,A)') '============================ tfindSplit ============================'
 
   IF (isPhase2RE) THEN
-  !IF (print_check) THEN
-      WRITE(*,'(/,A)') '============================ tfindSplit ============================'
+  IF (print_check) THEN
     PRINT *, "subjIn with size", size(subjIn)
     PRINT *, subjIn
     PRINT *, "casesIn with size", size(casesIn)
@@ -581,16 +597,18 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
     PRINT *, casesInRE
     PRINT *, "record_ind with size", size(record_ind)
     PRINT *, record_ind
-    PRINT *, "record_ind1 with size", size(record_ind1)
-    PRINT *, record_ind1
-    PRINT *, "record_surv_RE with size", size(record_surv_RE)
-    PRINT *, record_surv_RE
+    PRINT *, "record_ind_trt with size", size(record_ind_trt)
+    PRINT *, record_ind_trt
+    PRINT *, "record_people_RE with size", size(record_people_RE)
+    PRINT *, record_people_RE
+    PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new1)
+    PRINT *, sampledArray_index_new1
     WRITE(*,'(/,A)') '============================ tfindSplit ============================'
     !PRINT *, "******************** tfindSplit ********************"
     PRINT *, "nCases:", nCases, "and nSubj:", nSubj
     PRINT *, "nodeSizeEnd:", nodeSizeEnd
     PRINT *, "nodeSizeSurv:", nodeSizeSurv
-  !END IF
+  END IF
   END IF
 
   ! determine if this is to be a random split
@@ -616,6 +634,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   ! set casesOut to 0
   casesOut = 0
   casesOutRE = 0
+  casesOut_people_RE = 0
+  casesOut_record_RE = 0
 
   ! set number of cutoffs to 0
   nCuts = 0
@@ -630,7 +650,6 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
   variablesTried = 0
 
   tcases = (/(i,i=1,nCases)/)
-  tcases1 = tcases
 
   ! Terminal node criteria     
   IF (isPhase2RE) THEN
@@ -645,7 +664,8 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
       IF (nCases < 2*nodeSizeEnd) RETURN ! if number of cases is less than 2*min node size for cases then this is terminal node
     END IF
   END IF
-  
+
+  !IF (isPhase2RE) PRINT *, "*** Starting covariate do-loop LINE 670 ***"
   DO i = 1, nv
   
     ! if mTry successful splits already explored, exit
@@ -683,10 +703,16 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
       ELSE ! Phase2RE- use record_ind
         !PRINT *, "RE: ================================================================"
         !PRINT *, "not get covar"
-        covar_sorted_RE = x(record_ind,kv)
+        covar_sorted_RE = x(casesInRE,kv) !record_ind is old
         !PRINT *, "shape x:", shape(x)
-        !PRINT *, "sahpe covar_sorted_RE:", shape(covar_sorted_RE)
+        !PRINT *, "shape covar_sorted_RE:", shape(covar_sorted_RE)
+        !PRINT *, "casesInRE with size:", size(casesInRE)
+        !PRINT *, casesInRE
+        delta_sub = delta(casesInRE)
+        delta_m_sub = delta_m(casesInRE)
         IF (print_check) THEN
+          PRINT *, "shape delta:", shape(delta)
+          PRINT *, "shape delta_sub:", shape(delta_sub)
           PRINT *, "kv=", kv
           PRINT *, "x with size", size(x)
           PRINT *, x
@@ -697,44 +723,49 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
       END IF
     END IF
 
-    IF (print_check) THEN
-    PRINT *, "`````````````````"
-    PRINT *, covar_sorted_RE
-    PRINT *, "`````````````````"
-    END IF 
-
-    IF (isPhase2RE) THEN
+    !IF (isPhase2RE) THEN
       ! this is for pr2, pr, prsurv, pr2surv
-      pr_sub = pr
-      prsurv_sub = prsurv
-      pr2_sub = pr2(record_ind,:)
-      pr2surv_sub = pr2surv(record_ind,:)
-    END IF
+      !PRINT *, "```````````````````````````"
+      !PRINT *, "shape of pr2", shape(pr2)
+      !PRINT *, "shape of pr", shape(pr)
+      !PRINT *, "record_ind_trt with size:", size(record_ind_trt)
+      !PRINT *, record_ind_trt
+      !pr_sub = pr!(record_ind_trt,:)
+      !prsurv_sub = prsurv!(record_ind_trt,:)
+      !pr2_sub = pr2!(record_ind_trt,:)
+      !pr2surv_sub = pr2surv!(record_ind_trt,:)
+      !PRINT *, "shape of delta", size(delta)
+      !delta_sub = delta
+      !delta_m_sub = delta_m
+      !PRINT *, "shape of pr2_sub", shape(pr2_sub)
+      !PRINT *, "shape of pr_sub", shape(pr_sub)
+      !PRINT *, "```````````````````````````"
+    !END IF
 
     !================================================================
     !================================================================
     IF (isPhase1 .OR. isPhase2CR) THEN
       cases = casesIn
-      IF (isPhase1) PRINT *, "first casesIn with size", size(casesIn)
-      IF (isPhase1) PRINT *, casesIn
-      PRINT *, "pre-sorting cases"
-      PRINT *, cases
+      !IF (isPhase1) PRINT *, "first casesIn with size", size(casesIn)
+      !IF (isPhase1) PRINT *, casesIn
+      !PRINT *, "pre-sorting cases"
+      !PRINT *, cases
       ! sort the covariate and track the indices
       CALL qsort4(xSorted, cases, 1, nCases)
-      PRINT *, "Phase1/2CR: post-sorting cases with size", size(cases)
-      PRINT *, cases
+      !PRINT *, "Phase1/2CR: post-sorting cases with size", size(cases)
+      !PRINT *, cases
       
-      PRINT *, "Combined Details:"
-      PRINT *, "------------------"
-      PRINT *, size(xSorted)
-      PRINT *, size(cases)
-      PRINT *, " xSorted     cases "
-      PRINT *, "-----------------------------------------------------------"
-      DO tmp_i = 1, SIZE(cases)
-      PRINT '(I12, 3X, F6.3)', cases(tmp_i), xSorted(tmp_i)
-      END DO
-      PRINT *, "-----------------------------------------------------------"
-      PRINT *
+      !PRINT *, "Combined Details:"
+      !PRINT *, "------------------"
+      !PRINT *, size(xSorted)
+      !PRINT *, size(cases)
+      !PRINT *, " xSorted     cases "
+      !PRINT *, "------------------"
+      !DO tmp_i = 1, SIZE(cases)
+      !PRINT '(I12, 3X, F6.3)', cases(tmp_i), xSorted(tmp_i)
+      !END DO
+      !PRINT *, "------------------"
+      !PRINT *
 
       ! sort event indicator data accordingly
       ! Phase 1: overall survival (delta = event indicator from any cause)
@@ -746,15 +777,18 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
     !================================================================
     !================================================================
     ELSE IF (isPhase2RE) THEN
-      PRINT *, "i thought casesIn was:", size(casesIn)
-      PRINT *, casesIn
-      tcasesSorted = tcases ! tcasesSorted = tcases
-      PRINT *, "now setting tcasesSorted (before sorting) with inital tcasesSorted size:  ", SIZE(tcasesSorted)
-      PRINT *, tcasesSorted
+      !PRINT *, "i thought casesIn was:", size(casesIn)
+      !PRINT *, casesIn
+      tcasesSorted = sampledArray_index_new1 ! tcasesSorted = tcases
+      !PRINT *, "now setting tcasesSorted (before sorting) with inital tcasesSorted size:  ", SIZE(tcasesSorted)
+      !PRINT *, tcasesSorted
+      !PRINT *, "pre-sort covar:", size(covar_sorted_RE)
+      !PRINT *, covar_sorted_RE(1:5)
       CALL qsort4(covar_sorted_RE, tcasesSorted, 1, nCases)
-      !CALL qsort4(covar_sorted_RE, tcases1, 1, nCases)
-      PRINT *, "sorted tcasesSorted size:  ", SIZE(tcasesSorted)
-      PRINT *, tcasesSorted
+      !PRINT *, "post-sort covar:", size(covar_sorted_RE)
+      !PRINT *, covar_sorted_RE(1:5)
+      !PRINT *, "sorted tcasesSorted size:  ", SIZE(tcasesSorted)
+      !PRINT *, tcasesSorted
       
       IF (print_check) THEN
         ! Print sizes before executing the main block of code
@@ -771,109 +805,183 @@ SUBROUTINE tfindSplit(nCases, casesIn, casesInRE, &
         PRINT *, "---------------------------------------------"
       END IF
 
-! i think what i need to do is edit casesIn(), delta(), and delta_m() to be soemthing not tcasesSorted
-      !CALL group_and_sort(covar_sorted_RE, subjIn(tcasesSorted), &
-      !              tcasesSorted, casesIn(tcasesSorted), &
-      !              delta(tcasesSorted), delta_m(tcasesSorted), &
-      !              size(covar_sorted_RE), combArray)
-      !xSorted = combArray(:, 1) ! xSorted
-      !personID_og = combArray(:, 2) ! personID_og
-      !recordID = combArray(:, 3) ! recordID
-      !personID = combArray(:, 4) ! personID
-      !dSorted = combArray(:, 5) ! dSorted
-      !dSorted_m = combArray(:, 6) ! dSorted_m
-      !CALL create_new_vector(personID_og, size(personID_og), personID_new)
+      ! below is old - delete
+      ! i think what i need to do is edit casesIn(), delta(), and delta_m() to be soemthing not tcasesSorted
+            !CALL group_and_sort(covar_sorted_RE, subjIn(tcasesSorted), &
+            !              tcasesSorted, casesIn(tcasesSorted), &
+            !              delta(tcasesSorted), delta_m(tcasesSorted), &
+            !              size(covar_sorted_RE), combArray)
+            !xSorted = combArray(:, 1) ! xSorted
+            !personID_og = combArray(:, 2) ! personID_og
+            !recordID = combArray(:, 3) ! recordID
+            !personID = combArray(:, 4) ! personID
+            !dSorted = combArray(:, 5) ! dSorted
+            !dSorted_m = combArray(:, 6) ! dSorted_m
+            !CALL create_new_vector(personID_og, size(personID_og), personID_new)
 
-    ! Allocate the inputVectors array
-    ALLOCATE(inputVectors(size(covar_sorted_RE), 7))
-    ! Combine vectors into the inputVectors array
-    inputVectors(:, 1) = covar_sorted_RE
-    inputVectors(:, 2) = REAL(subjIn(tcasesSorted), dp) ! Cast integers to REAL(dp)
-    inputVectors(:, 3) = REAL(record_surv_RE(tcasesSorted), dp) 
-    inputVectors(:, 4) = REAL(record_ind1(tcasesSorted), dp) ! treatment-level
-    inputVectors(:, 5) = REAL(tcasesSorted, dp)
-    inputVectors(:, 6) = REAL(delta(tcasesSorted), dp)
-    inputVectors(:, 7) = REAL(delta_m(tcasesSorted), dp)
+        if (allocated(inputVectors)) then
+            deallocate(inputVectors)
+        end if
+        ! Allocate the inputVectors array
+        ALLOCATE(inputVectors(size(covar_sorted_RE), 7))
+        ! Combine vectors into the inputVectors array
+        inputVectors(:, 1) = covar_sorted_RE
+        inputVectors(:, 2) = REAL(subjIn(tcasesSorted), dp) ! Cast integers to REAL(dp)
+        inputVectors(:, 3) = REAL(record_people_RE(tcasesSorted), dp) 
+        inputVectors(:, 4) = REAL(casesIn(tcasesSorted), dp)
+        inputVectors(:, 5) = REAL(casesInRE(tcasesSorted), dp) !REAL(sampledArray_index_new1(tcasesSorted), dp)
+        inputVectors(:, 6) = REAL(delta_sub(tcasesSorted), dp)
+        inputVectors(:, 7) = REAL(delta_m_sub(tcasesSorted), dp)
 
-    ! Allocate the combinedArray (optional; can also be handled in subroutine)
-    ALLOCATE(combArray(size(covar_sorted_RE), 7))
-    CALL group_and_sort(inputVectors, size(covar_sorted_RE), combArray)
+        if (allocated(combArray)) then
+          deallocate(combArray)
+        end if
+        ! Allocate the combinedArray (optional; can also be handled in subroutine)
+        ALLOCATE(combArray(size(covar_sorted_RE), 7))
+        CALL group_and_sort(inputVectors, size(covar_sorted_RE), combArray)
 
-    ! Print the sorted result
-    PRINT *, "FINAL SORTED ARRAY:"
-    DO tmp_i = 1, 5 !SIZE(combArray, 1)
-        WRITE(*, '(1X, F10.4, *(1X, I10))') combArray(tmp_i, 1), &
-            (INT(combArray(tmp_i, j)), j = 2, SIZE(combArray, 2))
-    END DO
+          
+    !PRINT *, "Size of delta_sub: ", SIZE(delta_sub)
+    !PRINT *, delta_sub
+    !PRINT *, "Size of delta: ", SIZE(delta)
+    !PRINT *, delta
+    !PRINT *, "Size of delta_sub(tcasesSorted): ", SIZE(delta_sub(tcasesSorted))
+    !PRINT *, delta_sub(tcasesSorted)
+    !PRINT *, "Size of delta_m_sub: ", SIZE(delta_m_sub)
+    !PRINT *, delta_m_sub
+    !PRINT *, "Size of delta_m: ", SIZE(delta_m)
+    !PRINT *, delta_m
+    !PRINT *, "Size of delta_m_sub(tcasesSorted): ", SIZE(delta_m_sub(tcasesSorted))
+    !PRINT *, delta_m_sub(tcasesSorted)
+
+    !PRINT *, "FINAL SORTED ARRAY:"
+    !PRINT *, "xSorted    personID_og     recordID_og     personID     recordID     dSorted      dSorted_m"
+    !DO tmp_i = 1, 3 !SIZE(combArray, 1)
+    !    WRITE(*, '(1X, F10.4, *(1X, I10))') combArray(tmp_i, 1), &
+    !        (INT(combArray(tmp_i, j)), j = 2, SIZE(combArray, 2))
+    !END DO
 
     xSorted = combArray(:, 1) ! xSorted
     personID_og = combArray(:, 2) ! personID_og
     recordID_og = combArray(:, 3) ! recordID_og
-    recordID_trt = combArray(:, 4) ! recordID_og
+    personID = combArray(:, 4) ! 
     recordID = combArray(:, 5) ! personID within this sample
     dSorted = combArray(:, 6) ! dSorted
     dSorted_m = combArray(:, 7) ! dSorted_m
     CALL create_new_vector(personID_og, size(personID_og), personID_new)
-    CALL create_new_vector(recordID_og, size(recordID_og), recordID_new)
+    CALL create_new_vector(recordID, size(recordID), recordID_new)
 
+      !PRINT *, "dimensions of combArray:", shape(combArray)
 
-PRINT *, "Combined Details:"
-        PRINT *, "------------------"
-        PRINT *, size(covar_sorted_RE)
-        PRINT *, size(subjIn)
-        PRINT *, size(tcasesSorted)
-        PRINT *, size(delta_m)
-        PRINT *, size(personID_og)
-        PRINT *, size(recordID)
-        PRINT *, size(personID_new)
-        PRINT *, shape(pr2)
-        PRINT *, " personID_og   recordID_og  recordID_trt  personID_new   recordID_new    xSorted   dSorted   dSorted_m "
-        PRINT *, "---------------------------------------------------------------------------"
-        DO tmp_i = 1, SIZE(personID_og)
-        PRINT '(I12, I12, I12, I12, I12, 3X, F6.3, I12, I12)', &
-          & personID_og(tmp_i), recordID_og(tmp_i), recordID_trt(tmp_i), &
-          & personID_new(tmp_i), recordID_new(tmp_i), &
-          xSorted(tmp_i), dSorted(tmp_i), dSorted_m(tmp_i)
-        END DO
-        PRINT *, "-----------------------------------------------------------"
-        PRINT *
+      !PRINT *, "delta has size:     ", SIZE(delta)
+      !PRINT *, delta
 
-      IF (print_check) THEN
+      !PRINT *, "delta_m has size:   ", SIZE(delta_m)
+      !PRINT *, delta_m
 
+      !PRINT *, "delta_sub has size:     ", SIZE(delta_sub)
+      !PRINT *, delta_sub
 
-            IF (size(prsurv_sub,1) .NE. size(prsurv,1)) THEN
+      !PRINT *, "delta_m_sub has size:   ", SIZE(delta_m_sub)
+      !PRINT *, delta_m_sub
+
+      !PRINT *, "dSorted size:", SIZE(dSorted)
+      !PRINT *, dSorted
+
+      !PRINT *, "dSorted_m size:", SIZE(dSorted_m)
+      !PRINT *, dSorted_m
+
+        IF (print_check) THEN
+          PRINT *, "sampledArray_index_new1 with size:", size(sampledArray_index_new1)
+          PRINT *, sampledArray_index_new1
+          PRINT *, "sampledArray_index_new1(tcasesSorted) with size:", size(sampledArray_index_new1(tcasesSorted))
+          PRINT *, sampledArray_index_new1(tcasesSorted)
+          PRINT *, "tcasesSorted with size:", size(tcasesSorted)
+          PRINT *, size(tcasesSorted)
+          PRINT *, "Combined Details:"
+          PRINT *, "------------------"
+          PRINT *, "covar_sorted_RE has size: ", size(covar_sorted_RE)
+          PRINT *, "subjIn has size: ", size(subjIn)
+          PRINT *, "tcasesSorted has size: ", size(tcasesSorted)
+          PRINT *, "delta has size:     ", SIZE(delta)
+          PRINT *, "delta_m has size:   ", SIZE(delta_m)
+          PRINT *, "delta_sub has size:     ", SIZE(delta_sub)
+          PRINT *, "delta_m_sub has size:   ", SIZE(delta_m_sub)
+          PRINT *, "personID_og has size: ", size(personID_og)
+          PRINT *, "recordID has size: ", size(recordID)
+          PRINT *, "personID_new has size: ", size(personID_new)
+          PRINT *, "pr2 has size: ", shape(pr2)
+          PRINT *, "pr2_sub has size: ", shape(pr2_sub)
+          PRINT *, "pr has size: ", shape(pr)
+          !PRINT *, "pr_sub has size: ", shape(pr_sub)
+          PRINT *
+          PRINT *, "xSorted  personID_og  recordID_og  recordID_trt  personID_new  recordID_new  dSorted  dSorted_m"
+          PRINT *, "----------------------------------------------------------------------------------------------------------"
+          DO tmp_i = 1, 5 !SIZE(personID_og)
+          PRINT '(F6.3, I12, 1X, I12, 1X, I12, 1X, I12, 2X, I12, I12, I12)', &
+            & xSorted(tmp_i), personID_og(tmp_i), &
+            & recordID_og(tmp_i), recordID_trt(tmp_i), &
+            & personID_new(tmp_i), recordID_new(tmp_i), &
+            dSorted(tmp_i), dSorted_m(tmp_i)
+          END DO
+          PRINT *, "----------------------------------------------------------------------------------------------------------"
+          PRINT *
+          !PRINT *, "delta sub:", size(delta_sub)
+          !PRINT *, delta_sub
+          !PRINT *, "delta sub endpoint:", size(delta_m_sub)
+          !PRINT *, delta_m_sub
+          !PRINT *, "delta_sub(tcasesSorted):", size(delta_sub(tcasesSorted))
+          !PRINT *, delta_sub(tcasesSorted)
+          !PRINT *, "delta_m_sub(tcasesSorted):", size(delta_m_sub(tcasesSorted))
+          !PRINT *, delta_m_sub(tcasesSorted)
+          PRINT *, "delta has size:     ", SIZE(delta)
+          PRINT *, "delta_m has size:   ", SIZE(delta_m)
+          PRINT *, "delta_sub has size:     ", SIZE(delta_sub)
+          PRINT *, "delta_m_sub has size:   ", SIZE(delta_m_sub)
+          PRINT *, "dSorted size:", size(dSorted)
+          PRINT *, "dSorted_m size:", size(dSorted_m)
+          PRINT *, "subjIn with size:", size(subjIn)
+          PRINT *, subjIn
+          PRINT *, "row      delta      delta_m"
+          PRINT *, "--------------------------------------"
+          DO tmp_i = 1, SIZE(delta)
+          PRINT '(I4, 1X, I4, 1X, I4)', &
+            & tmp_i, delta(tmp_i), &
+            & delta_m(tmp_i)
+          END DO
+          PRINT *, "--------------------------------------"
+          PRINT *
+          PRINT *, "row    personID_og    tcasesSorted    dSorted    dSorted_m"
+          PRINT *, "--------------------------------------------------------------"
+          DO tmp_i = 1, SIZE(personID_og)
+          PRINT '(I4, 1X, I10, 1X, I7, 1X, I4, 1X, I4)', &
+            & tmp_i, personID_og(tmp_i), &
+            & tcasesSorted(tmp_i), dSorted(tmp_i), dSorted_m(tmp_i)
+          END DO
+          PRINT *, "--------------------------------------------------------------"
+          PRINT *
+        END IF
+
+        IF (print_check) THEN
+
+            !IF (size(prsurv_sub,1) .NE. size(prsurv,1)) THEN
               ! Print sizes after executing the main block of code
-              PRINT *, "Derived array sizes:"
+              !PRINT *, "Derived array sizes:"
               !PRINT *, "xSorted size:       ", SIZE(xSorted)
               !PRINT *, "personID_og size:   ", SIZE(personID_og)
               !PRINT *, "recordID size:      ", SIZE(recordID)
               !PRINT *, "dSorted size:       ", SIZE(dSorted)
               !PRINT *, "dSorted_m size:     ", SIZE(dSorted_m)
-              PRINT *, "prsurv_sub size:    ", SIZE(prsurv_sub, 1), " x ", SIZE(prsurv_sub, 2)
-              PRINT *, "pr_sub size:        ", SIZE(pr_sub, 1), " x ", SIZE(pr_sub, 2)
-              PRINT *, "pr2surv_sub size:   ", SIZE(pr2surv_sub, 1), " x ", SIZE(pr2surv_sub, 2)
-              PRINT *, "pr2_sub size:       ", SIZE(pr2_sub, 1), " x ", SIZE(pr2_sub, 2)
+              !PRINT *, "prsurv_sub size:    ", SIZE(prsurv_sub, 1), " x ", SIZE(prsurv_sub, 2)
+              !PRINT *, "pr_sub size:        ", SIZE(pr_sub, 1), " x ", SIZE(pr_sub, 2)
+              !PRINT *, "pr2surv_sub size:   ", SIZE(pr2surv_sub, 1), " x ", SIZE(pr2surv_sub, 2)
+              !PRINT *, "pr2_sub size:       ", SIZE(pr2_sub, 1), " x ", SIZE(pr2_sub, 2)
               PRINT *, "prsurv size:    ", SIZE(prsurv, 1), " x ", SIZE(prsurv, 2)
               PRINT *, "pr size:        ", SIZE(pr, 1), " x ", SIZE(pr, 2)
               PRINT *, "pr2surv size:   ", SIZE(pr2surv, 1), " x ", SIZE(pr2surv, 2)
               PRINT *, "pr2 size:       ", SIZE(pr2, 1), " x ", SIZE(pr2, 2)
               !PRINT *, "---------------------------------------------"
-            END IF
-
-
-        PRINT *, "cases with size:", size(cases)
-        PRINT *, cases
-        PRINT *, "subjIn with size", size(subjIn)
-        PRINT *, subjIn
-        PRINT *
-        PRINT *, "tcasesSorted with size:", size(tcasesSorted)
-        PRINT *, tcasesSorted
-        PRINT *, "recordID with size:", size(recordID)
-        PRINT *, recordID
-        PRINT *
-        PRINT *
-
-        
+            !END IF
 
         ! Assuming all arrays have the same size
         PRINT *, " personID_og   recordID   personID_new"
@@ -921,34 +1029,23 @@ PRINT *, "Combined Details:"
     IF (isPhase2RE) THEN
       ! because one per record
       uncensoredIndices_m = pack(personID_new, dSorted_m .EQ. 1)
+      IF (ALLOCATED(unique_uncensoredIndices_m)) THEN
+        PRINT *, "deallocating unique_uncesnoredIndices_m"
+        DEALLOCATE(unique_uncensoredIndices_m)
+      END IF
       call find_unique(uncensoredIndices_m, &
       unique_uncensoredIndices_m, nUncensored_m)
-      IF (print_check) THEN
-        PRINT *, "*************************"
-        PRINT *, "uncensoredIndices_m: recurrent event person indices"
-        PRINT *, uncensoredIndices_m
-        PRINT *, "unique_uncensoredIndices_m: non-repeating person with recurrent event indices"
-        PRINT *, unique_uncensoredIndices_m
-        PRINT *, "size:",nUncensored_m
-        PRINT *, "*************************"
-        PRINT *, "personID_new"
-        PRINT *, personID_new
-        PRINT *, "dSorted_m"
-        PRINT *, dSorted_m
-        PRINT *, "pack(personID_new, dSorted_m .EQ. 1) "
-        PRINT *, pack(personID_new, dSorted_m .EQ. 1) 
-      END IF
     END IF
 
-      ! gives cases indices for those who have delta = 1 (event)
-      ! tcases is 1,2,...,nCases (so its index for current version)
-      ! RE: uncensored means recurrent event (so censored = either death or censored)
+    ! gives cases indices for those who have delta = 1 (event)
+    ! tcases is 1,2,...,nCases (so its index for current version)
+    ! RE: uncensored means recurrent event (so censored = either death or censored)
     IF (print_check) THEN
         PRINT *, "Death Event Indices: ", uncensoredIndices
         PRINT *, "Number of people with Deaths: ", nUncensored
         PRINT *, "nSubj:", nSubj
         PRINT *, "nCases:", nCases
-      IF (isPhase2RE) THEN
+            IF (isPhase2RE) THEN
         PRINT *, "Recurrent Event Indices: ", uncensoredIndices_m
         PRINT *, "Number of people with Recurrent Events: ", nUncensored_m
         PRINT *, "Minimum # people with Recurrent Events required per node: ", minEventEnd
@@ -956,6 +1053,7 @@ PRINT *, "Combined Details:"
         PRINT *, "Minimum number of people required per node (nodeSize): ", nodeSizeSurv
       END IF
     END IF
+
 
     IF (isPhase1 .OR. isPhase2CR) THEN
         IF (nSubj .NE. nCases) THEN
@@ -974,15 +1072,6 @@ PRINT *, "Combined Details:"
       ! If too few uncensored cases to meet minimum number of people with ENDPOINT events (PC event or at least one RE), CYCLE
       IF (nUncensored_m .LT. (minEventEnd * 2)) CYCLE
     END IF
-
-   if (print_check) THEN
-      PRINT *, "Starting Splitting Identification"
-      PRINT *, "minEventSurv:", minEventSurv
-      PRINT *, "uncensoredIndices:", uncensoredIndices
-      PRINT *, "uncensoredIndices(minEventSurv):", uncensoredIndices(minEventSurv)
-      PRINT *, "nodeSizeSurv:", nodeSizeSurv
-      PRINT *, "max:", max(uncensoredIndices(minEventSurv), nodeSizeSurv)
-   END IF
 
     ! ============================================
     ! Below is for Phase 1
@@ -1032,6 +1121,8 @@ PRINT *, "Combined Details:"
       IF (splitLeft_m .GT. splitLeftFinal_m) CYCLE
     END IF
 
+    ! below this section is problematic
+
     ! ============================================
     ! Below is for Phase 2 (Endpoint: RE)
     ! ============================================
@@ -1040,45 +1131,12 @@ PRINT *, "Combined Details:"
       ! must have at least nodeSizeSurv cases
       splitLeft_m = max(unique_uncensoredIndices_m(minEventEnd), nodeSizeEnd)
       ! move splitLeft up to include cases with equivalent values of x
-      
+
       ! original: !splitLeft_m = count(xSorted .LE. (xSorted(splitLeft_m) + 1e-8)) ! original
       x_splitLeft_m_vec = pack(xSorted, personID_new .EQ. splitLeft_m)!we want xSorted(personID_new = splitLeft_m)
 
       x_splitLeft_m = x_splitLeft_m_vec(1) ! take one of them
       splitLeft_m = count(xSorted .LE. (x_splitLeft_m + 1e-8)) ! 
-
-      if (print_check) then
-        PRINT *, "Line 743: splitLeft_m: ", splitLeft_m
-        PRINT *, "personID_new with length:", size(personID_new)
-        PRINT *, personID_new
-        PRINT *, "xSorted with length:", size(xSorted)
-        PRINT *, xSorted
-        PRINT *, "TESTINGGGG" 
-        PRINT *, "Mask: ", personID_new .EQ. splitLeft_m
-        PRINT *, "Length of personID_new: ", SIZE(personID_new)
-        PRINT *, "Length of xSorted: ", SIZE(xSorted)
-        PRINT *, "Logical Mask: ", personID_new .EQ. splitLeft_m
-        PRINT *, "x_splitLeft_m_vec"
-        PRINT *, x_splitLeft_m_vec
-        PRINT *, "x_splitLeft_m_vec(1)"
-        PRINT *, x_splitLeft_m_vec(1)
-        PRINT *
-        PRINT *, "x_splitLeft_m + 1e-8: ", x_splitLeft_m + 1e-8
-        PRINT *, "xSorted .LE. (x_splitLeft_m + 1e-8)"
-        PRINT *, xSorted .LE. (x_splitLeft_m + 1e-8)
-        PRINT *
-        PRINT *, "Line 751: splitLeft_m: ", splitLeft_m
-        !PRINT *, "x_splitLeft_m_vec"
-        !PRINT *, x_splitLeft_m_vec
-        !PRINT *, "Finished packing vec."
-        !PRINT *, "x_splitLeft_m: ", x_splitLeft_m
-        !PRINT *, "splitLeft_m"
-        !PRINT *, splitLeft_m
-        !PRINT *, "xSorted(splitLeft_m)"
-        !PRINT *, xSorted(splitLeft_m)
-        !PRINT *, "xSorted(splitLeft_m+1)"
-        !PRINT *, xSorted(splitLeft_m+1)
-      end if
     
       ! cases to right
       ! include all indices down to and including nUncensored - minEvent + 1 case
@@ -1091,26 +1149,13 @@ PRINT *, "Combined Details:"
       x_splitRight_m = x_splitRight_m_vec(1)
       splitLeftFinal_m = count(xSorted .LT. x_splitRight_m)
 
-      !PRINT *, "rightNode_m:", rightNode_m
-      !PRINT *, "x_splitRight_m_vec:", x_splitRight_m_vec
-      !PRINT *, "x_splitRight_m:",x_splitRight_m
-      !PRINT *, "splitLeftFinal_m:",splitLeftFinal_m
-
       ! if the splitLeft index is above the splitLeftFinal index cycle,
       ! split is not possible
       IF (splitLeft_m .GT. splitLeftFinal_m) CYCLE
+
     END IF
 
-    !IF (isPhase1) THEN
-    !  PRINT *, "splitLeft: ", splitLeft
-    !  PRINT *, "splitLeftFinal: ", splitLeftFinal
-    !END IF 
-    !IF (isPhase2) THEN
-    !  PRINT *, "Phase 2 Split Variables:"
-    !  PRINT *, "splitLeft_m: ", splitLeft_m
-    !  PRINT *, "splitLeftFinal_m: ", splitLeftFinal_m
-    !END IF
-
+    ! above this section is problematic
     IF (isPhase2) THEN
       splitLeft = splitLeft_m
       splitLeftFinal = splitLeftFinal_m
@@ -1118,6 +1163,9 @@ PRINT *, "Combined Details:"
 
     rUnifSet = 0
 
+    ! ============================================
+    ! Below is for Phase 1 or Phase2CR
+    ! ============================================
     IF (isPhase1 .OR. isPhase2CR) THEN
       IF ((.NOT. randomSplit) .AND. (ERT .EQ. 1)) THEN
         !PRINT *, "randomSplit:", randomSplit
@@ -1186,16 +1234,6 @@ PRINT *, "Combined Details:"
       STOP
     END IF
 
-    !IF (isPhase2) THEN 
-      !PRINT *, "Testing Fortran Script: Stopping."
-      !PRINT *, "splitLeft:", splitLeft
-      !PRINT *, "splitLeftFinal:", splitLeftFinal
-      !PRINT *, "rUnif:", rUnif
-      !PRINT *, "rUnifSet:", rUnifSet
-      !PRINT *, "splitLeft_m:", splitLeft_m
-      !PRINT *, "splitLeftFinal_m:", splitLeftFinal_m
-    !END IF
-
     ! -1 is returned if cannot satisfy minimum requirements for nodes
     ! cycle to next covariate
     !PRINT *, "rUnifSet:", rUnifSet
@@ -1211,32 +1249,88 @@ PRINT *, "Combined Details:"
     cutOff = 0.d0
 
     !*******************************************************************
-    
+    !*******************************************************************
+    !*******************************************************************
     ! SPLITTING IS DONE (ABOVE). NOW WE LOOK AT CASES (SUBJECTS) IN LEFT AND RIGHT DAUGHTER NODES
-    !PRINT *, "SPLITTING IS DONE"
+    !*******************************************************************
+    !*******************************************************************
+    !*******************************************************************
+    !IF (isPhase2RE) PRINT *, "LINE 1264: SPLITTING IS DONE"
     if (splitLeft <= 0) then
       PRINT *, "ERROR: splitLeft is 0 or negative:", splitLeft
       STOP
     end if
-    !*******************************************************************
 
+    ! ============================================
+    ! Below is for Phase 1 or Phase2CR
+    ! ============================================
     if (isPhase1 .OR. isPhase2CR) THEN
       leftCases = cases(1:(splitLeft-1))
       rightCases = cases(splitLeft:nSubj)
     END IF
+
+    !IF (isPhase2RE .AND. node1 .EQ. 2 .AND. i .EQ. 1) THEN
+        !PRINT *, "------------------------------------------------------------"
+        !PRINT *, "Testing malloc error: i =", i, ", node1 =", node1
+        !PRINT *, "------------------------------------------------------------"
+        !STOP "Program terminated due to testing malloc error."
+    !END IF
+    
+    ! ============================================
+    ! Below is for Phase2RE
+    ! ============================================
     IF (isPhase2RE) THEN
-      !PRINT *, "splitLeft: ", splitLeft
-      leftCases = recordID(1:(splitLeft)) ! 12/3/24: make this splitLeft not splitLeft-1 (diff from Phase1/2CR)
-      rightCases = recordID(splitLeft+1:nCases)
-      !PRINT *, "leftCases with size:", size(leftCases)
-      !PRINT *, leftCases
-      !PRINT *, "rightCases with size:", size(rightCases)
-      !PRINT *, rightCases
+      !PRINT *, "LINE 1346 splitLeft: ", splitLeft
+      leftCases = recordID_new(1:(splitLeft)) ! 12/3/24: make this splitLeft not splitLeft-1 (diff from Phase1/2CR)
+      rightCases = recordID_new(splitLeft+1:nCases) ! recordID(splitLeft+1:nCases)
+      !PRINT *, "LINE 1329"
+      !leftPeople = personID_new(1:(splitLeft))
+      !rightPeople = personID_new(splitLeft+1:nCases)
     END IF
 
-
     IF (isPhase2RE) THEN
-      if (print_check) then
+    IF (print_check) THEN
+      ! Verify the sizes of dSorted_m and nt
+      PRINT *, "Checking variable sizes for validation:"
+      PRINT *, "Size of dSorted_m:", SIZE(dSorted_m)
+      PRINT *, "Value of splitLeft:", splitLeft
+      IF (splitLeft > SIZE(dSorted_m)) THEN
+          PRINT *, "Error: splitLeft exceeds the size of dSorted_m."
+          STOP "Invalid size for dSorted_m."
+      END IF
+      PRINT *, "Value of nt:", nt
+      IF (nt <= 0) THEN
+          PRINT *, "Error: nt must be greater than 0."
+          STOP "Invalid value for nt."
+      END IF
+      PRINT *, "Size checks passed."
+
+      ! Validate slicing for leftCases and rightCases
+      PRINT *, "Validating indices for leftCases and rightCases:"
+      ! Check that splitLeft is within the valid range for recordID_new
+      IF (splitLeft < 1 .OR. splitLeft > SIZE(recordID_new)) THEN
+          PRINT *, "Error: splitLeft =", splitLeft, "is out of bounds for recordID_new, size =", SIZE(recordID_new)
+          STOP "Invalid splitLeft index for recordID_new."
+      END IF
+      ! Check that nCases is within the valid range for recordID_new
+      IF (nCases < splitLeft + 1 .OR. nCases > SIZE(recordID_new)) THEN
+          PRINT *, "Error: nCases =", nCases, "is out of bounds or invalid for recordID_new, size =", SIZE(recordID_new)
+          STOP "Invalid nCases index for recordID_new."
+      END IF
+      ! Check the size of leftCases
+      PRINT *, "Size of leftCases will be:", splitLeft
+      IF (splitLeft > SIZE(recordID_new)) THEN
+          PRINT *, "Error: Calculated size of leftCases exceeds bounds of recordID_new."
+          STOP "Invalid size for leftCases."
+      END IF
+      ! Check the size of rightCases
+      PRINT *, "Size of rightCases will be:", nCases - splitLeft
+      IF (splitLeft + 1 > nCases) THEN
+          PRINT *, "Error: splitLeft+1 exceeds nCases. Cannot compute rightCases."
+          STOP "Invalid size for rightCases."
+      END IF
+      PRINT *, "Index validation for leftCases and rightCases passed."
+
       PRINT *, "nSubj: ", nSubj
       PRINT *, "nCases: ", nCases
       PRINT *, "# death timepoints:", nt_death
@@ -1252,18 +1346,21 @@ PRINT *, "Combined Details:"
       END DO
 
       ! Print the first 5 elements of the pr array in a readable way
-      PRINT *, "pr array for the first 10 elements of leftCases:"
+      PRINT *, "prsurv array for the first 10 elements of leftCases:"
       DO testi = 1, MIN(10, SIZE(leftCases))  ! Limit to the first 10 elements or the size of leftCases
           PRINT *, "Person ID ", leftCases(testi)," with delta = ", real(dSorted_m(testi)), ": "
-          DO j = 1, SIZE(pr, 2)  ! Loop over each timepoint
+          DO j = 1, SIZE(prsurv, 2)  ! Loop over each timepoint
               ! Break the print statement into two parts to avoid line truncation
-              PRINT '(A, I3, A, F6.1, A, F6.1)', "pr for timepoint ", j, ": ", real(pr(leftCases(testi), j))
+              PRINT '(A, I3, A, F6.1, A, F6.1)', "prsurv for timepoint ", j, ": ", real(prsurv(leftCases(testi), j))
           END DO
       END DO
 
       end if ! end of print_check
     END IF ! end of isPhase2RE
-
+    
+    ! ============================================
+    ! Below is for Phase 1 or Phase2CR
+    ! ============================================
     IF (isPhase1 .OR. isPhase2CR) THEN
       prl = pr(leftCases,:) ! status change no matter what the status is (censoring, failure, cause specific failure, etc)
       prr = pr(rightCases,:)
@@ -1272,68 +1369,16 @@ PRINT *, "Combined Details:"
         prr_m = prr ! should be the same for CR
       END IF
     END IF
-    
+
+    ! ============================================
+    ! Below is for Phase2RE
+    ! ============================================
     IF (isPhase2RE) THEN
-      !PRINT *, "prsurv_sub"
-      !! Print the first 5 elements of the prsurv_sub array in a readable way
-      !PRINT *, "prsurv_sub array for the first 5 elements of leftCases:"
-      !DO testi = 1, MIN(5, SIZE(leftCases))  ! Limit to the first 5 elements or the size of leftCases
-      !    PRINT *, "Person ID: ", leftCases(testi), ": "
-      !    PRINT '(F6.1)', (prsurv_sub(testi, j), j = 1, SIZE(prsurv_sub, 2))  ! Print each element with 1 decimal
-      !END DO
-
-      if (print_check) then
-        PRINT *, "pr"
-        ! Print the first 5 elements of the pr array in a readable way
-        PRINT *, "pr array for the last 5 elements of leftCases:"
-        !DO testi = 1, MIN(5, SIZE(leftCases))  ! Limit to the first 5 elements or the size of leftCases
-        DO testi = SIZE(leftCases)-5, SIZE(leftCases)  ! Limit to the last 5 elements or the size of leftCases
-            PRINT *, "Person ID: ", leftCases(testi), " with delta = ", REAL(dSorted_m(testi)), ":"
-            PRINT '(F6.1)', (pr(testi, j), j = 1, SIZE(pr, 2))  ! Print each element with 1 decimal
-        END DO
-        
-        PRINT *, "leftcasesRE with size", size(leftCases), ":", leftCases
-        PRINT *
-      end if
-
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-! USE THIS WITH RE_INFO CHECK STATEMENTS AT BEGINNING FOR ATRISK/EVENTS
-!                  PRINT *, "Use below to double check against atrisk/events using checking_atrisk_events.R"
-!                  PRINT *, "left:", size(personID_og(1:(splitLeft)))
-!                  PRINT *, personID_og(1:(splitLeft))
-!                  PRINT *, "right:", size(personID_og(splitLeft+1:nCases))
-!                  PRINT *, personID_og(splitLeft+1:nCases)
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
-      !PRINT *
-      !PRINT *, "size(prsurv_sub)",size(prsurv_sub,1), " x ", size(prsurv_sub,2)
-      !PRINT *, "size(pr2surv_sub)",size(pr2surv_sub,1 ), " x ", size(pr2surv_sub,2)
-      !PRINT *, "size(pr_sub)",size(pr_sub,1), " x ", size(pr_sub,2)
-      !PRINT *, "size(pr2_sub)",size(pr2_sub,1 ), " x ", size(pr2_sub,2)
-      
-      prl = prsurv_sub(leftCases,:) ! survival times
-      prr = prsurv_sub(rightCases,:)
-      prl_m = pr_sub(leftCases,:) ! recurrent event times
-      prr_m = pr_sub(rightCases,:)
-
-      if (print_check) then
-      ! Print the first 10 elements of the prl array in a structured way
-      !PRINT *, "prl_m array for the first 10 records:"
-      !DO testi = 1, MIN(10, SIZE(leftCases))  ! Limit to the first 10 records
-      PRINT *, "prl_m array for all records:"
-      Do testi = 1, SIZE(leftCases) ! all records
-          PRINT *, "Person ", leftCases(testi), " with delta = ", REAL(dSorted_m(testi)), ":"
-          DO j = 1, SIZE(prl_m, 2)  ! Print all timepoints for each person
-              PRINT '(A, I3, A, F6.1)', "  Timepoint ", j, ": ", REAL(prl_m(testi, j))
-          END DO
-          PRINT *  ! New line
-      END DO
-      end if
+      !PRINT *, "LINE 1399: prl, prr, prl_m, prr_m"
+      prl = prsurv(leftCases,:) ! survival times ! prsurv_sub
+      prr = prsurv(rightCases,:) 
+      prl_m = pr(leftCases,:) ! recurrent event times
+      prr_m = pr(rightCases,:)! pr_sub
       ! LATER TO DO: JTH CASE do-loop: eventsRight; eventsLeft
       ! prl_loop = prsurv(leftCases_loop,:)
       ! prr_loop = prsurv(rightCases_loop,:)
@@ -1346,20 +1391,66 @@ PRINT *, "Combined Details:"
       ! & spread(dSorted(splitLeft_loop+1:nCases), 2, nt_death), DIM = 1)
     END IF
 
-    if (splitLeft <= 0) then
-      PRINT *, "Warning: splitLeft is 0 or negative"
-      STOP
-    end if
+      IF (print_check) THEN
+          PRINT *, "pr2"
+          ! Print the last 5 elements of the 'pr' array in a readable way
+          PRINT *, "pr2 array for the last 5 elements of leftCases:"
+          DO testi = MAX(1, SIZE(leftCases) - 4), SIZE(leftCases)  ! Limit to the last 5 elements or the size of leftCases
+              PRINT *, "Person ID: ", leftCases(testi), " with delta = ", REAL(dSorted_m(testi)), ":"
+              PRINT '(F6.1)', (pr(testi, j), j = 1, SIZE(pr2, 2))  ! Print each element with 1 decimal
+          END DO
+
+          PRINT *, "leftCases array with size", SIZE(leftCases), ":", leftCases
+          PRINT *, "splitLeft:", splitLeft
+
+          ! Debugging or notification message
+          PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
+          PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
+          PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
+          PRINT *, "HHHHHHHHEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYY LOOOOOOOOOOOOOK @ MEEEEEEEE"
+
+          PRINT *  ! Blank line for readability
+
+          ! Debug information for personID_og if needed
+          ! PRINT *, "Use below to double check against atrisk/events using checking_atrisk_events.R"
+          ! PRINT *, "left:", SIZE(personID_og(1:splitLeft))
+          ! PRINT *, personID_og(1:splitLeft)
+          ! PRINT *, "right:", SIZE(personID_og(splitLeft + 1:nCases))
+          ! PRINT *, personID_og(splitLeft + 1:nCases)
+
+          PRINT *, "size(prsurv_sub)", SIZE(prsurv_sub, 1), " x ", SIZE(prsurv_sub, 2)
+          PRINT *, "size(pr2surv_sub)", SIZE(pr2surv_sub, 1), " x ", SIZE(pr2surv_sub, 2)
+          PRINT *, "size(pr_sub)", SIZE(pr_sub, 1), " x ", SIZE(pr_sub, 2)
+          PRINT *, "size(pr2_sub)", SIZE(pr2_sub, 1), " x ", SIZE(pr2_sub, 2)
+          PRINT *
+          PRINT *, "prl_m array for all records:"
+          DO testi = 1, SIZE(leftCases)  ! Iterate through all records
+              PRINT *, "Person ", leftCases(testi), " with delta = ", REAL(dSorted_m(testi)), ":"
+              DO j = 1, SIZE(prl_m, 2)  ! Print all timepoints for each person
+                  PRINT '(A, I3, A, F6.1)', "  Timepoint ", j, ": ", REAL(prl_m(testi, j))
+              END DO
+              PRINT *  ! New line for better readability
+          END DO
+      END IF
 
 
+      if (splitLeft <= 0) then
+        PRINT *, "Warning: splitLeft is 0 or negative"
+        STOP
+      end if
+
+    ! ============================================
     ! survival events (death)
+    ! ============================================
+    !IF (isPhase2RE) PRINT *, "LINE 1467: survival events"
     eventsLeft = sum(prl * &
         & spread(dSorted(1:(splitLeft-1)), 2, nt_death), DIM = 1)
     eventsRight = sum(prr * &
         & spread(dSorted(splitLeft:nCases), 2, nt_death), DIM = 1)
-    !PRINT *, "eventsLeft"
-    !PRINT *, eventsLeft
 
+    ! ============================================
+    ! endpoint events (CR or RE)
+    ! ============================================
     IF (.NOT. isPhase1) THEN
       ! endpoint events (overall for CR; RE for RE)
       ! use dSorted_m, which is endpoint delta (CR: cause m, RE: recurrent event)
@@ -1367,56 +1458,44 @@ PRINT *, "Combined Details:"
                     & spread(dSorted_m(1:(splitLeft-1)), 2, nt), DIM = 1)
       eventsRight_m = sum(prr_m * &
                     & spread(dSorted_m(splitLeft:nCases), 2, nt), DIM = 1)
-        !PRINT *, "eventsLeft_m with size:", size(eventsLeft_m)
-        !PRINT *, eventsLeft_m
-          
-        IF (print_check) THEN
-          PRINT *, "eventsLeft with size:", size(eventsLeft)
-          PRINT *, eventsLeft
-          PRINT *, "eventsLeft_m with size:", size(eventsLeft_m)
-          PRINT *, eventsLeft_m
-          PRINT *, "eventsRight_m with size:", size(eventsRight_m)
-          PRINT *, eventsRight_m
-          PRINT *, "eventsRight with size:", size(eventsRight)
-          PRINT *, eventsRight
-        END IF
     END IF
 
-    if (print_check) then
-      ! Print the array in a visually organized format
-      PRINT *, "Array dSorted_m (1:(splitLeft-1)):"
-      PRINT *, "splitLeft:", splitLeft
-      DO testi = 1, splitLeft-1
-          PRINT *, "Person", testi, "dSorted_m:", dSorted_m(testi)
-          PRINT *, "Status change over time points (prl_m):"
-          ! Loop over each time point for the current person and print corresponding prl_m values
-          DO j = 1, nt
-              PRINT '(F8.4)', prl_m(testi, j)
-          END DO
-          ! Newline for readability after each person’s data
-          PRINT *
-      END DO
+    IF (print_check) THEN
+        ! Print the array in a visually organized format
+        PRINT *, "Array dSorted_m (1:(splitLeft-1)):"
+        PRINT *, "splitLeft:", splitLeft
 
-      PRINT *, "prl_m"
-      PRINT *, prl_m
-      PRINT *
-      PRINT *, "dSorted_m(1:(splitLeft-1))"
-      PRINT *, dSorted_m(1:(splitLeft-1))
-      PRINT *, "spread(dSorted_m(1:(splitLeft-1)), 2, nt)"
-      PRINT *, spread(dSorted_m(1:(splitLeft-1)), 2, nt)
-      PRINT *, "prl_m * &
-                    & spread(dSorted_m(1:(splitLeft-1)), 2, nt)"
-      PRINT *, prl_m * &
-                    & spread(dSorted_m(1:(splitLeft-1)), 2, nt)
-      PRINT *, "eventsLeft_m"
-      PRINT *, sum(prl_m * &
-                    & spread(dSorted_m(1:(splitLeft-1)), 2, nt), DIM = 1)
+        ! Loop through each person up to splitLeft-1 and display relevant details
+        DO testi = 1, splitLeft - 1
+            PRINT *, "Person", testi, "dSorted_m:", dSorted_m(testi)
+            PRINT *, "Status change over time points (prl_m):"
+            DO j = 1, nt  ! Loop over time points
+                PRINT '(F8.4)', prl_m(testi, j)
+            END DO
+            PRINT *  ! Newline for readability
+        END DO
 
-      PRINT *, "prl_m with dim rows", size(prl_m,1), ", and cols ", size(prl_m,2)
-      PRINT *, prl_m
-      PRINT *
+        ! Display summary information
+        PRINT *, "dSorted_m(1:(splitLeft-1)):", dSorted_m(1:(splitLeft-1))
+        PRINT *, "spread(dSorted_m(1:(splitLeft-1)), 2, nt):"
+        PRINT *, spread(dSorted_m(1:(splitLeft-1)), 2, nt)
+
+        ! Compute and display transformed arrays and results
+        PRINT *, "prl_m * spread(dSorted_m(1:(splitLeft-1)), 2, nt):"
+        PRINT *, prl_m * spread(dSorted_m(1:(splitLeft-1)), 2, nt)
+
+        PRINT *, "Sum of eventsLeft_m along dimension 1:"
+        PRINT *, sum(prl_m * spread(dSorted_m(1:(splitLeft-1)), 2, nt), DIM = 1)
+
+        ! Display dimensions and content of prl_m
+        PRINT *, "prl_m with dimensions rows =", SIZE(prl_m, 1), ", cols =", SIZE(prl_m, 2)
+        PRINT *, prl_m
+        PRINT *
     END IF
 
+    ! ============================================
+    ! Below is for Phase 2 (Endpoint: CR)
+    ! ============================================
     IF (isPhase2CR) THEN
       ! Initialize the group vector with zeros
       group_cr = 0
@@ -1426,6 +1505,9 @@ PRINT *, "Combined Details:"
       group_cr(rightCases) = 2
     END IF
 
+    ! ============================================
+    ! Below is for Phase 1 or Phase2CR
+    ! ============================================
     ! looking at "at risk" set now (we want overall failure for both Step1 and Step2CR)
     IF (isPhase1 .OR. isPhase2CR) THEN
       pd1 = sum(prl, DIM = 1) ! for group 1
@@ -1457,8 +1539,12 @@ PRINT *, "Combined Details:"
         atRiskRight(j) = atRiskRight(j-1) - pd2(j-1)
       END DO
       !PRINT *, "tt5"
-
+      
+    ! ============================================
+    ! Below is for Phase 2 (Endpoint: RE)
+    ! ============================================
     ELSE IF (isPhase2RE) THEN
+      !PRINT *, "LINE 1569: pr2l, pr2r for atRisk_m"
       ! because this is witihin phase2re, there are multiple records per person
       ! we need to identify 
       ! 1) at risk at survival times (using colsums pr2surv)
@@ -1576,25 +1662,37 @@ PRINT *, "Combined Details:"
 
     END IF
 
+    ! ============================================
+    ! Below is for all Phases
+    ! ============================================
     ! if logrank, do calculations that do not depend on node occupancy
     IF (rule == 1) THEN
       CALL logrankSetUp(atRiskLeft, atRiskRight, eventsLeft, eventsRight, &
                       & numJ, denJ)
     END IF
 
-    !print *, "tt7"
     DO index_delta = 1, nCases
       IF (delta(index_delta) /= delta_m(index_delta)) THEN
         are_equal = .FALSE.
       END IF
     END DO
     
-    !print *, "tt8"
-
+    ! ============================================
+    ! Below is for Phase 2 (Endpoint: RE)
+    ! ============================================
     IF (isPhase2RE) THEN
       ! FIRST: WE WANT TO OBTAIN RE START/STOP INDICES FOR EACH PERSON
       ! Initialize variables
       uniqueCount = 0
+      
+      ! Check if the arrays are already allocated and deallocate them if they are
+      if (allocated(firstIndex)) then
+          deallocate(firstIndex)
+      end if
+
+      if (allocated(lastIndex)) then
+          deallocate(lastIndex)
+      end if
       ALLOCATE(firstIndex(MAXVAL(personID_new)))  ! Allocate maximum size
       ALLOCATE(lastIndex(MAXVAL(personID_new)))   ! Allocate maximum size
       ! Initialize firstIndex and lastIndex to -1 for all potential person IDs
@@ -1608,6 +1706,10 @@ PRINT *, "Combined Details:"
           END IF
           lastIndex(personID_new(doi)) = doi
       END DO
+
+      if (allocated(uniqueID)) then
+          deallocate(uniqueID)
+      end if
       ! Allocate arrays for unique IDs based on the number of unique IDs found
       ALLOCATE(uniqueID(uniqueCount))
       ! Fill the uniqueID array
@@ -1637,54 +1739,50 @@ PRINT *, "Combined Details:"
         PRINT *, "splitLeft:       ", splitLeft
         PRINT *, "splitLeftFinal:  ", splitLeftFinal
         PRINT *
-
         PRINT *, "PersonID (New):"
         PRINT *, "----------------"
         PRINT *, "personID_new:               ", personID_new
         PRINT *, "personID_new(splitLeft):     ", personID_new(splitLeft)
         PRINT *, "personID_new(splitLeftFinal):", personID_new(splitLeftFinal)
         PRINT *
-
         PRINT *, "PersonID (Original):"
         PRINT *, "---------------------"
         PRINT *, "personID_og:               ", personID_og
         PRINT *, "personID_og(splitLeft):     ", personID_og(splitLeft)
         PRINT *, "personID_og(splitLeftFinal):", personID_og(splitLeftFinal)
         PRINT *
-
-
-
         PRINT *, "RecordID Details:"
         PRINT *, "------------------"
         PRINT *, "recordID with size:", SIZE(recordID)
         PRINT *, recordID
         PRINT *
-
-
- 
-
-
-
       END IF
 
-
-
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! ============================================
+      ! within person do-loop (doi) for Phase 2 RE
+      ! ============================================
       DO doi = personID_new(splitLeft), personID_new(splitLeftFinal)
-        !PRINT *, "Between ID = ", personID_new(splitLeft), " and ID = ", personID_new(splitLeftFinal)
-        !PRINT *, " ----------- From personID_new, we have doi: ", doi, "---------------"
-
         ! Get start and end indices for the current person
         dostart = firstIndex(doi)
         doend = lastIndex(doi)
         ! Determine the number of cases for the current person
         numCases = doend - dostart + 1
-        
+
         IF (print_check) THEN
+
+          PRINT *, "------------------------------------------------------------"
+          PRINT *, "------------------------------------------------------------"
+          PRINT *, "------------------------------------------------------------"
+          PRINT *, "Person Summary:"
+          PRINT *, "This person (ID: ", doi, ") has ", numCases, " records."
+          PRINT *, "Starting at: ", dostart, " and ending at: ", doend
+          PRINT *, "Between ID = ", personID_new(splitLeft), " and ID = ", personID_new(splitLeftFinal)
+          !PRINT *, " ----------- From personID_new, we have doi: ", doi, "---------------"
+          PRINT *
           PRINT *, "Person Summary:"
           PRINT *, "---------------"
           PRINT *, "This person (ID: ", doi, ") has ", numCases, " records."
@@ -1743,355 +1841,250 @@ PRINT *, "Combined Details:"
         ! rightCases_loop = rightCases - rm jth case 
         leftCases_loop = recordID(1:(doend)) !recordID(1:(doend))
         leftPeople_loop = personID_new(1:(doend))
+        leftPeople_loop_og = personID_og(1:(doend))
         CALL find_unique(leftPeople_loop, unique_leftPeople_loop, nleftPeople_loop)
 
         rightCases_loop = recordID(doend+1:nCases) !recordID(doend+1:nCases)
         rightPeople_loop = personID_new(doend+1:nCases)
+        rightPeople_loop_og = personID_og(doend+1:nCases)
         CALL find_unique(rightPeople_loop, unique_rightPeople_loop, nrightPeople_loop)
 
-                      IF (print_check) THEN
-        PRINT *, "recordID with size", size(recordID)
-        PRINT *, recordID
-        PRINT *, "personID_new with size", size(personID_new)
-        PRINT *, personID_new
-        PRINT *, "doend+1 = ", doend+1, " and nCases = ", nCases
-        PRINT *, "leftCases_loop with size", size(leftCases_loop)
-        PRINT *, leftCases_loop
-        PRINT *, "leftPeople_loop with size", size(leftPeople_loop)
-        PRINT *, leftPeople_loop
-        PRINT *
-        PRINT *, "rightCases_loop with size", size(rightCases_loop)
-        PRINT *, rightCases_loop
-        PRINT *, "rightPeople_loop with size", size(rightPeople_loop)
-        PRINT *, rightPeople_loop
+        IF (print_check) THEN
 
-
-        PRINT *, "pr2_sub (", shape(pr2_sub), ") array by columns:"
-          DO j = 1, 1
-            WRITE(*, '(A, I5)') "Column: ", j
-            WRITE(*, '(A)') "---------------------------------------------"
-
-            ! Print "id:" on a new line, followed by the IDs in a separate line
-            WRITE(*, '(A)') "id:"
-            WRITE(*, '(20I5)') (leftPeople_loop(testi), testi = 1, SIZE(leftCases_loop))
-
-            ! Print "pr2_sub values:" on a new line, followed by the values for the current column in a separate line
-            WRITE(*, '(A)') "pr2_sub values:"
-            WRITE(*, '(20F6.1)') (pr2_sub(leftCases_loop(testi), j), testi = 1, SIZE(leftCases_loop))
-
-            ! Print "pr2 values:" on a new line, followed by the pr2 values in a separate line
-            !WRITE(*, '(A)') "pr2 values:"
-            !WRITE(*, '(20F6.1)') (pr2(leftCases_loop(testi), j), testi = 1, SIZE(leftCases_loop))
-
-            WRITE(*, '(A)') "---------------------------------------------"
-          END DO
-       
-        END IF  
+        if (size(recordID) .LT. 242) THEN
+          PRINT *, "recordID with size", size(recordID)
+          PRINT *, recordID
+          PRINT *, "personID_new with size", size(personID_new)
+          PRINT *, personID_new
+          PRINT *, "doend+1 = ", doend+1, " and nCases = ", nCases
+          PRINT *, "testing recordID size:", size(recordID)
+        END IF
+          PRINT *
+          PRINT *, "leftCases_loop with size", size(leftCases_loop)
+          PRINT *, leftCases_loop
+          PRINT *, "leftPeople_loop with size", size(leftPeople_loop)
+          PRINT *, leftPeople_loop
+          PRINT *, "nleftPeople_loop:", nleftPeople_loop
+          PRINT *, "leftPeople_loop_og with size:", size(leftPeople_loop_og)
+          PRINT *, leftPeople_loop_og
+          PRINT *
+          PRINT *, "rightCases_loop with size", size(rightCases_loop)
+          PRINT *, rightCases_loop
+          PRINT *, "rightPeople_loop with size", size(rightPeople_loop)
+          PRINT *, rightPeople_loop
+          PRINT *, "rightPeople_loop_og with size:", size(rightPeople_loop_og)
+          PRINT *, rightPeople_loop_og
+        END IF
          
-        ! Assuming all arrays have the same size
-        !PRINT *, "From 1:", doend
-        !PRINT *, " personID_og   recordID   personID_new"
-        !PRINT *, "------------------------------------"
-        !DO tmp_i = 1, SIZE(personID_og)
-        !  PRINT '(I12, I12, I12)', personID_og(tmp_i), recordID(tmp_i), personID_new(tmp_i)
-        !  END DO
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!!! eventsLeft_loop and eventsRight_loop !!!!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !PRINT *, " starting LOOP events and at risk for left and right node"
         ! LATER TO DO: JTH CASE do-loop: eventsRight; eventsLeft
         splitLeft_loop = size(leftCases_loop, dim = 1) ! to give how many records there are
 
-        prl_loop = prsurv_sub(leftCases_loop,:) ! death event times
+        ! left node 
+        ! terminal events
+        prl_loop = prsurv(leftCases_loop,:) ! death event times
         eventsLeft_loop = sum(prl_loop * &
         & spread(dSorted(1:splitLeft_loop), 2, nt_death), DIM = 1)
-
-        prr_loop = prsurv_sub(rightCases_loop,:)
-        eventsRight_loop = sum(prr_loop * &
-        & spread(dSorted(splitLeft_loop+1:nCases), 2, nt_death), DIM = 1)
-
-        prl_m_loop = pr_sub(leftCases_loop,:) ! recurrent event times
+        ! recurrent events
+        prl_m_loop = pr(leftCases_loop,:) ! recurrent event times
         eventsLeft_m_loop = sum(prl_m_loop * &
         & spread(dSorted_m(1:splitLeft_loop), 2, nt), DIM = 1)
 
-        prr_m_loop = pr_sub(rightCases_loop,:)
+        ! right node
+        ! terminal events
+        prr_loop = prsurv(rightCases_loop,:) ! prsurv_sub
+        eventsRight_loop = sum(prr_loop * &
+        & spread(dSorted(splitLeft_loop+1:nCases), 2, nt_death), DIM = 1)
+        ! this is where we are having some issues^
+        
+        ! recurrent events
+        prr_m_loop = pr(rightCases_loop,:) !pr_sub
         eventsRight_m_loop = sum(prr_m_loop * &
         & spread(dSorted_m(splitLeft_loop+1:nCases), 2, nt), DIM = 1)
 
         IF (print_check) THEN
           ! Print the entire prl_m_loop array in a readable way
-          PRINT *, "prl_m_loop array:"
-          DO testi = 1, SIZE(prl_m_loop, 1)  ! Loop over rows
-              PRINT *, "Person ID: ", leftCases_loop(testi), ": "
-              PRINT '(F6.1)', (prl_m_loop(testi, j), j = 1, SIZE(prl_m_loop, 2))  ! Print each element with 1 decimal
+          PRINT *, "prr_m_loop array:"
+          DO testi = 1, SIZE(prr_m_loop, 1)  ! Loop over rows
+              PRINT *, "Person ID: ", rightPeople_loop_og(testi), ": "
+              PRINT '(F6.1)', (prr_m_loop(testi, j), j = 1, SIZE(prr_m_loop, 2))  ! Print each element with 1 decimal
           END DO
 
-          ! Print the entire prl_loop array in a readable way
-          PRINT *, "prl_loop array:"
-          DO testi = 1, SIZE(prl_loop, 1)  ! Loop over rows
-              PRINT *, "Person ID: ", leftCases_loop(testi), ": "
-              PRINT '(F6.1)', (prl_loop(testi, j), j = 1, SIZE(prl_loop, 2))  ! Print each element with 1 decimal
+          PRINT *, "prr_loop array:"
+          DO testi = 1, SIZE(prr_loop, 1)  ! Loop over rows
+              PRINT *, "Person ID: ", rightPeople_loop_og(testi), ": "
+              PRINT '(F6.1)', (prr_loop(testi, j), j = 1, SIZE(prr_loop, 2))  ! Print each element with 1 decimal
           END DO
 
-          ! Print the entire eventsLeft_loop array in a readable way
           PRINT *, "RECURRENT EVENTS: eventsLeft_m_loop array:"
           DO testi = 1, SIZE(eventsLeft_m_loop)  ! Loop over elements in the 1D array
               PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", eventsLeft_m_loop(testi)
           END DO
 
-                ! Print the entire prl_m_loop array in a readable way
           PRINT *, "prl_loop array:"
-          DO testi = 1, SIZE(prl_loop, 1)  ! Loop over rows
-              PRINT *, "Person ID: ", leftCases_loop(testi), ": "
-              PRINT '(F6.1)', (prl_loop(testi, j), j = 1, SIZE(prl_loop, 2))  ! Print each element with 1 decimal
+          DO testi = 1, SIZE(prr_loop, 1)  ! Loop over rows
+              PRINT *, "Person ID: ", rightPeople_loop_og(testi), ": "
+              PRINT '(F6.1)', (prr_loop(testi, j), j = 1, SIZE(prr_loop, 2))  ! Print each element with 1 decimal
           END DO
 
           PRINT *, "---"
-          ! Print the entire eventsLeft_loop array in a readable way
-          PRINT *, "DEATH EVENTS: eventsLeft_loop array:"
-          DO testi = 1, SIZE(eventsLeft_loop)  ! Loop over elements in the 1D array
-              PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", eventsLeft_loop(testi)
+          PRINT *, "DEATH EVENTS: eventsRight_loop array:"
+          DO testi = 1, SIZE(eventsRight_loop)  ! Loop over elements in the 1D array
+              PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", eventsRight_loop(testi)
           END DO
-
-          if (print_check) then
-                ! Print the entire pr2 array in a readable way
+          
         PRINT *, "pr2 array:"
         DO testi = 1, SIZE(pr2(:,leftCases_loop), 2)  ! Loop over rows
             PRINT *, "id:", leftCases_loop(testi)
             PRINT '(F6.1)', (pr2(leftCases_loop(testi), j), j = 1, SIZE(pr2, 2))
         END DO
 
-                ! Print the entire pr2 array in a readable way
-        PRINT *, "pr2_sub array:"
-        DO testi = 1, SIZE(pr2_sub(:,leftCases_loop), 2)  ! Loop over rows
-            PRINT *, "id:", leftCases_loop(testi)
-            PRINT '(F6.1)', (pr2_sub(leftCases_loop(testi), j), j = 1, SIZE(pr2_sub, 2))
-        END DO
-          end if
+        END IF ! end of print_check
 
-          !PRINT *, "stopping"
-          !if (isPhase2RE) STOP
-        END IF
-
-        !PRINT *, pr2(1,:) ! rows are people
+        !PRINT *, shape(prsurv_sub)
+        !PRINT *, shape(prsurv)
+        !PRINT *, shape(pr2surv_sub)
+        !PRINT *, shape(pr2surv)
+        !PRINT *, size(dSorted)
+        !PRINT *, "prsurv_sub for rightCases_loop across all time points for RE"
+        !PRINT *, prsurv_sub(rightCases_loop,:) ! rows are people
         !PRINT *
-        !PRINT *, pr2(:,1) ! column is timepoint
+        !PRINT *, "prsurv_sub for rightCases_loop at 104th timepoint for RE"
+        !PRINT *, prsurv_sub(rightCases_loop,104) ! column is timepoint
+        !PRINT *
+        !PRINT *, "dSorted(splitLeft_loop+1:nCases)"
+        !PRINT *, dSorted(splitLeft_loop+1:nCases)
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!!! atRiskLeft_loop and atRiskRight_loop !!!!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! LATER TO DO: JTH CASE do-loop at-risk:
         ! pr2
-        pr2l_loop = pr2_sub(leftCases_loop,:) 
-        pr2r_loop = pr2_sub(rightCases_loop,:) 
+        pr2l_loop = pr2(leftCases_loop,:) !pr2_sub
+        pr2r_loop = pr2(rightCases_loop,:) 
         pd1_m_loop = sum(pr2l_loop, DIM = 1)
         pd2_m_loop = sum(pr2r_loop, DIM = 1)
         atRiskLeft_m_loop = pd1_m_loop
         atRiskRight_m_loop = pd2_m_loop
 
         ! pr2surv
-        pr2survl_loop = pr2surv_sub(leftCases_loop,:) 
-        pr2survr_loop = pr2surv_sub(rightCases_loop,:) 
+        pr2survl_loop = pr2surv(leftCases_loop,:)  ! pr2surv_sub
+        pr2survr_loop = pr2surv(rightCases_loop,:) 
         pd1_loop = sum(pr2survl_loop, DIM = 1)
         pd2_loop = sum(pr2survr_loop, DIM = 1)
         atRiskLeft_loop = pd1_loop
         atRiskRight_loop = pd2_loop
 
-        IF (print_check) THEN
-
-        PRINT *, "leftCases_Loop with size:", size(leftCases_loop)
-        PRINT *, leftCases_loop
-        PRINT *, "dim of pr2surv is:", SHAPE(pr2surv)
-        PRINT *, "dim of pr2surv_sub is:", SHAPE(pr2surv_sub)
-        PRINT *, "pd1_loop with size:", size(pd1_loop)
-        PRINT *, pd1_loop
-        PRINT *, "atRiskLeft_loop with size:", size(atRiskLeft_loop)
-        PRINT *, atRiskLeft_loop
-
-        PRINT *, "------------------------------------"
-        PRINT *, "size(personID_new):", size(personID_new)
-        PRINT *, "size(personID_og):", size(personID_og)
-        PRINT *, "size(recordID):", size(recordID)
-        PRINT *, "size(pr2_sub)", size(pr2_sub,1), " x ", size(pr2_sub,2)
-        PRINT *, "size(pr2surv_sub)", size(pr2surv_sub,1), " x ", size(pr2surv_sub,2)
-        PRINT *, "size(pr_sub)", size(pr_sub,1), " x ", size(pr_sub,2)
-        PRINT *, "size(prsurv_sub)", size(prsurv_sub,1), " x ", size(prsurv_sub,2)
-        PRINT *
-        PRINT *, "size(pr2)", size(pr2,1), " x ", size(pr2,2)
-        PRINT *, "size(pr2surv)", size(pr2surv,1), " x ", size(pr2surv,2)
-        PRINT *, "------------------------------------"
-        PRINT *, "------------------------------------"
-        PRINT *, "~~"
-
-          PRINT *, "---"
-          ! Print the entire eventsLeft_loop array in a readable way
-          PRINT *, "AT RISK: atRiskLeft_m_loop array:"
-          DO testi = 1, SIZE(atRiskLeft_m_loop)  
-              PRINT '(A, I3, A, F6.1)', "Element(", testi, ") = ", atRiskLeft_m_loop(testi)
-          END DO
-
-        ! Print the entire pr2 array in a readable way
-        PRINT *, "pr2surv_sub array:"
-        DO testi = 1, SIZE(pr2surv_sub(:,leftCases_loop), 2)  ! Loop over rows
-            PRINT *, "id:", leftCases_loop(testi)
-            PRINT '(F6.1)', (pr2surv_sub(leftCases_loop(testi), j), j = 1, SIZE(pr2surv_sub, 2))
-        END DO
-        END IF
+        !PRINT *, "leftCases_Loop with size:", size(leftCases_loop)
+        !PRINT *, leftCases_loop
+        !PRINT *, "dim of pr2surv is:", SHAPE(pr2surv)
+        !PRINT *, "dim of pr2surv_sub is:", SHAPE(pr2surv_sub)
+        !PRINT *, "pd1_loop with size:", size(pd1_loop)
+        !PRINT *, "pd2_loop with size:", size(pd2_loop)
+        !PRINT *, "atRiskLeft_loop with size:", size(atRiskLeft_loop)
+        !PRINT *, "------------------------------------"
+        !PRINT *, "size(personID_new):", size(personID_new)
+        !PRINT *, "size(personID_og):", size(personID_og)
+        !PRINT *, "size(recordID):", size(recordID)
+        !PRINT *, "size(pr2_sub)", size(pr2_sub,1), " x ", size(pr2_sub,2)
+        !PRINT *, "size(pr2surv_sub)", size(pr2surv_sub,1), " x ", size(pr2surv_sub,2)
+        !PRINT *, "size(pr_sub)", size(pr_sub,1), " x ", size(pr_sub,2)
+        !PRINT *, "size(prsurv_sub)", size(prsurv_sub,1), " x ", size(prsurv_sub,2)
+        !PRINT *
+        !PRINT *, "size(pr2)", size(pr2,1), " x ", size(pr2,2)
+        !PRINT *, "size(pr2surv)", size(pr2surv,1), " x ", size(pr2surv,2)
+        !PRINT *, "------------------------------------"
+        !PRINT *, "------------------------------------"
+        !PRINT *, "~~"
 
         !!!!!!! =============
         !PRINT "(A, F6.2, A, F6.2)", "xSorted(doend) is: ", xSorted(doend), " and (doend+1) - 1d-8 is: ", xSorted(doend + 1) - 1d-8
 
         ! if the case is not the last case with this covariate value, cycle
         IF (xSorted(doend) .GE. (xSorted(doend+1) - 1d-8)) CYCLE
-
+ 
         !PRINT *, "rule is ", rule
         IF (rule == 5) THEN
           IF (PRINT_CHECK) PRINT *, "~~~~~ SPLITTING TEST: PHASE 2 (RE): Q_LR (extension of gray's for RE) ~~~~~"
-          !atRiskLeft_m_loop(1) = atRiskLeft_m_loop(2)
-          !atRiskLeft_loop(1) = atRiskLeft_loop(2)
-          !atRiskRight_m_loop(1) = atRiskRight_m_loop(2)
-          !atRiskRight_loop(1) = atRiskRight_loop(2)
           ! atRisk is same for RE and survival within RE test statistic Q_LR
+          ! IF (PRINT_CHECK) THEN
+          !     PRINT *, "starting RE_INFO"
+          !     PRINT *, "leftCases_loop"
+          !     PRINT *, leftCases_loop
+          !     PRINT *, "group 1: left node"
+          !     CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
+          !     atRiskLeft_m_loop, eventsLeft_m_loop, atRiskLeft_loop, eventsLeft_loop, &
+          !     survRE_left, dRhat_left, mu_left, dmu_left)
 
-          IF (PRINT_CHECK) THEN
-            PRINT *, "leftCases_loop"
-            PRINT *, leftCases_loop
-            PRINT *
-            PRINT *, "rightCases_loop"
-            PRINT *, rightCases_loop
-            PRINT *
-                    PRINT *, "group 1: left node"
-                    CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
-                    atRiskLeft_m_loop, eventsLeft_m_loop, atRiskLeft_loop, eventsLeft_loop, &
-                    survRE_left, dRhat_left, mu_left, dmu_left)
-                    PRINT *, "mu_left"
-                    PRINT *, mu_left
-                    PRINT *, "dmu_left"
-                    PRINT *, dmu_left
-                    PRINT *
+          !     PRINT *, "group 2: right node"
+          !     CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
+          !     atRiskRight_m_loop, eventsRight_m_loop, atRiskRight_loop, eventsRight_loop, &
+          !     survRE_right, dRhat_right, mu_right, dmu_right)
 
-                    PRINT *, "group 2: right node"
-                    CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
-                    atRiskRight_m_loop, eventsRight_m_loop, atRiskRight_loop, eventsRight_loop, &
-                    survRE_right, dRhat_right, mu_right, dmu_right)
-                    PRINT *, "mu_right"
-                    PRINT *, mu_right
-                          PRINT *, "dmu_right"
-                    PRINT *, dmu_right
+          !     PRINT *, "======================"
 
-                    PRINT *, "======================"
+          !     ! Derivative of equation (2.2) in Ghosh and Lin (2000) using product rule
+          !     ! Y_bar(t) = sum_i=1^n Y_i(t) = atriskRE vector
+          !     ! dMi_hat(i) = eventsRE(i) - atriskRE(i)*dRhat(i)
+          !     ! dMi_hat^D(i) = eventsSurv(i) - atriskRE(i) * (eventsSurv(i)/atriskSurv(i))
 
-                    ! Derivative of equation (2.2) in Ghosh and Lin (2000) using product rule
-                    ! Y_bar(t) = sum_i=1^n Y_i(t) = atriskRE vector
-                    ! dMi_hat(i) = eventsRE(i) - atriskRE(i)*dRhat(i)
-                    ! dMi_hat^D(i) = eventsSurv(i) - atriskRE(i) * (eventsSurv(i)/atriskSurv(i))
+          !     ! dNi(t)
+          !     dNi = prl_m_loop * &
+          !     & spread(dSorted_m(1:splitLeft_loop), 2, nt)
+          !     ! Y_i(t) * dRhat(t)
+          !     YidR = pr2l_loop * &
+          !     & spread(dRhat_left, 1, size(leftCases_loop))
+          !     ! dMihat
+          !     dMi = dNi - YidR
 
-                    ! dNi(t)
-                    dNi = prl_m_loop * &
-                    & spread(dSorted_m(1:splitLeft_loop), 2, nt)
-                    ! Y_i(t) * dRhat(t)
-                    YidR = pr2l_loop * &
-                    & spread(dRhat_left, 1, size(leftCases_loop))
-                    ! dMihat
-                    dMi = dNi - YidR
+          !     ! dNi^D(t)
+          !     dNiD = prl_m_loop * &
+          !     & spread(dSorted(1:splitLeft_loop), 2, nt)
 
-                    ! dNi^D(t)
-                    dNiD = prl_m_loop * &
-                    & spread(dSorted(1:splitLeft_loop), 2, nt)
+          !     PRINT *, "atRiskLeft_m_loop with size ", size(atRiskLeft_m_loop)
+          !     PRINT *, atRiskLeft_m_loop
 
-                    PRINT *, "atRiskLeft_m_loop with size ", size(atRiskLeft_m_loop)
-                    PRINT *, atRiskLeft_m_loop
+          !     !dLambdahat^D(t)
+          !     tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
+          !     dlam = 0.0_dp                                  ! Initialize dlam to zero
+          !     ! Calculate tmp_events1 as sum over the first dimension (summing across rows)
+          !     tmp_events1 = sum(prl_m_loop * &
+          !         & spread(dSorted(1:splitLeft_loop), 2, nt), DIM=1)
+          !     ! Loop to calculate dlam with a check for zero in atRiskLeft_m_loop
+          !     DO tmp_i = 1, nt
+          !       PRINT *, "timepoint:", tmp_i
+          !       PRINT *, "at risk at this timepoint:"
+          !       PRINT *, atRiskLeft_m_loop(tmp_i)
+          !         IF (atRiskLeft_m_loop(tmp_i) /= 0.0_dp) THEN
+          !             dlam(tmp_i) = tmp_events1(tmp_i) / atRiskLeft_m_loop(tmp_i)
+          !         ELSE
+          !             dlam(tmp_i) = 0.0_dp 
+          !         END IF
+          !     END DO
+          !     ! Y_i(t) * dLambdahat^D(t)
+          !     YidLam = pr2l_loop * &
+          !     & spread(dlam, 1, size(leftCases_loop))
+          !     ! dMiD
+          !     dMiD = dNiD - YidLam
 
-                    !dLambdahat^D(t)
-                    tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
-                    dlam = 0.0_dp                                  ! Initialize dlam to zero
-                    ! Calculate tmp_events1 as sum over the first dimension (summing across rows)
-                    tmp_events1 = sum(prl_m_loop * &
-                        & spread(dSorted(1:splitLeft_loop), 2, nt), DIM=1)
-                    ! Loop to calculate dlam with a check for zero in atRiskLeft_m_loop
-                    DO tmp_i = 1, nt
-                      PRINT *, "timepoint:", tmp_i
-                      PRINT *, "at risk at this timepoint:"
-                      PRINT *, atRiskLeft_m_loop(tmp_i)
-                        IF (atRiskLeft_m_loop(tmp_i) /= 0.0_dp) THEN
-                            dlam(tmp_i) = tmp_events1(tmp_i) / atRiskLeft_m_loop(tmp_i)
-                        ELSE
-                            dlam(tmp_i) = 0.0_dp 
-                        END IF
-                    END DO
-                    ! Y_i(t) * dLambdahat^D(t)
-                    YidLam = pr2l_loop * &
-                    & spread(dlam, 1, size(leftCases_loop))
-                    ! dMiD
-                    dMiD = dNiD - YidLam
+          !     CALL dPsi_indiv(size(leftCases_loop), nleftPeople_loop, nt, nt_death, &
+          !             survRE_left, dmu_left, mu_left, dMi, dMiD, &
+          !             atRiskLeft_m_loop, dPsi_left)
+          !     PRINT *, "end of call dPsi_indiv"
+          ! END IF
 
-                    PRINT *, "PERSON ", recordID(leftCases_loop(1))
-                    ! Print the nt values for person 1
-                    PRINT *, "dNi for person 1 with row ", size(dNi,1), "and column ", size(dNi,2)
-                    PRINT *, dNi(1, :)
-                    PRINT *
-
-                    PRINT *, "dNiD for person 1 with  row ", size(dNiD,1), "and column ", size(dNiD,2)
-                    PRINT *, dNiD(1, :)
-                    PRINT *
-
-                    PRINT *, "Yi for person 1 with row ", SIZE(prl_m_loop, 1), "and column ", SIZE(prl_m_loop, 2)
-                    PRINT *, pr2l_loop(1, :)
-                    PRINT *
-
-                    PRINT *, "dRhat_left with size", size(dRhat_left)
-                    PRINT *, dRhat_left
-                    PRINT *
-
-                    PRINT *, "dlam with size", size(dlam)
-                    PRINT *, dlam
-                    PRINT *
-
-                    PRINT *, "dMi for person 1 with row ", SIZE(dMi, 1), "and column ", SIZE(dMi, 2)
-                    PRINT *, dMi(1, :)
-                    PRINT *
-
-                    PRINT *, "dMiD for person 1 with row ", SIZE(dMiD, 1), "and column ", SIZE(dMiD, 2)
-                    PRINT *, dMiD(1, :)
-                    PRINT *
-
-                    PRINT *, "size of Ybar is: ", size(atRiskLeft_m_loop)
-                    PRINT *, "nleftPeople_loop:", nleftPeople_loop
-                    PRINT *, "size(leftCases_loop)", size(leftCases_loop)
-                    PRINT *
-                    PRINT *, "row of dMi is: ", size(dMi,1) ! records
-                    PRINT *, "col of dMi is: ", size(dMi,2) ! timepoints
-                    PRINT *
-                    PRINT *, "survRE_left with size:", size(survRE_left)
-                    PRINT *, survRE_left
-                    PRINT *
-                    PRINT *, "size of spreading survRE_left by ", size(leftCases_loop), " records is: ", &
-                            size(spread(survRE_left, 1, size(leftCases_loop)), 1), "and ", &
-                            size(spread(survRE_left, 1, size(leftCases_loop)), 2)
-                    PRINT * 
-
-                    CALL dPsi_indiv(size(leftCases_loop), nleftPeople_loop, nt, nt_death, &
-                            survRE_left, dmu_left, mu_left, dMi, dMiD, &
-                            atRiskLeft_m_loop, dPsi_left)
-                    PRINT *, "end of call dPsi_indiv"
-                    PRINT *
-                    PRINT *
-                    PRINT *
-                    PRINT *
-          END IF
-
-          !PRINT *, "starting RE_INFO"
-
+          !PRINT *, "calling re_info for LEFT!!!"
           IF (print_check) THEN
-          PRINT *, "calling re_info for LEFT!!! "
-          PRINT *, "endpoint at risk with size:", size(atRiskLeft_m_loop)
-          PRINT *, atRiskLeft_m_loop
-          PRINT *, "survival at risk with size:", size(atRiskLeft_loop)
-          PRINT *, atRiskLeft_loop
-          PRINT *, "survival events with size", size(eventsLeft_loop)
-          PRINT *, eventsLeft_loop
-          PRINT *
-          END IF
+            PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
+            PRINT *, leftCases_loop
+            !PRINT *, "leftPeople_loop with size", nleftPeople_loop
+            !PRINT *, leftPeople_loop
+          END IF ! end of print_check
+
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(leftCases_loop), leftCases_loop, dSorted_m(1:splitLeft_loop), &
             & dSorted(1:splitLeft_loop), nleftPeople_loop, &
@@ -2099,19 +2092,26 @@ PRINT *, "Combined Details:"
             & prl_m_loop, pr2l_loop, &
             & dmu_left, dPsi_left)
 
-          IF (print_check) THEN
-          !PRINT *
-          PRINT *, "calling re_info for RIGHT !!!"
-          !PRINT *, "endpoint at risk with size:", size(atRiskRight_m_loop)
-          !PRINT *, atRiskRight_m_loop
-          !PRINT *, "survival at risk with size:", size(atRiskRight_loop)
-          !PRINT *, atRiskRight_loop
-          PRINT *, "survival events with size:", size(eventsRight_loop)
-          PRINT *, eventsRight_loop
-          PRINT *, "RE events with size:", size(eventsRight_m_loop)
-          PRINT *, eventsRight_m_loop
-          !PRINT *
-          END IF
+
+          !PRINT *, "calling re_info for RIGHT!!!"
+          !PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
+          !PRINT *, rightCases_loop
+          !PRINT *, "rightPeople_loop with size", nrightPeople_loop
+          !PRINT *, rightPeople_loop
+
+          !PRINT *, "leftPeople_loop_og:"
+          !PRINT *, leftPeople_loop_og
+          !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
+          !& atRiskLeft_loop, eventsLeft_loop)
+          !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
+          !& atRiskLeft_m_loop, eventsLeft_m_loop)
+          !PRINT *, "rightPeople_loop_og"
+          !PRINT *, rightPeople_loop_og
+          !CALL PrintSurvival("Survival (Right):", nt_death, surv_tp, &
+          !& atRiskRight_loop, eventsRight_loop)
+          !CALL PrintSurvival("Endpoint (Right):", nt, end_tp, &
+          !& atRiskRight_m_loop, eventsRight_m_loop)
+
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(rightCases_loop), rightCases_loop, dSorted_m(splitLeft_loop+1:nCases), &
             & dSorted(splitLeft_loop+1:nCases), nrightPeople_loop, &
@@ -2120,15 +2120,24 @@ PRINT *, "Combined Details:"
             & dmu_right, dPsi_right)
 
           IF (print_check) THEN
-            PRINT *, "end of CALL RE_INFO FOR LEFT NODE"
-            PRINT *, "dPsi_left with dim:", size(dPsi_left,1), size(dPsi_left,2)
-            PRINT *, dPsi_left
-            PRINT *
-            PRINT *, "end of CALL RE_INFO FOR RIGHT NODE"
-            PRINT *, "dPsi_right with dim:", size(dPsi_right,1), size(dPsi_right,2)
-            PRINT *, dPsi_right
-            PRINT *
-          END IF
+              PRINT *, "row    personID_og    10      42      64      71      78       88"
+              PRINT '(A, F7.4, A, F7.4, A, F7.4, A, F7.4, A, F7.4, A, F7.4)', "row    personID_og    ", &
+                        surv_tp(10), "   ", surv_tp(42), "   ", &
+                        surv_tp(64), "   ", surv_tp(71), "   ", &
+                        surv_tp(78), "    ", surv_tp(88)
+              PRINT *, "-----------------------------------------------------"
+              !DO tmp_i = 1, SIZE(rightCases_loop)
+              !  caseR = rightCases_loop(tmp_i)  ! Use the integer index directly
+              !  ! Adjusted print format for REAL values (F7.2 to display floating-point numbers)
+              !  PRINT '(I4, 1X, I10, 3X, F7.2, 1X, F7.2, 1X, F7.2, 1X, F7.2, 1X, F7.2, 1X, F7.2)', &
+              !    & tmp_i, rightPeople_loop_og(tmp_i), &
+              !    & prsurv_sub(caseR, 10), prsurv_sub(caseR, 42), prsurv_sub(caseR, 64), &
+              !    & prsurv_sub(caseR, 71), prsurv_sub(caseR, 78), prsurv_sub(caseR, 88)
+              !END DO
+              PRINT *, "-----------------------------------------------------"
+              PRINT *
+            END IF
+
           !PRINT *, "starting generalized weighted logrank (RE test)"
           CALL GeneralizedWeightedLR_RE(nt, nleftPeople_loop, nrightPeople_loop, &
               & atRiskLeft_m_loop, atRiskRight_m_loop, &
@@ -2176,20 +2185,18 @@ PRINT *, "Combined Details:"
             cutoff = (xSorted(doend) + xSorted(doend+1))/2.d0
           END IF
         END IF
-        !!!!!!! =================================================================
-        !!!!!!! =================================================================
-        !!!!!!! =================================================================
-      END DO ! end of doi = personID_new(splitLeft), personID_new(splitLeftFinal)
-      !!!!!!! =================================================================
-      !!!!!!! =================================================================
-      !!!!!!! =================================================================
-      DEALLOCATE(firstIndex, lastIndex, uniqueID)
+      ! ============================================
+      END DO ! END OF doi do-loop for Phase 2 RE
+      ! ============================================
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     END IF ! END OF ISPHASE2RE
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+    ! ============================================
+    ! Below is for Phase 1 or Phase2CR
+    ! ============================================
     IF (isPhase1 .OR. isPhase2CR) THEN
       cnt = 1
       cnt_m = 1
@@ -2295,7 +2302,7 @@ PRINT *, "Combined Details:"
             !!!!!!!PRINT *, cases
             !!!PRINT *, "old sorted_cases"
             !!!PRINT *, sorted_cases
-!            if (isPhase2CR) CALL qsort4(sorted_cases, cases, 1, size(cases))
+            !if (isPhase2CR) CALL qsort4(sorted_cases, cases, 1, size(cases))
             if (isPhase2CR) CALL qsort4(sorted_cases, sorted_cases_index, 1, size(sorted_cases))
 
             !!!!!!!PRINT *, "testinggg qsort: sorted sorted_cases"
@@ -2359,30 +2366,15 @@ PRINT *, "Combined Details:"
           END IF
 
         END IF
-
-      END DO
-      !PRINT *, "========== END OF jth case DO LOOP =========="
+    ! ============================================
+    END DO ! END OF JTH CASE DO-LOOP
+    ! ============================================
     END IF ! end of phase1/phase2cr
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    IF (print_check) THEN
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *, "---------- PRE -----------"
-        PRINT *, "set:", set
-        PRINT *, "splitVar:", splitVar
-        ! Use formatted output for two decimal places
-        PRINT "(A, F6.2, A, F6.2)", "maxValueXm: ", maxValueXm, " and maxValueSplit: ", maxValueSplit
-        PRINT "(A, F6.2)", "cutoff:", cutoff
-        PRINT *, "---------------------"
-    END IF
 
     ! if not successful, cycle to next covariate
     ! this condition should never be true
@@ -2406,14 +2398,25 @@ PRINT *, "Combined Details:"
       IF (isPhase1 .OR. isPhase2CR) THEN
         casesOut = cases
       ELSE IF (isPhase2RE) THEN
-        casesOut = personID_new
-        casesOutRE = recordID_new !casesInRE(tcasesSorted) !recordID
-        PRINT *, "casesOutRE with size", size(casesOutRE)
-        PRINT *, casesOutRE
-      END IF
-      PRINT *, "casesOut with size:", size(casesOut)
-      PRINT *, casesOut
+      !PRINT *, "personID_new with size:", size(personID_new)
+      !PRINT *, personID_new
+      !PRINT *, "recordID with size:", size(recordID)
+      !PRINT *, recordID
+      !PRINT *, "personID with size:", size(personID)
+      !PRINT *, personID
+        casesOut = personID 
+        casesOutRE = recordID
+        casesOut_people_RE = personID_og
+        casesOut_record_RE = recordID_og
+        !PRINT *, "casesOut with size:", size(casesOut)
+        !PRINT *, casesOut
+        !PRINT *, "casesOutRE with size", size(casesOutRE)
+        !PRINT *, casesOutRE  
+        !PRINT *, "casesOut_people_RE with size", size(casesOut_people_RE)
+        !PRINT *, casesOut_people_RE 
+        END IF
 
+      
       cutoffBest = 0
 
       IF (nCat(kv) .LE. 1) THEN
@@ -2454,6 +2457,8 @@ PRINT *, "Combined Details:"
         ELSE IF (isPhase2RE) THEN
           casesOut = personID
           casesOutRE = recordID
+          casesOut_people_RE = personID_og
+          casesOut_record_RE = recordID_og
         END IF
         IF (print_check) THEN
           PRINT *, "casesOut at end with size:", size(casesOut)
@@ -2482,7 +2487,7 @@ PRINT *, "Combined Details:"
       END IF
     END IF
 
-  END DO ! end of covariate do-loop
+  END DO ! end of covariate do-loop nv
 
   !PRINT *, "splitVar: ", splitVar
   ! if no split was possible return
@@ -2491,7 +2496,7 @@ PRINT *, "Combined Details:"
   ! if successful at finding a split set flag and return
   splitFound = 1
   
-  !IF (print_check) THEN
+  IF (print_check) THEN
     PRINT *, "---------- POST -----------"
     PRINT *, "splitFound: ", splitFound
     PRINT *, "tfindsplit casesIn with size ", size(casesIn)
@@ -2508,9 +2513,10 @@ PRINT *, "Combined Details:"
     PRINT "(A, F6.2)", "cutoff:", cutoff
     PRINT *, "nCuts: ", nCuts
     PRINT *, "---------------------"
-  !END IF
+  END IF
 
-  IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
+  !IF (isPhase2RE) PRINT *, "============================END OF tfindSplit============================"
+  
   RETURN
 
 END SUBROUTINE tfindSplit
@@ -2613,6 +2619,31 @@ END SUBROUTINE kaplan
 END SUBROUTINE sort_and_subset
 ! =================================================================================
 
+SUBROUTINE PrintSurvival(label, count, timePoint, AT_RISK, EVENTS)
+  IMPLICIT NONE
+
+  ! Inputs
+  CHARACTER(LEN=*), INTENT(IN) :: label
+  INTEGER, INTENT(IN) :: count
+  REAL(8), INTENT(IN) :: timePoint(:), AT_RISK(:), EVENTS(:)
+
+  ! Local variables
+  INTEGER :: tmp_i
+
+  ! Print the header
+  PRINT *, label, count
+  PRINT *, "-----------------------------------------"
+  PRINT *, "index    timePoint    AT_RISK    EVENTS"
+  PRINT *, "-----------------------------------------"
+
+  ! Loop through data and print
+  DO tmp_i = 1, SIZE(AT_RISK)
+    PRINT '(I4, 1X, F20.18, 1X, I4, 1X, I4)', tmp_i, timePoint(tmp_i), INT(AT_RISK(tmp_i)), INT(EVENTS(tmp_i))
+  END DO
+  PRINT *, "-----------------------------------------"
+  PRINT *
+END SUBROUTINE PrintSurvival
+! =================================================================================
 
 !CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
 !          & size(groupCases_loop), leftCases_loop, &
@@ -2679,6 +2710,7 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 
 
 ! FIRST: get GROUP INFORMATION
+!PRINT *, "calling meanfreqfunc from RE_info"
 CALL MeanFreqFunc(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
 Nj_endpoint, Oj_endpoint, Nj_survival, Oj_survival, &
 survRE_group, dRhat_group, mu_group, dmu_group)
@@ -2760,9 +2792,8 @@ survRE, dRhat, mu, dmu)
 
   print_check = .FALSE. 
 
-  !PRINT *, "******************** mean frequency function ********************"
-
   if (print_check) then
+    PRINT *, "******************** mean frequency function ********************"
     PRINT *, 'nt_endpoint = ', nt_endpoint
       ! Print tp_endpoint array with index, rounded to 1 decimal point
     PRINT *, 'tp_endpoint: '
@@ -4320,10 +4351,10 @@ subroutine group_and_sort(inputVectors, n, combinedArray)
     ! Copy inputVectors to combinedArray
     combinedArray = inputVectors
 
-    print *, "COMBINED ARRAY BEFORE SORTING:"
-    do i = 1, MIN(5, n)
-        write(*, '(1X, 7F10.4)') (combinedArray(i, j), j = 1, numVectors)
-    end do
+    !print *, "COMBINED ARRAY BEFORE SORTING:"
+    !do i = 1, MIN(5, n)
+    !    write(*, '(1X, 7F10.4)') (combinedArray(i, j), j = 1, numVectors)
+    !end do
 
     ! Sort combinedArray based on the first three columns
     do i = 1, n - 1
@@ -4342,11 +4373,10 @@ subroutine group_and_sort(inputVectors, n, combinedArray)
         end do
     end do
 
-    ! Output the sorted array
-    print *, "Grouped and Sorted Data:"
-    do i = 1, MIN(5, n)
-        write(*, '(1X, 7F10.4)') (combinedArray(i, j), j = 1, numVectors)
-    end do
+    !print *, "Grouped and Sorted Data:"
+    !do i = 1, MIN(5, n)
+    !    write(*, '(1X, 7F10.4)') (combinedArray(i, j), j = 1, numVectors)
+    !end do
 end subroutine group_and_sort
 
 
@@ -4401,14 +4431,14 @@ use, intrinsic :: ieee_arithmetic
   REAL(dp), DIMENSION(1:nt), INTENT(OUT) :: Func
   REAL(dp), INTENT(OUT) :: mean
 
-  INTEGER :: i, index1, j, t, testj
+  INTEGER :: i, j, t, testj
 
   REAL(dp), DIMENSION(1:nt_death) :: Nj, Oj, Rb
   REAL(dp), DIMENSION(1:nt) :: Nj_m, Oj_m
   REAL(dp), DIMENSION(1:nt) :: jumpCIF
   REAL(dp), DIMENSION(1:nt) :: survRE
   REAL(dp), DIMENSION(1:nt) :: dRhat
-  REAL(dp), DIMENSION(1:nt) :: mu
+!  REAL(dp), DIMENSION(1:nt) :: mu
   REAL(dp), DIMENSION(1:nt) :: dmu
   ! for Phase1/2CR: nt=nt_death
   ! for Phase2RE: nt != nt_death
@@ -4505,19 +4535,19 @@ use, intrinsic :: ieee_arithmetic
     Nj_m = sum(pr2(casesIn,:), DIM = 1) ! at risk
     Nj = sum(pr2surv(casesIn,:), DIM = 1) ! at risk
 
-      PRINT *, "******************** calcValueSingle ********************"
-      PRINT *, "STEP2RE estimate MFF"
-      PRINT *, "casesIn with size:", size(casesIn)
-      PRINT *, casesIn
-      PRINT *, "nt", nt
-      PRINT *, "nt_death", nt_death
-      PRINT *, "dim of pr2", shape(pr2)
-      PRINT *, "dim of pr2surv", shape(pr2surv)
-      PRINT *, "dim of pr", shape(pr)
-      PRINT *, "dim of prsurv", shape(prsurv)
-      PRINT *, "delta with size", size(delta)
-      PRINT *, "delta_m with size", size(delta_m)
-      PRINT *
+      !PRINT *, "******************** calcValueSingle ********************"
+      !PRINT *, "STEP2RE estimate MFF"
+      !PRINT *, "casesIn with size:", size(casesIn)
+      !PRINT *, casesIn
+      !PRINT *, "nt", nt
+      !PRINT *, "nt_death", nt_death
+      !PRINT *, "dim of pr2", shape(pr2)
+      !PRINT *, "dim of pr2surv", shape(pr2surv)
+      !PRINT *, "dim of pr", shape(pr)
+      !PRINT *, "dim of prsurv", shape(prsurv)
+      !PRINT *, "delta with size", size(delta)
+      !PRINT *, "delta_m with size", size(delta_m)
+      !PRINT *
     
     IF ((Nj_m(1) < Nj_m(2)) .OR. (Nj_m(1) .LT. 1)) THEN 
       PRINT *, "Looping for pr2surv: at risk for survival for first 10 timepoints"
@@ -4556,13 +4586,10 @@ use, intrinsic :: ieee_arithmetic
     END DO
 
     ! Mean Frequency Function
-    PRINT *, "calling mean freq func within calcvaluesingle"
-    PRINT *, "nt:", nt
-    PRINT *, "nt_death:", nt_death
+    ! PRINT *, "calling mean freq func within calcvaluesingle"
     CALL MeanFreqFunc(nt, nt_death, surv_tp, end_tp, &
                     Nj_m, Oj_m, Nj, Oj, &
                     survRE, dRhat, Func, dmu) ! name mu to be Func
-    ! 
     mean = Func(nt)
 
     IF (mean < 0.0 .OR. IEEE_IS_NAN(mean)) THEN
@@ -4678,17 +4705,18 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   REAL(dp), DIMENSION(1:nAll_surv), INTENT(OUT) :: forestMean
   REAL(dp), DIMENSION(1:nAll_surv), INTENT(OUT) :: forestProb
 
-  INTEGER :: i, iTree, j, k, lft, m, nc, ncur, splitFound, splitVar, i_surv
+  INTEGER :: i, iTree, j, k, lft, m, nc, ncur, splitFound, splitVar
   INTEGER, allocatable :: indices(:), jdex(:), jdexRE(:), xrand(:)
-  INTEGER, allocatable, DIMENSION(:) :: indices_surv_RE, jdex_surv_RE
+  INTEGER, allocatable, DIMENSION(:) :: indices_surv_RE, jdex_people_RE, jdex_record_RE
+  
   INTEGER, DIMENSION(1:np) :: newstat, pindices
   INTEGER, DIMENSION(1:np, 1:nrNodes) :: cstat
   INTEGER, DIMENSION(1:nrNodes, 1:2) :: stm
   INTEGER, DIMENSION(1:nAll_surv) :: allStatus
-  INTEGER, DIMENSION(:), ALLOCATABLE :: ind, indOut, indOutRE, indRE
-  INTEGER, DIMENSION(:), ALLOCATABLE :: leftCases, rightCases, leftCasesRE, rightCasesRE, pind
-  INTEGER, DIMENSION(:), ALLOCATABLE :: ind_surv_RE, record_surv_RE
-  INTEGER, DIMENSION(:), ALLOCATABLE :: unique_ind_surv_RE, record_ind, record_ind1
+  INTEGER, DIMENSION(:), ALLOCATABLE :: ind, indOut, indOutRE, indRE, indOut_people_RE, indOut_record_RE
+  INTEGER, DIMENSION(:), ALLOCATABLE :: leftCases, rightCases, leftCasesRE, rightCasesRE, pind !leftPeople, rightPeople, 
+  INTEGER, DIMENSION(:), ALLOCATABLE :: ind_people_RE, record_surv_RE
+  INTEGER, DIMENSION(:), ALLOCATABLE :: unique_ind_people_RE, record_ind, record_ind_trt
 
   REAL(dp) :: srs
   REAL(dp), DIMENSION(1:nLevs) :: cutoffBest
@@ -4702,10 +4730,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   LOGICAL, DIMENSION(1:nAll) :: tst
 
   LOGICAL :: are_equal, print_check
-  INTEGER :: index_delta
 
-  integer :: n_subj_from_records, size_unique_ind_surv_RE    ! Declare the integer that stores the number of unique elements
-  integer, allocatable :: val(:), final(:)  ! Declare allocatable arrays
+  integer :: n_subj_from_records, size_unique_ind_people_RE    ! Declare the integer that stores the number of unique elements
   INTEGER, DIMENSION(:), ALLOCATABLE ::  unique_id_RE2
 
   INTEGER :: n_leftCases, n_rightCases
@@ -4729,6 +4755,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   tforestSurvFunc = 0.d0
   forestMean = 0.d0
   forestProb = 0.d0
+
 
   DO iTree = 1, nTree ! do iTree
 
@@ -4760,11 +4787,17 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     ELSE IF (nAll .NE. sampleSize) THEN
 
       IF (isPhase2RE) THEN ! Phase 2 RE sampling w/o replacement
+        IF (allocated(sampledArray)) THEN
+          deallocate(sampledArray)
+        END IF
+        IF (allocated(sampledArray_index)) THEN
+            deallocate(sampledArray_index)
+        END IF
         CALL sampleExpandWithoutReplacement(nAll, nAll_surv, sampleSize, id_RE, size(id_RE), sampledArray, sampledArray_index)
         !PRINT *, "size(sampledArray):", size(sampledArray)
         !PRINT *, "before assingmnet for smapling array"
         !PRINT *, isAlloc_sampledArray
-        IF (isAlloc_sampledArray) DEALLOCATE(sampledArray_new)
+        IF (allocated(sampledArray_new)) DEALLOCATE(sampledArray_new)
         ALLOCATE(sampledArray_new(1:size(sampledArray)))
         isAlloc_sampledArray = .TRUE.
         !PRINT *, "after assignment for smapling array"
@@ -4782,7 +4815,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         pr = prAll(sampledArray_index,:)
         delta = deltaAll(sampledArray_index)
         delta_m = deltaAll_m(sampledArray_index)
-          !IF (print_check) THEN
+          IF (print_check) THEN
             PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
             PRINT *, sampledArray
@@ -4805,7 +4838,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
             PRINT *, "size(pr2surv,1)",size(pr2surv,1)
             PRINT *, "nAll_surv:", nAll_surv
             PRINT *, "sampleSize:", sampleSize
-          !END IF
+          END IF
       ELSE
         xrand = sampleWithoutReplace(nAll, sampleSize)
         n = sampleSize
@@ -4859,11 +4892,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
     ! indices for all cases in this tree
     IF (isPhase2RE) THEN
-      IF (isAlloc_ind) DEALLOCATE(indices,jdex, indices_surv_RE, jdex_surv_RE)
+      IF (isAlloc_ind) DEALLOCATE(indices, jdex, indices_surv_RE, jdex_people_RE, jdex_record_RE)
       ALLOCATE(indices(1:size(sampledArray_new)))
       ALLOCATE(jdex(1:sampleSize))
       ALLOCATE(indices_surv_RE(1:size(sampledArray_new)))
-      ALLOCATE(jdex_surv_RE(1:sampleSize))
+      ALLOCATE(jdex_people_RE(1:sampleSize))
+      ALLOCATE(jdex_record_RE(1:sampleSize))
       isAlloc_ind = .TRUE.
 
       indices = sampledArray_new
@@ -4879,7 +4913,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     IF (isPhase2RE) THEN
     !! to do: this is wrong and needs to be updated to the correct thing
     indices_surv_RE = id_RE2
-    jdex_surv_RE = indices_surv_RE
+    jdex_people_RE = indices_surv_RE
+    jdex_record_RE = row_RE2
 
     !  ! check that indices aka 1:n is the same as the other inputs always
       IF ((SIZE(delta) /= SIZE(delta_m)) .OR. &
@@ -4910,7 +4945,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     !END IF
 
     IF (isPhase2RE) THEN
-      PRINT *, "Initializing calcvaluesingle"
+      !PRINT *, "Initializing calcvaluesingle"
       CALL calcValueSingle(size(sampledArray_index_new), sampledArray_index_new, Func(:,1), mean(1))
     ELSE
       CALL calcValueSingle(n, indices, Func(:,1), mean(1))
@@ -4971,11 +5006,18 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     ! --===----= here
 
     !PRINT *, "nrNodes: ", nrNodes
-    !if (isPhase2RE) PRINT *, "Starting do loop for each node..."
+    !PRINT *, "Starting do loop for each node..."
     DO k = 1, nrNodes
-      !PRINT *, "******** node: #", k
-      !PRINT *, "first ncur:", ncur
-      !PRINT *, "nrNodes - 2:", nrNodes-2
+      if (isPhase2RE) THEN
+      !PRINT *, "####################################################"
+      PRINT *, "####################################################"
+      PRINT *, "############### node:", int(k), "##################"
+      PRINT *, "####################################################"
+      !PRINT *, "####################################################"
+      end if
+
+      !if (isPhase2RE) PRINT *, "first ncur:", ncur
+      !if (isPhase2RE) PRINT *, "nrNodes - 2:", nrNodes-2
 
       ! if k is beyond current node count or
       ! current node count at limit, break from loop
@@ -4996,16 +5038,16 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       IF (isPhase2RE) THEN
 
-        ind_surv_RE = jdex_surv_RE(stm(k,1):stm(k,2))
+        ind_people_RE = jdex_people_RE(stm(k,1):stm(k,2))
         record_ind = sampledArray_index_new(stm(k,1):stm(k,2))
-        record_ind1 = sampledArray_index(stm(k,1):stm(k,2))
-        record_surv_RE = row_RE2(stm(k,1):stm(k,2))
-        PRINT *, "record_ind with size", size(record_ind)
-        PRINT *, record_ind
-        PRINT *, "record_ind1 with size", size(record_ind1)
-        PRINT *, record_ind1
+        record_ind_trt = sampledArray_index(stm(k,1):stm(k,2))
+        record_surv_RE = jdex_record_RE(stm(k,1):stm(k,2)) !row_RE2(stm(k,1):stm(k,2))
 
         IF (print_check) THEN
+        PRINT *, "record_ind with size", size(record_ind)
+        PRINT *, record_ind
+        PRINT *, "record_ind_trt with size", size(record_ind_trt)
+        PRINT *, record_ind_trt
             PRINT *, "stm(k,1); k = ", k
             PRINT *, stm(k,1)
             PRINT *, "stm(k,2); k = ", k
@@ -5024,8 +5066,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
             PRINT *, "jdex(stm(k,1):stm(k,2))"
             PRINT *, jdex(stm(k,1):stm(k,2))
             PRINT *
-            PRINT *, "jdex_surv_RE(stm(k,1):stm(k,2))"
-            PRINT *, jdex_surv_RE(stm(k,1):stm(k,2))
+            PRINT *, "jdex_people_RE(stm(k,1):stm(k,2))"
+            PRINT *, jdex_people_RE(stm(k,1):stm(k,2))
             PRINT *
             PRINT *, "sampledArray_index"
             PRINT *, sampledArray_index
@@ -5044,90 +5086,64 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       ! split cases
       indOut = ind ! elements of casesIn that go left; ind if yes, 0 otherwise
-      
+
       if (isPhase2RE) THEN
         indOutRE = indRE ! fix this
+        indOut_people_RE = ind_people_RE
+        indOut_record_RE = record_surv_RE
         ! get the total number of subjects (needed for 2RE. Same as size(ind) for 1/2CR.)
-        call find_unique(ind_surv_RE, &
-        unique_ind_surv_RE, size_unique_ind_surv_RE)
+        call find_unique(ind_people_RE, &
+        unique_ind_people_RE, size_unique_ind_people_RE)
       ELSE 
         indOutRE = ind
-        unique_ind_surv_RE = ind
-        size_unique_ind_surv_RE = size(ind)
-      END IF
-     
-      if (print_check .AND. isPhase2RE) THEN
-        PRINT *, "splitVar", splitVar
-        PRINT *, "cutoffBest",cutoffBest
-        PRINT *, "splitFound",splitFound
-        PRINT *, "nc",nc
-        PRINT *, "lft",lft
-      END IF 
-      
-      IF (print_check) THEN
-      if (isPhase2RE) THEN
-        PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
-        PRINT *, ind_surv_RE
-        PRINT *, "ind with size", size(ind)
-        PRINT *, ind
-        PRINT *, "indRE with size", size(indRE)
-        PRINT *, indRE
-        
-        PRINT *, "id_re2 with size", size(id_RE2)
-        PRINT *, id_RE2
-        
-        PRINT *, "delta with size", size(delta)
-        PRINT *, delta
-        PRINT *, "delta_m with size", size(delta_m)
-        PRINT *, delta_m
-
-        PRINT *, "x with size", size(x)
-        PRINT *, x
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        PRINT *
-        END IF
-      END IF
+        indOut_people_RE = ind
+        indOut_record_RE = ind
+        unique_ind_people_RE = ind
+        size_unique_ind_people_RE = size(ind)
+      END IF      
     
       IF (print_check) THEN
-      IF (isPhase2RE) THEN
-            PRINT *, "###################################################"
-            PRINT *, " #####################Line 4386#####################"
-            PRINT *, "###################################################"
-            PRINT *, "indOut with size", size(indOut)
-            PRINT *, indOut
-            PRINT *, "ind with size", size(ind)
-            PRINT *, ind
-      END IF
-      END IF
-      PRINT *, "ind_surv_RE with size", size(ind_surv_RE), " and ", size_unique_ind_surv_RE
-      PRINT *, ind_surv_RE
-      PRINT *, "record_ind with size", size(record_ind)
-      PRINT *, record_ind
-      CALL tfindSplit(size(ind), ind, indRE, &
-                    & size_unique_ind_surv_RE, ind_surv_RE, &
-                    & record_ind, record_ind1, record_surv_RE, &
+          IF (isPhase2RE) THEN
+          PRINT *, "---------- Line 5153: call tfindSplit ----------"
+          PRINT *, "ind with size", size(ind)
+          !PRINT *, ind
+          PRINT *, "indRE with size", size(indRE)
+          !PRINT *, indRE
+          PRINT *, "ind_people_RE with size", size(ind_people_RE), " and ", size_unique_ind_people_RE
+          !PRINT *, ind_people_RE
+          !PRINT *, "record_ind with size", size(record_ind)
+          !PRINT *, record_ind
+          PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
+          !PRINT *, sampledArray_index_new
+        END IF ! end of isPhase2RE
+      END IF ! end of print_check
+
+      CALL tfindSplit(k, size(ind), ind, indRE, &
+                    & size_unique_ind_people_RE, ind_people_RE, &
+                    & sampledArray_index_new, &
+                    & record_ind, record_ind_trt, record_surv_RE, &
                     & size(pind), pind, splitVar, cutoffBest, &
-                    & splitFound, indOut, indOutRE, nc, lft)
+                    & splitFound, indOut, indOutRE, &
+                    & indOut_people_RE, indOut_record_RE, nc, lft)
+      !IF (isPhase2RE) PRINT *, "---------- Line 5174: end of tfindSplit ----------"
+
 
       IF (print_check) THEN
-      IF (isPhase2RE) THEN
-      IF (splitFound .EQ. 1) THEN
-        PRINT *, "splitFound:", splitFound
-        PRINT *, "### end of tfindSplit for node=", k
-          PRINT *, "indOut with size:", size(indOut)
-          PRINT *, indOut
-          PRINT *, "indOutRE with size:", size(indOutRE)
-          PRINT *, indOutRE
-          PRINT *, "size of left group: lft:", lft
+        IF (isPhase2RE) THEN
+          IF (splitFound .EQ. 1) THEN
+          PRINT *, "^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+            PRINT *, "splitFound:", splitFound
+            !PRINT *, "size of left group: lft:", lft
+            !PRINT *, "### end of tfindSplit for node=", k
+            !PRINT *, "indOut with size:", size(indOut)
+            !PRINT *, indOut
+              !PRINT *, "indOutRE with size:", size(indOutRE)
+              !PRINT *, indOutRE
+              !PRINT *, "indOut_people_RE with size:", size(indOut_people_RE)
+              !PRINT *, indOut_people_RE
+            PRINT *, "vvvvvvvvvvvvvvvvvvvvvvvvv"
+          END IF
         END IF
-        PRINT *
-      END IF
       END IF
 
 
@@ -5166,6 +5182,10 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       IF (isPhase2RE) THEN
         ! store new record order in jdex
         jdexRE(stm(k,1):stm(k,2)) = indOutRE
+        ! store original ID labels
+        !PRINT *, "shape of jdex_people_RE", shape(jdex_people_RE)
+        jdex_people_RE(stm(k,1):stm(k,2)) = indOut_people_RE
+        jdex_record_RE(stm(k,1):stm(k,2)) = indOut_record_RE
       END IF
 
       !! left node
@@ -5186,13 +5206,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
 
       ! get basic node information for left daughter
       ! IF (isPhase1) PRINT *, "get basic node information for left daughter."
-      !PRINT *, "tsurvTree: Line 4616: CALL calcValueSingle"
+      !IF (isPhase2RE) PRINT *, "tsurvTree: Line 4616: CALL calcValueSingle"
       IF (isPhase2RE) THEN
-        !PRINT *, "----------"   
         leftCasesRE = jdexRE(stm(ncur,1):stm(ncur,2))
-        PRINT *, "leftCasesRE with size ", size(leftCasesRE)
-        PRINT *, leftCasesRE
-        PRINT *, "calcValueSingle for leftRE"
+        !PRINT *, "leftCasesRE with size ", size(leftCasesRE)
+        !PRINT *, leftCasesRE
+        !PRINT *, "calcValueSingle for leftRE"
         CALL calcValueSingle(size(leftCasesRE), leftCasesRE, Func(:,ncur), &
                           & mean(ncur))
       ELSE
@@ -5261,18 +5280,16 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       IF (isPhase2RE) THEN
         ! retrieve left and right cases
         rightCasesRE = jdexRE(stm(ncur,1):stm(ncur,2))
-        PRINT *, "rightCasesRE with size", size(rightCasesRE)
-        PRINT *, rightCasesRE
+        !PRINT *, "rightCasesRE with size", size(rightCasesRE)
+        !PRINT *, rightCasesRE
         ! calculate survival function and mean survival time for right node
-        ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
-        PRINT *, "calcValueSingle for rightRE"
         CALL calcValueSingle(size(rightCasesRE), rightCasesRE, Func(:,ncur), &
                           & mean(ncur))
         !PRINT *, "----------"   
       ELSE
         ! calculate survival function and mean survival time for right node
         ! IF (isPhase1) PRINT *, "calculate survival function and mean survival time for right node."
-        !IF (isPhase2RE) PRINT *, "tsurvTree: Line 4679: CALL calcValueSingle"
+        IF (isPhase2RE) PRINT *, "tsurvTree: Line 5356: CALL calcValueSingle"
         CALL calcValueSingle(size(rightCases), rightCases, Func(:,ncur), &
                           & mean(ncur))
         !PRINT *, "rightCases"
@@ -5332,6 +5349,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
       ! retrieve the covariate
       xm = xAll(:,m)
 
+
+
       IF (nCat(m) .LE. 1) THEN
         ! if a numeric variable, use the cutoff value to
         ! identify if individual i goes left
@@ -5356,10 +5375,11 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         END IF
       END DO
 
-    END DO
+    END DO ! end of k = 1 to nrNodes
 
     ! ensure that all nodes that are not "interior" are "terminal"
     WHERE (nMatrix(:,1) .EQ. -2) nMatrix(:,1) = -1
+
 
     !PRINT *, "end ncur:", ncur
     !PRINT *, "mean"
@@ -5378,10 +5398,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     forestMean = forestMean + mean(allStatus)
     forestProb = forestProb + Prob(allStatus)
 
+    IF (isPhase2RE) PRINT *, "end of iTree:", iTree
+
   END DO ! end do-loop for iTree
 
   ! -- to here
-  !PRINT *, "################# Line 1617"
+  IF (isPhase2RE) PRINT *, "################# end of iTree do-loop at line 5452 #################"
 
   ! This change is to eliminate a strange lto warning from R
   ! forestFunc = reshape(tforestSurvFunc, (/nt*nAll/)) / nTree
@@ -5402,8 +5424,8 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   !PRINT *
   !PRINT *
   !PRINT *
-  PRINT *, "forestMean with size", size(forestMean)
-  PRINT *, forestMean
+  !PRINT *, "forestMean with size", size(forestMean)
+  !PRINT *, forestMean
   PRINT *
   PRINT *
   PRINT *
@@ -5413,6 +5435,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   !PRINT *, "forestProb: ", forestProb
 
   PRINT *, "END OF SUBROUTINE TSURVTREE"
+  
 
 END SUBROUTINE tSurvTree
 
@@ -5703,7 +5726,7 @@ SUBROUTINE setUpBasics(t_surv_tp, t_end_tp, t_nt, t_nt_death, t_dt, t_dt_death, 
   REAL(dp), INTENT(IN) :: t_stratifiedSplit
   INTEGER, INTENT(IN) :: t_replace
 
-  !PRINT *, "******************** setUpBasics ********************"
+  PRINT *, "******************** setUpBasics ********************"
   !PRINT *, "t_rule", t_rule
   !PRINT *, "isPhase1:", isPhase1
   !PRINT *, "isPhase2:", isPhase2
@@ -5842,7 +5865,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_rowvec, t_person_ind, t_np, t_x
   LOGICAL :: are_equal
 
 
- !PRINT *, "******************** setUpInners ********************"
+ PRINT *, "******************** setUpInners ********************"
 
   isAlloc_sampledArray = .FALSE.
   isAlloc_ind = .FALSE.
@@ -5914,7 +5937,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_rowvec, t_person_ind, t_np, t_x
   nrNodes = t_nrNodes
 
   IF (isPhase2RE) THEN
-    !PRINT *, "******************** setUpInners ********************"
+    PRINT *, "******************** setUpInners ********************"
     !PRINT *, "Number of cases under consideration: nAll:", nAll
     !PRINT *, "Number of cases survival:", nAll_surv
     !PRINT *, "id_RE"
