@@ -121,7 +121,7 @@ setMethod(f = ".Predict",
                                 newdata,
                                 ...,
                                 params) {
-            message("class_SurvRF.R: LINE 125: method .Predict for SurvRF")
+            # message("class_SurvRF.R: LINE 125: method .Predict for SurvRF")
 
               # verify that there are not new levels in the the data
               # this assumes that newdata has been passed in with
@@ -600,13 +600,13 @@ setMethod(f = ".PredictAll",
 
             # define object and params so it's phase-specific
             # predicting for first trt
-            message("Below uses .Predict from class_SurvRF.R: .Predict from LINE 14")
+            # message("Below uses .Predict from class_SurvRF.R: .Predict from LINE 14")
             res <- .Predict(object = object@strat[[ 1L ]], # trt0
                             newdata = x,
                             params = params,
                             ...)
-            message("end of .Predict from class_SurvRF.R: .Predict from LINE 14")
-            message("Phase is ", Phase, "and endPoint is ", endPoint)
+            # message("end of .Predict from class_SurvRF.R: .Predict from LINE 14")
+            # message("Phase is ", Phase, " and endPoint is ", endPoint)
             if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
               res0 <<- res
             }
@@ -866,7 +866,7 @@ setMethod(f = ".PredictAll",
             #   View(res)
             # }
 
-            print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
+            # print("WE ARE NOW RUNNING .OPTIMAL FROM STRATIFIED CLASS_SURVRF.R LINE 760")
             opt <- .optimal(Phase = Phase,
                             endPoint = endPoint,
                             eps0 = eps0,
@@ -893,13 +893,13 @@ setMethod(f = ".PredictAll",
 # Phase = 1; eps0 = mean_tol1; params = pa; predicted = re; txLevels = trtlevel
 .optimal <- function(Phase, endPoint, eps0, params, predicted, txLevels) {
 
-  print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
-  message("Phase:", Phase, " and endpoint: ", endPoint)
+  # print("%%%%% beginning .optimal function in class_SurvRF.R %%%%%%%")
+  # message("Phase:", Phase, " and endpoint: ", endPoint)
 
   # crit can only be mean, prob, area, or mean.prob.combo
   # 'mean', 'area', 'prob', 'mean.prob.comb'
   crit <- .CriticalValueCriterion(params)
-  message(".optimal function with crit: ", crit, " for Phase ", Phase, " with endPoint ", endPoint)
+  # message(".optimal function with crit: ", crit, " for Phase ", Phase, " with endPoint ", endPoint)
 
   # Get the function based on the Phase
   if (Phase == "Survival" | Phase == 1){
@@ -1407,7 +1407,7 @@ setMethod(f = ".PredictAll",
   #   Ratio = rep(99, length(optTx))
   # }
 
-  print("LAST TEST")
+  # print("LAST TEST")
   return( new(Class = "Optimal",
               "optimalTx" = txLevels[optTx],
               "optimalY" = optSv,

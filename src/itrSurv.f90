@@ -4745,7 +4745,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   print_check = .FALSE.
   are_equal = .TRUE.
   
-  IF (isPhase2RE) PRINT *, "******************** survTree ********************"
+  !IF (isPhase2RE) PRINT *, "******************** survTree ********************"
 
   if (print_check) THEN
     PRINT *, "nAll: ", nAll
@@ -5434,7 +5434,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   PRINT *
   !PRINT *, "forestProb: ", forestProb
 
-  PRINT *, "END OF SUBROUTINE TSURVTREE"
+  !PRINT *, "END OF SUBROUTINE TSURVTREE"
   
 
 END SUBROUTINE tSurvTree
@@ -5865,7 +5865,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_rowvec, t_person_ind, t_np, t_x
   LOGICAL :: are_equal
 
 
- PRINT *, "******************** setUpInners ********************"
+ !PRINT *, "******************** setUpInners ********************"
 
   isAlloc_sampledArray = .FALSE.
   isAlloc_ind = .FALSE.

@@ -826,9 +826,9 @@ setMethod(f = ".Predict",
   # calculate the estimated values for all treatment levels
   # .PredictAll() is a method; called here for objects of class SurvRF, which
   # is defined in file class_SurvRF.R
-  print("WHAT2")
-  print("epName")
-  print(epName)
+  # print("WHAT2")
+  # print("epName")
+  # print(epName)
 
   # stop("testing")
   resV <- .PredictAll(Phase = Phase,
