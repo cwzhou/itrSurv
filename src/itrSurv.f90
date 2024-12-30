@@ -5008,13 +5008,13 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     !PRINT *, "nrNodes: ", nrNodes
     !PRINT *, "Starting do loop for each node..."
     DO k = 1, nrNodes
-      if (isPhase2RE) THEN
+      !if (isPhase2RE) THEN
       !PRINT *, "####################################################"
-      PRINT *, "####################################################"
-      PRINT *, "############### node:", int(k), "##################"
-      PRINT *, "####################################################"
       !PRINT *, "####################################################"
-      end if
+      !PRINT *, "############### node:", int(k), "##################"
+      !PRINT *, "####################################################"
+      !PRINT *, "####################################################"
+      !end if
 
       !if (isPhase2RE) PRINT *, "first ncur:", ncur
       !if (isPhase2RE) PRINT *, "nrNodes - 2:", nrNodes-2
@@ -5398,12 +5398,12 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
     forestMean = forestMean + mean(allStatus)
     forestProb = forestProb + Prob(allStatus)
 
-    IF (isPhase2RE) PRINT *, "end of iTree:", iTree
+    !IF (isPhase2RE) PRINT *, "end of iTree:", iTree
 
   END DO ! end do-loop for iTree
 
   ! -- to here
-  IF (isPhase2RE) PRINT *, "################# end of iTree do-loop at line 5452 #################"
+  !IF (isPhase2RE) PRINT *, "################# end of iTree do-loop at line 5452 #################"
 
   ! This change is to eliminate a strange lto warning from R
   ! forestFunc = reshape(tforestSurvFunc, (/nt*nAll/)) / nTree
