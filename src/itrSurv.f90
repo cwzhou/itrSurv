@@ -1029,10 +1029,10 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
     IF (isPhase2RE) THEN
       ! because one per record
       uncensoredIndices_m = pack(personID_new, dSorted_m .EQ. 1)
-      IF (ALLOCATED(unique_uncensoredIndices_m)) THEN
-        PRINT *, "deallocating unique_uncesnoredIndices_m"
-        DEALLOCATE(unique_uncensoredIndices_m)
-      END IF
+      !IF (ALLOCATED(unique_uncensoredIndices_m)) THEN
+        !PRINT *, "deallocating unique_uncensoredIndices_m"
+        !DEALLOCATE(unique_uncensoredIndices_m)
+      !END IF
       call find_unique(uncensoredIndices_m, &
       unique_uncensoredIndices_m, nUncensored_m)
     END IF
