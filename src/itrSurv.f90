@@ -5726,7 +5726,7 @@ SUBROUTINE setUpBasics(t_surv_tp, t_end_tp, t_nt, t_nt_death, t_dt, t_dt_death, 
   REAL(dp), INTENT(IN) :: t_stratifiedSplit
   INTEGER, INTENT(IN) :: t_replace
 
-  PRINT *, "******************** setUpBasics ********************"
+  !PRINT *, "******************** setUpBasics ********************"
   !PRINT *, "t_rule", t_rule
   !PRINT *, "isPhase1:", isPhase1
   !PRINT *, "isPhase2:", isPhase2
@@ -5937,7 +5937,7 @@ SUBROUTINE setUpInners(t_n, t_n_surv, t_idvec, t_rowvec, t_person_ind, t_np, t_x
   nrNodes = t_nrNodes
 
   IF (isPhase2RE) THEN
-    PRINT *, "******************** setUpInners ********************"
+    !PRINT *, "******************** setUpInners ********************"
     !PRINT *, "Number of cases under consideration: nAll:", nAll
     !PRINT *, "Number of cases survival:", nAll_surv
     !PRINT *, "id_RE"
