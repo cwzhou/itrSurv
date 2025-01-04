@@ -1489,4 +1489,6 @@ setMethod(f = ".PredictAll",
   if (tieMethod == "random") return( resample(ind, size = 1L) )
   return( NA )
 }
+# need to do: incorporate tieMethod to select findMax is there is a tie for finding the minimum
+# jan 3, 2025
 
