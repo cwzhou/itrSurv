@@ -569,21 +569,37 @@ setMethod(f = ".Predict",
 setMethod(f = ".PredictAll",
           signature = c(object = "SurvRFStratified"),
           definition = function(object, ..., epName1, endPoint, Phase, eps0, newdata, model, params, txLevels) {
-            message("class_SurvRF.R: LINE 572")
-            message("Phase is ", Phase)
-            message("endpoint is ", endPoint)
+            # message("class_SurvRF.R: LINE 572")
+            # message("Phase is ", Phase)
+            # message("endpoint is ", endPoint)
             # message("RE: endpoint status indicator is ", epName1)
 
-            if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
-              message("epName1 is:", epName1)
-              newdata_cov = newdata %>%
-                     filter(!!sym(epName1) == 0) # this removes datapoints where a person had a recurrent event ie IndR = 0
+            # below is old, delete if other works. jan 4 , 2025.
+            # if ((Phase == 2 | Phase == "RE") & endPoint == "RE"){
+            #   # message("epName1 is:", epName1)
+            #   newdata_cov = newdata %>%
+            #          filter(!!sym(epName1) == 0) # this removes datapoints where a person had a recurrent event ie IndR = 0
+            #   # extract new model frame
+            #   x <- stats::model.frame(formula = model, data = newdata_cov)
+            # } else{
+            #   # extract new model frame
+            #   x <- stats::model.frame(formula = model, data = newdata)
+            # }
+
+            if (endPoint == "RE"){
+              if (epName1 %in% colnames(newdata)) {
+                newdata_cov <- newdata %>%
+                  filter(!!sym(epName1) == 0) # Removes datapoints where a person had a recurrent event (IndR = 0)
+              } else {
+                newdata_cov <- newdata # Retains original dataset if column doesn't exist
+              }
               # extract new model frame
               x <- stats::model.frame(formula = model, data = newdata_cov)
-            } else{
+            } else{ # endpoint = CR
               # extract new model frame
               x <- stats::model.frame(formula = model, data = newdata)
             }
+
             message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s and Endpoint: %s\n", Phase, endPoint))
             # remove response from x
             if (attr(x = terms(x = model), which = "response") == 1L) {

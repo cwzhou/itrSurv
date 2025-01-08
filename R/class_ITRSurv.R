@@ -322,8 +322,8 @@ setMethod(f = "predict",
                                 epName1,
                                 endPoint,
                                 findOptimal = TRUE) {
-            message("predict function from class_ITRSurv.R: Line 325")
-            message("epName1:", epName1)
+            # message("predict function from class_ITRSurv.R: Line 325")
+            # message("epName1:", epName1)
             ob_itrsurv <<- object
             if (Phase > length(x = object@phaseResults)) {
               stop("requested Phase not present in analysis", call. = FALSE)
@@ -333,20 +333,20 @@ setMethod(f = "predict",
               Phase1 = Phase
             } else if (Phase == 2){
               params = object@params@endpointparam
-              message("endPoint is", endPoint)
+              # message("endPoint is", endPoint)
               Phase1 = endPoint
             } else{
               stop("requested Phase not in analysis!")
             }
             if (missing(x = newdata)) {
-              print("class_ITRSurv.R: missing newdata")
+              # print("class_ITRSurv.R: missing newdata")
               return( .Predict(Phase = Phase1,
                                object = object@phaseResults[[ Phase ]],
                                newdata = NULL,
                                params = params,
                                findOptimal = findOptimal) )
             } else {
-              print(sprintf("Predicting for Phase %s and endPoint %s", Phase1, endPoint))
+              # print(sprintf("Predicting for Phase %s and endPoint %s", Phase1, endPoint))
               # print(dim(newdata))
 
               if (is.language(object@call[['tol1']])){
@@ -370,12 +370,12 @@ setMethod(f = "predict",
                                  eps0 = tol1,
                                  findOptimal = findOptimal) )
               } else{
-                print('below returns .predict with newdata')
+                # print('below returns .predict with newdata')
                 # object, ..., Phase, eps0, epName = epName, newdata, model, params, txLevels
-                print(Phase1)
-                print(endPoint)
-                print(head(newdata))
-                message("epName1:", epName1)
+                # print(Phase1)
+                # print(endPoint)
+                # print(head(newdata))
+                # message("epName1:", epName1)
                 return( .Predict(object = object@phaseResults[[ Phase ]],
                                  Phase = Phase1,
                                  epName1 = epName1,

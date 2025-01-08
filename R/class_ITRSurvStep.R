@@ -235,7 +235,7 @@ setMethod(f = ".Predict",
                                 eps0,
                                 params,
                                 findOptimal) {
-            print("class_ITRSurvStep.R: LINE 195")
+            # print("class_ITRSurvStep.R: LINE 195")
             # print(".Predict from class_ITRSurvStep.R when when newdata = dataframe")
             # print(sprintf("Phase: %s", Phase))
 
@@ -257,7 +257,7 @@ setMethod(f = ".Predict",
               }
 
               if (findOptimal) {
-                print("finding optimal. returning .PredictAll()")
+                # print("finding optimal. returning .PredictAll()")
                 # if optimal is requested, make predictions for all possible
                 # treatment options
                 # print(3)
@@ -266,8 +266,8 @@ setMethod(f = ".Predict",
                   eps0 = c(eps0[[2]],eps0[[3]])
                 }
                 # View(eps0)
-                print("resV: class_ITRSurvStep.R: line 268")
-                message("epName1:", epName1)
+                # print("resV: class_ITRSurvStep.R: line 268")
+                # message("epName1:", epName1)
                 resV <- .PredictAll(object = object@survRF,
                                     Phase = Phase,
                                     epName1 = epName1,
@@ -448,8 +448,8 @@ setMethod(f = ".Predict",
       #   pull(elig1)                             # Extract the eligibility vector for each ID
       elig0 <<- long_x %>%
         mutate(eligible = complete.cases(.)) %>%    # Determine eligibility for each row
-        group_by(!!sym(idName)) %>%                  # Group by individual (ID)
-        summarise(elig00 = all(eligible)) %>%         # Check if all rows are eligible for the person
+        dplyr::group_by(!!sym(idName)) %>%                  # Group by individual (ID)
+        dplyr::summarise(elig00 = all(eligible)) %>%         # Check if all rows are eligible for the person
         dplyr::select(!!sym(idName), elig00)
       elig <<- merge(long_x, elig0, by = idName) %>%
         pull(elig00)
