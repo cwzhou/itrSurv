@@ -32,6 +32,9 @@ Use "git clone https://github.com/fortran-lang/stdlib.git" to install stdlib mod
 
 
 
+sbatch -p general -N 1 --mem=3GB -n 2 -t 10-07:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript 01.Simulation_Run_RE.R > out_RE_testing.txt"
+
+
 
 Local machine: scp ~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz cwzhou@longleaf.unc.edu:/nas/longleaf/home/cwzhou/Dissertation/Paper_1/.
 ! In cluster:
