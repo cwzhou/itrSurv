@@ -3069,6 +3069,10 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
+    ! after a certain point, dPsi should be equal to 0 for individuals
+    ! but we don't calculate it this way in dPsi_indiv so need to account for that here
+    
+
     !PRINT *, "shape of dPsi for person 1 across all 496 timepoints with size", shape(dPsi(1,:))
     !PRINT *, dPsi(1,:)
     PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
@@ -3326,7 +3330,7 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: Ybar
   
   ! Variable Declarations
-  INTEGER :: i, j
+  INTEGER :: i, j, index_record
   REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, int_termB1, termB1
 
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(OUT) :: dPsi_mat  ! Output matrix
@@ -3375,9 +3379,17 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
 
   ! first timepoint is equal to first column of B1, the first timepoint of B1
   ! initialize first timepoint
+  !int_termB1(:,1) = termB1(:,1)
+  !do i = 2, ns
+  !  int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+  !end do
+  !termB = spread(dmu, 1, nrecords) * int_termB1
+
   int_termB1(:,1) = termB1(:,1)
   do i = 2, ns
-    int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+    !do index_record = 1, n_records
+      int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+    !end do
   end do
   termB = spread(dmu, 1, nrecords) * int_termB1
 
