@@ -20,7 +20,7 @@ First, build source .tar.gz file from .RProj on local machine, then copy to clus
 
 ! If package is ONLY binary and not source, then go to DESCRIPTION and delete the line with "BUILT" and "PACKAGED"
 
-Ie can run in R: install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_CR_backup/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
+Ie can run in R: install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
 install.packages('~/Desktop/UNC_BIOS_PhD/DissertationPhD/Thesis/Code/itrSurv_0.1.0.tar.gz', repos = NULL, type = 'source')
 
@@ -32,7 +32,7 @@ Use "git clone https://github.com/fortran-lang/stdlib.git" to install stdlib mod
 
 
 
-sbatch -p general -N 1 --mem=50GB -n 2 -t 10-07:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript 01.Simulation_Run_RE.R > REoutput_20250201_500nsims.txt"
+sbatch -p general -N 1 --mem=50GB -n 2 -t 10-07:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript 01.Simulation_Run_RE.R > REoutput_20250201_500nsims_200ntree.txt"
 
 
 

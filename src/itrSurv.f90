@@ -2077,14 +2077,18 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
           !     PRINT *, "end of call dPsi_indiv"
           ! END IF
 
-          !PRINT *, "calling re_info for LEFT!!!"
-          IF (print_check) THEN
-            PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
-            PRINT *, leftCases_loop
-            !PRINT *, "leftPeople_loop with size", nleftPeople_loop
-            !PRINT *, leftPeople_loop
-          END IF ! end of print_check
-
+          PRINT *, "calling re_info for LEFT!!!"
+          PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
+          PRINT *, leftCases_loop
+          PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
+          PRINT *, leftPeople_loop_og
+          PRINT *, "leftPeople_loop with size", nleftPeople_loop
+          PRINT *, leftPeople_loop
+          !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
+          !& atRiskLeft_loop, eventsLeft_loop)
+          !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
+          !& atRiskLeft_m_loop, eventsLeft_m_loop)
+          
           CALL RE_INFO(nt, nt_death, surv_tp, end_tp, &
             & size(leftCases_loop), leftCases_loop, dSorted_m(1:splitLeft_loop), &
             & dSorted(1:splitLeft_loop), nleftPeople_loop, &
@@ -2093,20 +2097,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & dmu_left, dPsi_left)
 
 
-          !PRINT *, "calling re_info for RIGHT!!!"
-          !PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
-          !PRINT *, rightCases_loop
-          !PRINT *, "rightPeople_loop with size", nrightPeople_loop
-          !PRINT *, rightPeople_loop
-
-          !PRINT *, "leftPeople_loop_og:"
-          !PRINT *, leftPeople_loop_og
-          !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
-          !& atRiskLeft_loop, eventsLeft_loop)
-          !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
-          !& atRiskLeft_m_loop, eventsLeft_m_loop)
-          !PRINT *, "rightPeople_loop_og"
-          !PRINT *, rightPeople_loop_og
+          PRINT *, "calling re_info for RIGHT!!!"
+          PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
+          PRINT *, rightCases_loop
+          PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
+          PRINT *, rightPeople_loop_og
+          PRINT *, "rightPeople_loop with size", nrightPeople_loop
+          PRINT *, rightPeople_loop
           !CALL PrintSurvival("Survival (Right):", nt_death, surv_tp, &
           !& atRiskRight_loop, eventsRight_loop)
           !CALL PrintSurvival("Endpoint (Right):", nt, end_tp, &
@@ -3058,44 +3055,104 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     REAL(dp), DIMENSION(1:n_records) :: inner_integral
     REAL(dp), DIMENSION(1:n_people) :: inner_sum
     REAL(dp) :: denom_sum
-    INTEGER :: person_ind, record_ind
+    INTEGER :: person_ind, record_ind, i, j, n_tp, chunk_size
     LOGICAL :: print_check
 
     print_check = .FALSE.
 
+    PRINT *, "Starting CalculateREDenominator Subroutine"
+    PRINT *, "n_people:", n_people
+    PRINT *, "n_records:", n_records
+    PRINT *, "shape of K_LR", shape(K_LR)
+    PRINT *, "shape of dPsi", shape(dPsi)
+
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
-    !PRINT *, "inner_integral with size:", SIZE(inner_integral)
-    !PRINT *, inner_integral
+    !PRINT *, "shape of dPsi for person 1 across all 496 timepoints with size", shape(dPsi(1,:))
+    !PRINT *, dPsi(1,:)
+    PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
+ 
+    n_tp = SIZE(dPsi, 2)       ! Number of timepoints (second dimension size)
+    chunk_size = 10            ! Number of timepoints per row for better alignment
+    
+    PRINT *, "Timepoints:"
+    
+    !DO i = 1, n_tp, chunk_size
+    !  PRINT *
+      ! Print the timepoint indices (adjust format width for better spacing)
+    !  PRINT "(10I8)", (j, j = i, MIN(i+chunk_size-1, n_tp))
+      
+      ! Print the corresponding dPsi values
+    !  PRINT "(10F8.2)", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
+      
+      ! Print the corresponding K_LR values
+    !  PRINT "(10F8.2)", K_LR(i:MIN(i+chunk_size-1, n_tp))
+
+    !END DO
+
+
+    !DO i = 1, n_tp, chunk_size
     !PRINT *
+    !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
+    !END DO
+
+    PRINT *, "inner_integral with size:", SHAPE(inner_integral)
+    PRINT *, inner_integral
 
     ! Initialize inner_sum
     inner_sum = 0.0_dp
+    PRINT *, "people_loop:", people_loop
+    !PRINT *, "people_loop(1):", people_loop(1)
 
+    ! each componenet of sigma^2_LR
     ! Sum over records for each person
     DO person_ind = 1, n_people
+        !PRINT *, "********** PERSON ", person_ind, " **********"
         denom_sum = 0.0_dp
         ! Sum contributions for records belonging to the current person
         DO record_ind = 1, n_records
           IF (people_loop(record_ind) == person_ind) THEN
-            !PRINT *, "PERSON ", person_ind
-            !PRINT *, "record ", record_ind
+            !PRINT *, "       Record #", record_ind
+            !PRINT *, "              denom_sum:", denom_sum
+            !PRINT *, "              inner_integral(record_ind) = ", inner_integral(record_ind)
+            !PRINT *, "              denom_sum + inner_integral(record_ind) = ", denom_sum + inner_integral(record_ind)
             denom_sum = denom_sum + inner_integral(record_ind)
-            !print *, "denom_sum:", denom_sum
+            !print *, "              record-loop denom_sum:", denom_sum
+          !ELSE 
+            !PRINT *, "*********************************************************************"
+            !PRINT *, "********** ", people_loop(record_ind), " IS NOT EQUAL TO ", person_ind, " **********"
+            !PRINT *, "*********************************************************************"
           END IF
         END DO
+        !print *, "person-loop denom_sum:", denom_sum
         ! Store the square of the sum in inner_sum
         inner_sum(person_ind) = denom_sum**2
     END DO
 
     ! Calculate the outer sum
     outer_sum = SUM(inner_sum)
-    if (print_check) then
-    PRINT *, "inner_sum with size: ", SIZE(inner_sum)
-    PRINT *, inner_sum
-    PRINT *, "outer_sum: ", outer_sum
-    PRINT *
-    end if
+
+    !if (print_check) then
+    IF (outer_sum .EQ. 0) THEN
+      !PRINT *, "dPsi"
+      !PRINT *, dPsi
+      !PRINT *, "K_LR"
+      !PRINT *, K_LR
+      PRINT *, "          inner_integral with size:", SIZE(inner_integral)
+      PRINT *, inner_integral
+      PRINT *, "          inner_sum with size: ", SIZE(inner_sum)
+      PRINT *, inner_sum
+      PRINT *, "          outer_sum: ", outer_sum
+      PRINT *, "          n_people:", n_people
+      PRINT *, "          n_records:", n_records
+      PRINT *
+    END IF
+    !end if
+
+PRINT *, "End of CalculateREDenominator"
 
 END SUBROUTINE CalculateREDenominator
 
@@ -3158,7 +3215,11 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   ! numerator: Q_LR
   Q_LR_vec = K_LR * (dmu1- dmu2)
   Q_LR = SUM(Q_LR_vec)
-  !PRINT *, "************** numerator Q_LR is: **************"
+  PRINT *, "************** numerator Q_LR is: **************"
+  PRINT *, "SUM(K_LR * dmu1)"
+  PRINT *, SUM(K_LR * dmu1)
+  PRINT *, "SUM(K_LR * dmu2)"
+  PRINT *, SUM(K_LR * dmu2)
   !PRINT *, Q_LR
   !PRINT *, "K_LR"
   !PRINT *, K_LR
@@ -3175,31 +3236,55 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !---------------- Calculate Denominator ---------------
   !------------------------------------------------------
   ! denominator: variance sigma2_LR
+  ! outer_sum1 + outer_sum2 is (3.3) in Ghosh and Lin (without the n fraction parts)
+  ! together, they make up the variance sigma2_LR
   ! Call CalculateDenominator for group 1
   CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
                               outer_sum1)
-  !PRINT *, "outer_sum1:", outer_sum1
+  PRINT *, "denom outer_sum1:", outer_sum1
   !PRINT *, "dPsi1"
   !PRINT *, dPsi1
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2)
-  !PRINT *, "outer_sum2:", outer_sum2
+  PRINT *, "denom outer_sum2:", outer_sum2
   !PRINT *, "dPsi2"
   !PRINT *, dPsi2                        
   
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
-  !PRINT *, "sigma2_LR denominator: ", sigma2_LR
+  PRINT *, "sigma2_LR denominator: ", sigma2_LR
 
-  test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/sigma2_LR
-  !PRINT *, "test statistic z^2 = ", test_statistic
+
+  IF (Q_LR**2 < 1.0E-50 .AND. sigma2_LR .EQ. 0.0) THEN
+    ! Do something if numerator is very small and denominator is 0
+    test_statistic = 0.0
+  ELSE 
+    test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
+  END IF
+  PRINT *, "test statistic z^2 = ", test_statistic
+  !test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
+
+  IF (sigma2_LR .EQ. 0 .AND. Q_LR**2 > 0.0) THEN
+    PRINT *, "BIG PROBLEM: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
+    PRINT *, "SUM(K_LR * dmu1)"
+    PRINT *, SUM(K_LR * dmu1)
+    PRINT *, "SUM(K_LR * dmu2)"
+    PRINT *, SUM(K_LR * dmu2)
+    PRINT *, "stopping to debug"
+    STOP
+  END IF 
+
+  PRINT *, "test stat:", test_statistic
+  PRINT *, "numerator Q_LR^2:", Q_LR**2
+  PRINT *, "denominator:", sigma2_LR
+  PRINT *, "outer_sum1:", outer_sum1
+  PRINT *, "outer_sum2:", outer_sum2
 
   IF (ieee_is_nan(test_statistic)) then
     !PRINT *, "dPsi1"
     !PRINT *, dPsi1
     !PRINT *, "dPsi2"
     !PRINT *, dPsi2
-
     PRINT *, "test stat:", test_statistic
     PRINT *, "numerator:", Q_LR**2
     PRINT *, "denominator:", sigma2_LR
@@ -3208,6 +3293,7 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     PRINT *, "stopping to test why test statistic is NaN."
     STOP
   END IF
+
 
 END SUBROUTINE GeneralizedWeightedLR_RE
 
@@ -4745,7 +4831,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   print_check = .FALSE.
   are_equal = .TRUE.
   
-  !IF (isPhase2RE) PRINT *, "******************** survTree ********************"
+  IF (isPhase2RE) PRINT *, "******************** survTree ********************"
 
   if (print_check) THEN
     PRINT *, "nAll: ", nAll
@@ -4815,17 +4901,19 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
         pr = prAll(sampledArray_index,:)
         delta = deltaAll(sampledArray_index)
         delta_m = deltaAll_m(sampledArray_index)
+        IF (isPhase2RE) THEN
+        PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
+        PRINT *, sampledArray
+        PRINT *, "Sampled Array Indices with size:", size(sampledArray_index)
+        PRINT *, sampledArray_index
+        PRINT *, "new Sampled Array with size", size(sampledArray_new)
+        PRINT *, sampledArray_new
+        PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
+        PRINT *, sampledArray_index_new
+        PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        END IF
           IF (print_check) THEN
-            PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-            PRINT *, "Sampled Array (Expanded IDs) with size:", size(sampledArray)
-            PRINT *, sampledArray
-            PRINT *, "Sampled Array Indices with size:", size(sampledArray_index)
-            PRINT *, sampledArray_index
-            PRINT *, "new Sampled Array with size", size(sampledArray_new)
-            PRINT *, sampledArray_new
-            PRINT *, "new Sampled Array Indices with size", size(sampledArray_index_new)
-            PRINT *, sampledArray_index_new
-            PRINT *, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             PRINT *, "size(id_RE)",size(id_RE)
             PRINT *, "size(id_RE2)",size(id_RE2)
             PRINT *, "size(deltaAll):",size(deltaAll)
@@ -5434,7 +5522,7 @@ SUBROUTINE tsurvTree(forestFunc, forestMean, forestProb)
   PRINT *
   !PRINT *, "forestProb: ", forestProb
 
-  !PRINT *, "END OF SUBROUTINE TSURVTREE"
+IF (isPhase2RE) PRINT *, "END OF SUBROUTINE TSURVTREE"
   
 
 END SUBROUTINE tSurvTree
