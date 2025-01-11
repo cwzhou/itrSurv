@@ -2093,7 +2093,7 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & size(leftCases_loop), leftCases_loop, dSorted_m(1:splitLeft_loop), &
             & dSorted(1:splitLeft_loop), nleftPeople_loop, &
             & atRiskLeft_m_loop, eventsLeft_m_loop, atRiskLeft_loop, eventsLeft_loop, &
-            & prl_m_loop, pr2l_loop, &
+            & prl_m_loop, pr2l_loop, prl_loop, pr2survl_loop, &
             & dmu_left, dPsi_left)
 
 
@@ -2113,7 +2113,7 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & size(rightCases_loop), rightCases_loop, dSorted_m(splitLeft_loop+1:nCases), &
             & dSorted(splitLeft_loop+1:nCases), nrightPeople_loop, &
             & atRiskRight_m_loop, eventsRight_m_loop, atRiskRight_loop, eventsRight_loop, &
-            & prr_m_loop, pr2r_loop, &
+            & prr_m_loop, pr2r_loop, prr_loop, pr2survr_loop,&
             & dmu_right, dPsi_right)
 
           IF (print_check) THEN
@@ -2653,7 +2653,7 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
                     nrecords, groupCases_loop, &
                     dSorted_m_loop, dSorted_loop, ngroupPeople_loop, &
                     Nj_endpoint, Oj_endpoint, Nj_survival, Oj_survival, &
-                    prgroup_m_loop, pr2group_loop, &
+                    prgroup_m_loop, pr2group_loop, prgroup_loop, pr2survgroup_loop, &
                     dmu_group, dPsi_group)
 
   INTEGER, INTENT(IN) :: nt_endpoint
@@ -2669,8 +2669,10 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
   REAL(dp), DIMENSION(1:nt_endpoint), INTENT(IN) :: Oj_endpoint ! RE
   REAL(dp), DIMENSION(1:nt_survival), INTENT(IN) :: Nj_survival ! at risk death
   REAL(dp), DIMENSION(1:nt_survival), INTENT(IN) :: Oj_survival ! death events
-  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: prgroup_m_loop
-  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: pr2group_loop
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: prgroup_m_loop ! status change indicator for endpoint timepoints
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: pr2group_loop ! at risk indicators for recurrent event timepoints
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: prgroup_loop ! status change indicator for terminal event timepoints
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(IN) :: pr2survgroup_loop ! at risk indicators for terminal event timepoints
   REAL(dp), DIMENSION(1:nt_endpoint), INTENT(OUT) :: dmu_group
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(OUT) :: dPsi_group  ! Output matrix
 
@@ -2681,6 +2683,9 @@ SUBROUTINE RE_INFO(nt_endpoint, nt_survival, tp_survival, tp_endpoint, &
   REAL(dp), DIMENSION(1:nt_endpoint) :: mu_group
 
   INTEGER :: tmp_i, i
+  LOGICAL :: print_check
+
+  print_check = .FALSE.
 
 ! use below to check, can use checking_atrisk_events.R in R
 !!! Check At Risk and Events Inputs
@@ -2721,36 +2726,69 @@ YidR = pr2group_loop * &
 & spread(dRhat_group, 1, nrecords)
 ! dMihat
 dMi = dNi - YidR
-! dNi^D(t)
-dNiD = prgroup_m_loop * &
-& spread(dSorted_loop, 2, nt_endpoint) ! we want survival dSorted
-!dLambdahat^D(t)
+
+!!!!!!!!! 1/10/25 update to dNiD, dlam - make it for terminal event times using prgroup_loop and nt_survival
+! Because of the above, also updating dPsi_indiv for the updated integration in termB
+!! dNi^D(t)
+!!dNiD = prgroup_m_loop * &
+!!& spread(dSorted_loop, 2, nt_endpoint) ! we want survival dSorted
+dNiD = prgroup_loop * &
+& spread(dSorted_loop, 2, nt_survival) ! we want survival dSorted
+
+!!dLambdahat^D(t)
 tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
 dlam = 0.0_dp                                  ! Initialize dlam to zero
 ! Calculate tmp_events1 as sum over the first dimension (summing across rows)
-tmp_events1 = sum(prgroup_m_loop * &
-    & spread(dSorted_loop, 2, nt_endpoint), DIM=1) ! we want survival dSorted
+tmp_events1 = sum(prgroup_loop * & ! using prgroup_loop for survival timepoints
+    & spread(dSorted_loop, 2, nt_survival), DIM=1) ! we want survival dSorted
 ! Loop to calculate dlam with a check for zero in Nj_endpoint
-DO tmp_i = 1, nt_endpoint
-    !PRINT *, "timepoint:", tmp_i
-    !PRINT *, "at risk at this timepoint:"
-    !PRINT *, Nj_endpoint(tmp_i)
-    IF (Nj_endpoint(tmp_i) /= 0.0_dp) THEN
-        dlam(tmp_i) = tmp_events1(tmp_i) / Nj_endpoint(tmp_i)
+DO tmp_i = 1, nt_survival
+    IF (Nj_survival(tmp_i) /= 0.0_dp) THEN ! QUESTION: DO WE WANT NJ_SURVIVAL OR NJ_ENDPOINT?
+        dlam(tmp_i) = tmp_events1(tmp_i) / Nj_survival(tmp_i) ! # observed events for death / # at risk
     ELSE
         dlam(tmp_i) = 0.0_dp 
     END IF
 END DO
-! Y_i(t) * dLambdahat^D(t)
-YidLam = pr2group_loop * &
-& spread(dlam, 1, nrecords)
+!! Calculate tmp_events1 as sum over the first dimension (summing across rows)
+!tmp_events1 = sum(prgroup_m_loop * &
+!    & spread(dSorted_loop, 2, nt_endpoint), DIM=1) ! we want survival dSorted
+!! Loop to calculate dlam with a check for zero in Nj_endpoint
+!DO tmp_i = 1, nt_endpoint
+!    !PRINT *, "timepoint:", tmp_i
+!    !PRINT *, "at risk at this timepoint:"
+!    !PRINT *, Nj_endpoint(tmp_i)
+!    IF (Nj_endpoint(tmp_i) /= 0.0_dp) THEN
+!        dlam(tmp_i) = tmp_events1(tmp_i) / Nj_endpoint(tmp_i)
+!    ELSE
+!        dlam(tmp_i) = 0.0_dp 
+!    END IF
+!END DO
+
+!! Y_i(t) * dLambdahat^D(t)
+!!YidLam = pr2group_loop * spread(dlam, 1, nrecords)
+YidLam = pr2survgroup_loop * spread(dlam, 1, nrecords) ! updated to change pr2group_loop to pr2survgroup_loop
 ! dMiD
 dMiD = dNiD - YidLam
 
-!PRINT *, "now obtaining dPsi_group"
+IF (print_check) THEN
+PRINT *, "nrecords:", nrecords
+PRINT *, "# people in this group:", ngroupPeople_loop
+PRINT *, "***"
+PRINT *, "Total Number of Survival TimePoints:", nt_survival
+PRINT *, "dNiD with size:", shape(dNiD)
+PRINT *, "Yi(t)*dLam^D(t) has size:", shape(YidLam)
+PRINT *, "dMiD = dNiD - Yi(t)*dLam^D(t) has size:", shape(dMiD)
+PRINT *, "***"
+PRINT *, "Total Number of RE TimePoints:", nt_endpoint
+PRINT *, "dMi has size:", shape(dMi)
+PRINT *, "***"
+PRINT *, "now obtaining dPsi_group"
+END IF
+
 CALL dPsi_indiv(nrecords, ngroupPeople_loop, nt_endpoint, nt_survival, &
+        tp_survival, tp_endpoint, &
         survRE_group, dmu_group, mu_group, dMi, dMiD, &
-        Nj_endpoint, dPsi_group)
+        Nj_survival, Nj_endpoint, dPsi_group)
 !PRINT *, "end of call dPsi_indiv"
 !PRINT *, "dPsi_group with dim:", size(dPsi_group,1), size(dPsi_group,2)
 !PRINT *, dPsi_group
@@ -3080,21 +3118,6 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     n_tp = SIZE(dPsi, 2)       ! Number of timepoints (second dimension size)
     chunk_size = 10            ! Number of timepoints per row for better alignment
     
-    !PRINT *, "Timepoints:"
-    !DO i = 1, n_tp, chunk_size
-    !  PRINT *
-      ! Print the timepoint indices (adjust format width for better spacing)
-    !  PRINT "(10I8)", (j, j = i, MIN(i+chunk_size-1, n_tp))
-      
-      ! Print the corresponding dPsi values
-    !  PRINT "(10F8.2)", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
-      
-      ! Print the corresponding K_LR values
-    !  PRINT "(10F8.2)", K_LR(i:MIN(i+chunk_size-1, n_tp))
-
-    !END DO
-
-
     !DO i = 1, n_tp, chunk_size
     !PRINT *
     !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
@@ -3250,6 +3273,7 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !PRINT *, "denom outer_sum1:", outer_sum1
   !PRINT *, "dPsi1"
   !PRINT *, dPsi1
+  
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2)
@@ -3311,7 +3335,8 @@ END SUBROUTINE GeneralizedWeightedLR_RE
 
 ! =======================================
 
-SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Ybar, dPsi_mat)
+SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, tp_surv, tp_end, survRE, dmu, mu, dMi, dMiD, Ybar, YbarRE, dPsi_mat)
+use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
 
   ! Declare the types and intents of the input/output parameters
@@ -3321,16 +3346,22 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   INTEGER, INTENT(IN) :: n        ! Sample size (1:n for individuals)
   INTEGER, INTENT(IN) :: ns       ! Number of recurrent event time points (1:ns)
   INTEGER, INTENT(IN) :: ns_death ! Number of terminal event time points (1:ns_death)
+  REAL(dp), DIMENSION(1:ns_death), INTENT(IN) :: tp_surv ! terminal event time points
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: tp_end ! RE time points
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: survRE     ! Survival estimates at RE times
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: mu
   REAL(dp), DIMENSION(:,:), INTENT(IN) :: dMi
   REAL(dp), DIMENSION(:,:), INTENT(IN) :: dMiD
-  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: Ybar
+  REAL(dp), DIMENSION(1:ns_death), INTENT(IN) :: Ybar
+  REAL(dp), DIMENSION(1:ns), INTENT(IN) :: YbarRE 
+  
   
   ! Variable Declarations
-  INTEGER :: i, j, index_record
-  REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, int_termB1, termB1
+  INTEGER :: i, j, index_record, idx, k, j_index
+  REAL(dp) :: time_re, time_surv
+  REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, int_termB1, termB1, new_dMiD
+  REAL(dp), DIMENSION(1:nrecords) :: add_term
 
   REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(OUT) :: dPsi_mat  ! Output matrix
   LOGICAL :: print_check
@@ -3342,10 +3373,12 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   dPsi_mat = 0.0_dp
   print_check = .FALSE.
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Compute TERM A for each time point
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   DO i = 1, ns
-    IF (Ybar(i) > 1d-8) THEN
-      termA(:,i) = spread(survRE(i), 1, nrecords) * dMi(:,i) / (spread(Ybar(i), 1, nrecords) / n)
+    IF (YbarRE(i) > 1d-8) THEN
+      termA(:,i) = spread(survRE(i), 1, nrecords) * dMi(:,i) / (spread(YbarRE(i), 1, nrecords) / n)
     ELSE
       termA(:,i) = 0.0_dp
     END IF
@@ -3357,16 +3390,138 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   !    termA = 0.0_dp
   !END IF
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Compute TERM B for each timepoint
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! 1/10/25 update: to calculate dmu-hat * integral (dMiD/(Ybar/n)),
+  ! we first find the integral by finding how many terminal event failures
+  ! occur before (less than or equal to) the specified RE time
+  ! then we add them up.
+  
+  !PRINT *, "dMiD with size:", shape(dMiD)
+  !PRINT *, dMiD
 
-  ! spread(mu, 1, nrecords)
-  DO i = 1, ns ! ns = recurrent event time points
-    IF (Ybar(i) > 1d-8) THEN
-      termB1(:,i) = dMiD(:,i) / (spread(Ybar(i), 1, nrecords) / n)
-    ELSE
-      termB1(:,i) = 0.0_dp
-    END IF
+  j_index = 1
+  int_termB1 = 0.0_dp
+  DO i = 1, ns ! Loop over recurrent event time points
+      time_re = tp_end(i)
+      !PRINT *, "Recurrent Event Timepoint #", i, ": ", time_re
+      DO j = j_index, ns_death ! loop over terminal event timepoints
+          time_surv = tp_surv(j)
+          !PRINT *, "    Terminal Event Timepoint #", j, ": ", time_surv
+          add_term = 0.0_dp ! vector of length nrecords
+          IF (time_surv <= time_re) THEN
+            IF (Ybar(j) > 1d-8) THEN
+              !PRINT *, "    WE ADD TO ADD_TERM"
+              add_term = add_term + dMiD(:,j) / (spread(Ybar(j), 1, nrecords) / n)
+            END IF 
+            !PRINT *, "    add_term has size:", shape(add_term)
+            !IF (i .EQ. ns .AND. j .EQ. ns_death) THEN 
+              !PRINT *, "    LAST add_term where j = ", j, " is:"
+              !PRINT *, add_term
+              !PRINT *
+            !END IF     
+          ELSE
+            j_index = j
+            !PRINT *, "    The new j_index is:", j_index, " and exiting do-loop now."
+            EXIT ! get out of j-loop for terminal event timepoints
+          END IF
+      END DO
+      IF (i .EQ. 1) THEN
+        int_termB1(:,1) = add_term
+      ELSE 
+        int_termB1(:,i) = int_termB1(:, i-1) + add_term
+      END IF
   END DO
-  !BELOW IS OLD CODE THAT DOESNT WORK B/C NAN produced
+
+  termB = spread(dmu, 1, nrecords) * int_termB1
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! COMPUTER dPSI = a - b
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  dPsi_mat = termA - termB ! changing to negative 1/10/25  
+  !PRINT *, "int_termB1 has shape:", shape(int_termB1)
+  !PRINT *, "termB has shape:", shape(termB)
+  !PRINT *, "termA has shape:", shape(termA)
+  !PRINT *, "dPsi_mat has shape:", shape(dPsi_mat)
+  
+! Loop to check for NaN
+do i = 1, size(termA, 1)      ! Loop over rows
+    do j = 1, size(termA, 2)  ! Loop over columns
+        if (ieee_is_nan(termA(i, j))) then
+            print *, "termA: NaN found at index: (", i, ",", j, ")"
+            !stop "Program stopped due to NaN in termA"
+        end if
+    end do
+end do
+! Loop to check for NaN
+do i = 1, size(int_termB1, 1)      ! Loop over rows
+    do j = 1, size(int_termB1, 2)  ! Loop over columns
+        if (ieee_is_nan(int_termB1(i, j))) then
+            print *, "int_termB1: NaN found at index: (", i, ",", j, ")"
+            !stop "Program stopped due to NaN in int_termB1"
+        end if
+    end do
+end do
+! Loop to check for NaN
+do i = 1, size(termB, 1)      ! Loop over rows
+    do j = 1, size(termB, 2)  ! Loop over columns
+        if (ieee_is_nan(termB(i, j))) then
+            print *, "termB: NaN found at index: (", i, ",", j, ")"
+            stop "Program stopped due to NaN in termB"
+        end if
+    end do
+end do
+! Loop to check for NaN
+do i = 1, size(dPsi_mat, 1)      ! Loop over rows
+    do j = 1, size(dPsi_mat, 2)  ! Loop over columns
+        if (ieee_is_nan(dPsi_mat(i, j))) then
+            print *, "dPsi_mat: NaN found at index: (", i, ",", j, ")"
+            !stop "Program stopped due to NaN in dPsi_mat"
+        end if
+    end do
+end do
+
+
+  !PRINT *, "dPsi for person 1 across all timepoints:", shape(dPsi_mat)
+  !PRINT *, dPsi_mat(1,:)
+  !PRINT *, "Shape of dPsi for person 1 across all timepoints: ", SHAPE(dPsi_mat(1,:))
+
+IF (print_check) THEN
+  IF (isPhase2RE) THEN 
+    PRINT *, "termB with dim: ", size(termB,1), " x ", size(termB,2)
+  !PRINT *, termB
+  PRINT *, "termA with dim: ", size(termA,1), " x ", size(termA,2)
+  !PRINT *, termA
+    PRINT *, "dMiD with size:", shape(dMiD)
+    !PRINT *, dMiD
+    PRINT *, "dmu with size:", shape(dmu)
+    !PRINT *, dmu
+    PRINT *, "termB has shape:", shape(termB)
+    PRINT *, "testing new_dMiD so stopping"
+    STOP
+  END IF
+END IF
+
+  ! 1/10/25: below is OLD code that dont consider if LOTS of events occur between
+  ! two consecutive but really far apart RE timepoints.
+  !DO i = 1, ns ! ns = recurrent event time points
+  !  IF (Ybar(i) > 1d-8) THEN
+  !    termB1(:,i) = dMiD(:,i) / (spread(Ybar(i), 1, nrecords) / n)
+  !  ELSE
+  !    termB1(:,i) = 0.0_dp
+  !  END IF
+  !END DO
+
+  ! first timepoint is equal to first column of B1, the first timepoint of B1
+  ! initialize first timepoint
+  !int_termB1(:,1) = termB1(:,1)
+  !do i = 2, ns
+  !  int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+  !end do
+  !termB = spread(dmu, 1, nrecords) * int_termB1
+
+  !BELOW IS EVEN ODLER OLD CODE for termB1 THAT DOESNT WORK B/C NAN produced
   !IF (ANY(Ybar /= 0.0_dp)) THEN
   !    PRINT *, "no Ybar is 0"
   !    termB1 = dMiD / (spread(Ybar, 1, nrecords) / n)
@@ -3375,16 +3530,6 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   !    termB1 = 0.0_dp
   !END IF
   !IF (isPhase2RE .AND. size(termA,1) .EQ. 8) STOP
-
-  ! first timepoint is equal to first column of B1, the first timepoint of B1
-  ! initialize first timepoint
-  int_termB1(:,1) = termB1(:,1)
-  do i = 2, ns
-    int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
-  end do
-  termB = spread(dmu, 1, nrecords) * int_termB1
-
-  dPsi_mat = termA - termB ! changing to negative 1/10/25
 
 if (print_check) then
   ! row is record, column is timepoint
