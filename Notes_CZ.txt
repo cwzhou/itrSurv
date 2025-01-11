@@ -32,7 +32,7 @@ Use "git clone https://github.com/fortran-lang/stdlib.git" to install stdlib mod
 
 
 
-sbatch -p general -N 1 --mem=50GB -n 2 -t 10-07:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript 01.Simulation_Run_RE.R > REoutput_20250201_500nsims_200ntree.txt"
+sbatch -p general -N 1 --mem=100GB -n 2 -t 10-07:00:00 --mail-type=fail --mail-user=cwzhou@email.unc.edu --wrap="Rscript 01.Simulation_Run_RE.R > REoutput_20250202_500nsims_300ntree.txt"
 
 
 
