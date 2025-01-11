@@ -3057,6 +3057,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     REAL(dp) :: denom_sum
     INTEGER :: person_ind, record_ind, i, j, n_tp, chunk_size
     LOGICAL :: print_check
+    INTEGER, DIMENSION(n_records) :: new_people_loop
 
     print_check = .FALSE.
 
@@ -3104,30 +3105,32 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     ! Initialize inner_sum
     inner_sum = 0.0_dp
+    CALL create_new_vector(people_loop, size(people_loop), new_people_loop)
     PRINT *, "people_loop:", people_loop
+    PRINT *, "new_people_loop:", new_people_loop
     !PRINT *, "people_loop(1):", people_loop(1)
 
     ! each componenet of sigma^2_LR
     ! Sum over records for each person
     DO person_ind = 1, n_people
-        !PRINT *, "********** PERSON ", person_ind, " **********"
+        PRINT *, "********** PERSON ", person_ind, " **********"
         denom_sum = 0.0_dp
         ! Sum contributions for records belonging to the current person
         DO record_ind = 1, n_records
-          IF (people_loop(record_ind) == person_ind) THEN
-            !PRINT *, "       Record #", record_ind
-            !PRINT *, "              denom_sum:", denom_sum
-            !PRINT *, "              inner_integral(record_ind) = ", inner_integral(record_ind)
-            !PRINT *, "              denom_sum + inner_integral(record_ind) = ", denom_sum + inner_integral(record_ind)
+          IF (new_people_loop(record_ind) == person_ind) THEN
+            PRINT *, "       Record #", record_ind
+            PRINT *, "              denom_sum:", denom_sum
+            PRINT *, "              inner_integral(record_ind) = ", inner_integral(record_ind)
+            PRINT *, "              denom_sum + inner_integral(record_ind) = ", denom_sum + inner_integral(record_ind)
             denom_sum = denom_sum + inner_integral(record_ind)
-            !print *, "              record-loop denom_sum:", denom_sum
+            print *, "              record-loop denom_sum:", denom_sum
           !ELSE 
             !PRINT *, "*********************************************************************"
             !PRINT *, "********** ", people_loop(record_ind), " IS NOT EQUAL TO ", person_ind, " **********"
             !PRINT *, "*********************************************************************"
           END IF
         END DO
-        !print *, "person-loop denom_sum:", denom_sum
+        print *, "person-loop denom_sum:", denom_sum
         ! Store the square of the sum in inner_sum
         inner_sum(person_ind) = denom_sum**2
     END DO
@@ -3255,7 +3258,7 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   PRINT *, "sigma2_LR denominator: ", sigma2_LR
 
 
-  IF (Q_LR**2 < 1.0E-50 .AND. sigma2_LR .EQ. 0.0) THEN
+  IF (Q_LR**2 <= 1.0E-10 .AND. sigma2_LR .EQ. 0.0) THEN
     ! Do something if numerator is very small and denominator is 0
     test_statistic = 0.0
   ELSE 
@@ -3264,21 +3267,26 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   PRINT *, "test statistic z^2 = ", test_statistic
   !test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
 
-  IF (sigma2_LR .EQ. 0 .AND. Q_LR**2 > 0.0) THEN
-    PRINT *, "BIG PROBLEM: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
-    PRINT *, "SUM(K_LR * dmu1)"
-    PRINT *, SUM(K_LR * dmu1)
-    PRINT *, "SUM(K_LR * dmu2)"
-    PRINT *, SUM(K_LR * dmu2)
-    PRINT *, "stopping to debug"
-    STOP
-  END IF 
-
   PRINT *, "test stat:", test_statistic
   PRINT *, "numerator Q_LR^2:", Q_LR**2
   PRINT *, "denominator:", sigma2_LR
   PRINT *, "outer_sum1:", outer_sum1
   PRINT *, "outer_sum2:", outer_sum2
+
+  IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-10) THEN
+    PRINT *, "BIG PROBLEM: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
+    PRINT *, "SUM(K_LR * dmu1)"
+    PRINT *, SUM(K_LR * dmu1)
+    PRINT *, "SUM(K_LR * dmu2)"
+    PRINT *, SUM(K_LR * dmu2)
+    PRINT *, "test stat:", test_statistic
+    PRINT *, "numerator:", Q_LR**2
+    PRINT *, "denominator:", sigma2_LR
+    PRINT *, "outer_sum1:", outer_sum1
+    PRINT *, "outer_sum2:", outer_sum2
+    PRINT *, "stopping to debug"
+    STOP
+  END IF 
 
   IF (ieee_is_nan(test_statistic)) then
     !PRINT *, "dPsi1"
@@ -3331,23 +3339,6 @@ SUBROUTINE dPsi_indiv(nrecords, n, ns, ns_death, survRE, dmu, mu, dMi, dMiD, Yba
   dPsi_mat = 0.0_dp
   print_check = .FALSE.
 
-if (print_check) then
-  ! row is record, column is timepoint
-  PRINT *, "size of survRE is: ", size(survRE)
-  PRINT *, "size of Ybar is: ", size(Ybar)
-  PRINT *, "size of dmu is: ", size(dmu)
-  PRINT *, "size of mu is: ", size(mu)
-  PRINT *, "row of dMi is: ", size(dMi,1), "and col is: ", size(dMi,2)
-  PRINT *
-  PRINT *, "size of spreading survRE by ", nrecords, " records is: ", &
-          size(spread(survRE, 1, nrecords), 1), "and ", &
-          size(spread(survRE, 1, nrecords), 2)
-  PRINT *, "size of spreading Ybar by ", nrecords, " records is: ", &
-          size(spread(Ybar, 1, nrecords), 1), "and ", &
-          size(spread(Ybar, 1, nrecords), 2)
-  PRINT *
-end if
-
   ! Compute TERM A for each time point
   DO i = 1, ns
     IF (Ybar(i) > 1d-8) THEN
@@ -3365,7 +3356,7 @@ end if
 
 
   ! spread(mu, 1, nrecords)
-  DO i = 1, ns
+  DO i = 1, ns ! ns = recurrent event time points
     IF (Ybar(i) > 1d-8) THEN
       termB1(:,i) = dMiD(:,i) / (spread(Ybar(i), 1, nrecords) / n)
     ELSE
@@ -3382,7 +3373,32 @@ end if
   !END IF
   !IF (isPhase2RE .AND. size(termA,1) .EQ. 8) STOP
 
+  ! first timepoint is equal to first column of B1, the first timepoint of B1
+  ! initialize first timepoint
+  int_termB1(:,1) = termB1(:,1)
+  do i = 2, ns
+    int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
+  end do
+  termB = spread(dmu, 1, nrecords) * int_termB1
 
+  dPsi_mat = termA - termB ! changing to negative 1/10/25
+
+if (print_check) then
+  ! row is record, column is timepoint
+  PRINT *, "size of survRE is: ", size(survRE)
+  PRINT *, "size of Ybar is: ", size(Ybar)
+  PRINT *, "size of dmu is: ", size(dmu)
+  PRINT *, "size of mu is: ", size(mu)
+  PRINT *, "row of dMi is: ", size(dMi,1), "and col is: ", size(dMi,2)
+  PRINT *
+  PRINT *, "size of spreading survRE by ", nrecords, " records is: ", &
+          size(spread(survRE, 1, nrecords), 1), "and ", &
+          size(spread(survRE, 1, nrecords), 2)
+  PRINT *, "size of spreading Ybar by ", nrecords, " records is: ", &
+          size(spread(Ybar, 1, nrecords), 1), "and ", &
+          size(spread(Ybar, 1, nrecords), 2)
+  PRINT *
+end if
 
   IF (print_check) THEN
     PRINT *, "ybar with size:", size(ybar)
@@ -3406,16 +3422,6 @@ end if
     END DO
 
   END IF
-
-  ! first timepoint is equal to first column of B1, the first timepoint of B1
-  ! initialize first timepoint
-  int_termB1(:,1) = termB1(:,1)
-  do i = 2, ns
-    int_termB1(:,i) = int_termB1(:,i-1) + termB1(:,i)
-  end do
-  termB = spread(dmu, 1, nrecords) * int_termB1
-
-  dPsi_mat = termA + termB
 
 if (print_check) then
   PRINT *, "int_termB1"
