@@ -2077,13 +2077,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
           !     PRINT *, "end of call dPsi_indiv"
           ! END IF
 
-          PRINT *, "calling re_info for LEFT!!!"
-          PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
-          PRINT *, leftCases_loop
-          PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
-          PRINT *, leftPeople_loop_og
-          PRINT *, "leftPeople_loop with size", nleftPeople_loop
-          PRINT *, leftPeople_loop
+          !PRINT *, "calling re_info for LEFT!!!"
+          !PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
+          !PRINT *, leftCases_loop
+          !PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
+          !PRINT *, leftPeople_loop_og
+          !PRINT *, "leftPeople_loop with size", nleftPeople_loop
+          !PRINT *, leftPeople_loop
           !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
           !& atRiskLeft_loop, eventsLeft_loop)
           !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
@@ -2097,13 +2097,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & dmu_left, dPsi_left)
 
 
-          PRINT *, "calling re_info for RIGHT!!!"
-          PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
-          PRINT *, rightCases_loop
-          PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
-          PRINT *, rightPeople_loop_og
-          PRINT *, "rightPeople_loop with size", nrightPeople_loop
-          PRINT *, rightPeople_loop
+          !PRINT *, "calling re_info for RIGHT!!!"
+          !PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
+          !PRINT *, rightCases_loop
+          !PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
+          !PRINT *, rightPeople_loop_og
+          !PRINT *, "rightPeople_loop with size", nrightPeople_loop
+          !PRINT *, rightPeople_loop
           !CALL PrintSurvival("Survival (Right):", nt_death, surv_tp, &
           !& atRiskRight_loop, eventsRight_loop)
           !CALL PrintSurvival("Endpoint (Right):", nt, end_tp, &
