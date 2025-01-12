@@ -3279,12 +3279,12 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
 
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
   
-  IF (outer_sum1 .EQ. 0.0 .OR. outer_sum2 .EQ. 0.0) THEN
-    PRINT *, "denom outer_sum1:", outer_sum1
-    PRINT *, "denom outer_sum2:", outer_sum2
-    PRINT *, "sigma2_LR denominator: ", sigma2_LR
-    PRINT *, "numerator is Q_LR^2:", Q_LR**2
-  END IF
+  !IF (outer_sum1 .EQ. 0.0 .OR. outer_sum2 .EQ. 0.0) THEN
+  !  PRINT *, "denom outer_sum1:", outer_sum1
+  !  PRINT *, "denom outer_sum2:", outer_sum2
+  !  PRINT *, "sigma2_LR denominator: ", sigma2_LR
+  !  PRINT *, "numerator is Q_LR^2:", Q_LR**2
+  !END IF
 
   ! jan 10, 2025: updated to make test statistic 0 when numerator^2 is very small (essentially 0) and denominator is 0
   ! jan 12, 2025: update numerator to be less than or equal to 1e-3 instead of 1e-10
@@ -3295,7 +3295,6 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
   END IF
   !PRINT *, "test statistic z^2 = ", test_statistic
-  !test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
 
   !PRINT *, "test stat:", test_statistic
   !PRINT *, "numerator Q_LR^2:", Q_LR**2
@@ -3303,7 +3302,8 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !PRINT *, "outer_sum1:", outer_sum1
   !PRINT *, "outer_sum2:", outer_sum2
 
-  IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-3) THEN !1/12/25: changing to a larger number instead of 1.0E-10
+  !1/12/25: changing to a larger number instead of 1.0E-10
+  IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-3) THEN 
     PRINT *, "BIG ISSUE: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
     PRINT *, "SUM(K_LR * dmu1)"
     PRINT *, SUM(K_LR * dmu1)
