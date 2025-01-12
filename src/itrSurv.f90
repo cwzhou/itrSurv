@@ -3099,11 +3099,11 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     print_check = .FALSE.
 
-    PRINT *, "Starting CalculateREDenominator Subroutine"
-    PRINT *, "n_people:", n_people
-    PRINT *, "n_records:", n_records
-    PRINT *, "shape of K_LR", shape(K_LR)
-    PRINT *, "shape of dPsi", shape(dPsi)
+    !PRINT *, "Starting CalculateREDenominator Subroutine"
+    !PRINT *, "n_people:", n_people
+    !PRINT *, "n_records:", n_records
+    !PRINT *, "shape of K_LR", shape(K_LR)
+    !PRINT *, "shape of dPsi", shape(dPsi)
 
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
@@ -3113,20 +3113,20 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     n_tp = SIZE(dPsi, 2)       ! Number of timepoints (second dimension size)
     chunk_size = 10            ! Number of timepoints per row for better alignment
     
-    DO i = 1, n_tp, chunk_size
-    PRINT *
-      WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
-      WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
-      WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
-      WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
-    END DO
+    !DO i = 1, n_tp, chunk_size
+    !PRINT *
+    !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
+    !  WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
+    !END DO
  
-    PRINT *, "shape of dPsi with size", shape(dPsi(1,:))
+    !PRINT *, "shape of dPsi with size", shape(dPsi(1,:))
     !PRINT *, "dPsi for person 1 across all 496 timepoints:"
     !PRINT *, dPsi(1,:)
     !PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
-    PRINT *, "inner_integral with size:", SHAPE(inner_integral)
-    PRINT *, inner_integral
+    !PRINT *, "inner_integral with size:", SHAPE(inner_integral)
+    !PRINT *, inner_integral
 
     ! Initialize inner_sum
     inner_sum = 0.0_dp
@@ -3167,7 +3167,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     ! Calculate the outer sum
     outer_sum = SUM(inner_sum)
 
-    !if (print_check) then
+    if (print_check) then
     IF (outer_sum .EQ. 0) THEN
       !PRINT *, "dPsi"
       !PRINT *, dPsi
@@ -3182,7 +3182,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
       PRINT *, "          n_records:", n_records
       PRINT *
     END IF
-    !end if
+    end if
 
 !PRINT *, "End of CalculateREDenominator"
 
@@ -3273,19 +3273,18 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   ! Call CalculateDenominator for group 1
   CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
                               outer_sum1)
-  !PRINT *, "denom outer_sum1:", outer_sum1
-  !PRINT *, "dPsi1"
-  !PRINT *, dPsi1
-  
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
-                              outer_sum2)
-  !PRINT *, "denom outer_sum2:", outer_sum2
-  !PRINT *, "dPsi2"
-  !PRINT *, dPsi2                        
-  
+                              outer_sum2)    
+
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
-  !PRINT *, "sigma2_LR denominator: ", sigma2_LR
+  
+  IF (outer_sum1 .EQ. 0.0 .OR. outer_sum2 .EQ. 0.0) THEN
+    PRINT *, "denom outer_sum1:", outer_sum1
+    PRINT *, "denom outer_sum2:", outer_sum2
+    PRINT *, "sigma2_LR denominator: ", sigma2_LR
+    PRINT *, "numerator is Q_LR^2:", Q_LR**2
+  END IF
 
   ! jan 10, 2025: updated to make test statistic 0 when numerator^2 is very small (essentially 0) and denominator is 0
   IF (Q_LR**2 <= 1.0E-10 .AND. sigma2_LR .EQ. 0.0) THEN
@@ -3303,8 +3302,8 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   !PRINT *, "outer_sum1:", outer_sum1
   !PRINT *, "outer_sum2:", outer_sum2
 
-  IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-10) THEN
-    PRINT *, "BIG PROBLEM: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
+  IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-3) THEN !1/12/25: changing to a larger number instead of 1.0E-10
+    PRINT *, "BIG ISSUE: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
     PRINT *, "SUM(K_LR * dmu1)"
     PRINT *, SUM(K_LR * dmu1)
     PRINT *, "SUM(K_LR * dmu2)"
