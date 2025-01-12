@@ -3287,7 +3287,8 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   END IF
 
   ! jan 10, 2025: updated to make test statistic 0 when numerator^2 is very small (essentially 0) and denominator is 0
-  IF (Q_LR**2 <= 1.0E-10 .AND. sigma2_LR .EQ. 0.0) THEN
+  ! jan 12, 2025: update numerator to be less than or equal to 1e-3 instead of 1e-10
+  IF (Q_LR**2 <= 1.0E-3 .AND. sigma2_LR .EQ. 0.0) THEN
     ! Do something if numerator is very small and denominator is 0
     test_statistic = 0.0
   ELSE 
