@@ -3099,35 +3099,34 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     print_check = .FALSE.
 
-    !PRINT *, "Starting CalculateREDenominator Subroutine"
-    !PRINT *, "n_people:", n_people
-    !PRINT *, "n_records:", n_records
-    !PRINT *, "shape of K_LR", shape(K_LR)
-    !PRINT *, "shape of dPsi", shape(dPsi)
+    PRINT *, "Starting CalculateREDenominator Subroutine"
+    PRINT *, "n_people:", n_people
+    PRINT *, "n_records:", n_records
+    PRINT *, "shape of K_LR", shape(K_LR)
+    PRINT *, "shape of dPsi", shape(dPsi)
 
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
     ! after a certain point, dPsi should be equal to 0 for individuals
     ! but we don't calculate it this way in dPsi_indiv so need to account for that here
 
-
-    !PRINT *, "shape of dPsi for person 1 across all 496 timepoints with size", shape(dPsi(1,:))
-    !PRINT *, dPsi(1,:)
-    !PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
- 
     n_tp = SIZE(dPsi, 2)       ! Number of timepoints (second dimension size)
     chunk_size = 10            ! Number of timepoints per row for better alignment
     
-    !DO i = 1, n_tp, chunk_size
-    !PRINT *
-    !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
-    !END DO
-
-    !PRINT *, "inner_integral with size:", SHAPE(inner_integral)
-    !PRINT *, inner_integral
+    DO i = 1, n_tp, chunk_size
+    PRINT *
+      WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
+      WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
+      WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
+      WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
+    END DO
+ 
+    PRINT *, "shape of dPsi with size", shape(dPsi(1,:))
+    !PRINT *, "dPsi for person 1 across all 496 timepoints:"
+    !PRINT *, dPsi(1,:)
+    !PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
+    PRINT *, "inner_integral with size:", SHAPE(inner_integral)
+    PRINT *, inner_integral
 
     ! Initialize inner_sum
     inner_sum = 0.0_dp
@@ -3139,26 +3138,30 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     ! each componenet of sigma^2_LR
     ! Sum over records for each person
     DO person_ind = 1, n_people
-        !PRINT *, "********** PERSON ", person_ind, " **********"
+        PRINT *, "********** PERSON ", person_ind, " **********"
         denom_sum = 0.0_dp
         ! Sum contributions for records belonging to the current person
         DO record_ind = 1, n_records
           IF (new_people_loop(record_ind) == person_ind) THEN
-            !PRINT *, "       Record #", record_ind
-            !PRINT *, "              denom_sum:", denom_sum
-            !PRINT *, "              inner_integral(record_ind) = ", inner_integral(record_ind)
-            !PRINT *, "              denom_sum + inner_integral(record_ind) = ", denom_sum + inner_integral(record_ind)
+            PRINT *, "       Record #", record_ind
+            PRINT *, "              denom_sum:", denom_sum
+            PRINT *, "              inner_integral(record_ind) = ", inner_integral(record_ind)
+            PRINT *, "              denom_sum + inner_integral(record_ind) = ", denom_sum + inner_integral(record_ind)
             denom_sum = denom_sum + inner_integral(record_ind)
-            !print *, "              record-loop denom_sum:", denom_sum
-          !ELSE 
-            !PRINT *, "*********************************************************************"
-            !PRINT *, "********** ", people_loop(record_ind), " IS NOT EQUAL TO ", person_ind, " **********"
-            !PRINT *, "*********************************************************************"
+            print *, "              record-loop denom_sum:", denom_sum
+          ELSE 
+            PRINT *, "*********************************************************************"
+            PRINT *, "********** ", new_people_loop(record_ind), " IS NOT EQUAL TO ", person_ind, " **********"
+            PRINT *, "*********************************************************************"
           END IF
         END DO
-        !print *, "person-loop denom_sum:", denom_sum
+        print *, "person-loop denom_sum:", denom_sum
         ! Store the square of the sum in inner_sum
         inner_sum(person_ind) = denom_sum**2
+        PRINT *, "inner_sum(", person_ind, ") with dimensions:", shape(inner_sum)
+        PRINT *, inner_sum(person_ind)
+        PRINT *, "full inner_sum"
+        PRINT *, inner_sum
     END DO
 
     ! Calculate the outer sum
