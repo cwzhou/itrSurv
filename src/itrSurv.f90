@@ -3099,41 +3099,17 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     print_check = .FALSE.
 
-    !PRINT *, "Starting CalculateREDenominator Subroutine"
-    !PRINT *, "n_people:", n_people
-    !PRINT *, "n_records:", n_records
-    !PRINT *, "shape of K_LR", shape(K_LR)
-    !PRINT *, "shape of dPsi", shape(dPsi)
-
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
     ! after a certain point, dPsi should be equal to 0 for individuals
     ! but we don't calculate it this way in dPsi_indiv so need to account for that here
 
-    n_tp = SIZE(dPsi, 2)       ! Number of timepoints (second dimension size)
-    chunk_size = 10            ! Number of timepoints per row for better alignment
-    
-    !DO i = 1, n_tp, chunk_size
-    !PRINT *
-    !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i+chunk_size-1, n_tp))
-    !  WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i+chunk_size-1, n_tp)) * dPsi(1, i:MIN(i+chunk_size-1, n_tp)))
-    !END DO
- 
-    !PRINT *, "shape of dPsi with size", shape(dPsi(1,:))
-    !PRINT *, "dPsi for person 1 across all 496 timepoints:"
-    !PRINT *, dPsi(1,:)
-    !PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
-    !PRINT *, "inner_integral with size:", SHAPE(inner_integral)
-    !PRINT *, inner_integral
+    n_tp = MIN(SIZE(dPsi, 2), 10)  ! Limit to the first 10 timepoints
+    chunk_size = 10                ! Number of timepoints per row for better alignment
 
     ! Initialize inner_sum
     inner_sum = 0.0_dp
     CALL create_new_vector(people_loop, size(people_loop), new_people_loop)
-    !PRINT *, "people_loop:", people_loop
-    !PRINT *, "new_people_loop:", new_people_loop
-    !PRINT *, "people_loop(1):", people_loop(1)
 
     ! each componenet of sigma^2_LR
     ! Sum over records for each person
@@ -3169,22 +3145,41 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
 
     if (print_check) then
     IF (outer_sum .EQ. 0) THEN
-      !PRINT *, "dPsi"
-      !PRINT *, dPsi
-      !PRINT *, "K_LR"
-      !PRINT *, K_LR
-      PRINT *, "          inner_integral with size:", SIZE(inner_integral)
+      PRINT *, "Starting CalculateREDenominator Subroutine"
+      PRINT *, "n_people:", n_people
+      PRINT *, "n_records:", n_records
+      PRINT *, "shape of K_LR", shape(K_LR)
+      PRINT *, "shape of dPsi", shape(dPsi)
+      PRINT *, "inner_integral with size:", SHAPE(inner_integral)
       PRINT *, inner_integral
-      PRINT *, "          inner_sum with size: ", SIZE(inner_sum)
+      PRINT *, "people_loop:", people_loop
+      PRINT *, "new_people_loop:", new_people_loop
+      PRINT *, "people_loop(1):", people_loop(1)
+      DO i = 1, n_tp, chunk_size
+        PRINT *
+        WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i + chunk_size - 1, n_tp))
+        WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i + chunk_size - 1, n_tp))
+        WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i + chunk_size - 1, n_tp))
+        WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i + chunk_size - 1, n_tp)) * dPsi(1, i:MIN(i + chunk_size - 1, n_tp)))
+      END DO
+
+      PRINT *, "shape of dPsi with size", shape(dPsi)
+      !PRINT *, "dPsi for person 1 across all 496 timepoints:"
+      !PRINT *, dPsi(1,:)
+      !PRINT *, "Shape of dPsi for person 1 across all 496 timepoints: ", SHAPE(dPsi(1,:))
+
+      PRINT *, "inner_integral with size:", SIZE(inner_integral)
+      PRINT *, inner_integral
+      PRINT *, "inner_sum with size: ", SIZE(inner_sum)
       PRINT *, inner_sum
       PRINT *, "          outer_sum: ", outer_sum
       PRINT *, "          n_people:", n_people
       PRINT *, "          n_records:", n_records
       PRINT *
+      PRINT *, "End of CalculateREDenominator"
     END IF
     end if
 
-!PRINT *, "End of CalculateREDenominator"
 
 END SUBROUTINE CalculateREDenominator
 
@@ -3278,13 +3273,6 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
                               outer_sum2)    
 
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
-  
-  !IF (outer_sum1 .EQ. 0.0 .OR. outer_sum2 .EQ. 0.0) THEN
-  !  PRINT *, "denom outer_sum1:", outer_sum1
-  !  PRINT *, "denom outer_sum2:", outer_sum2
-  !  PRINT *, "sigma2_LR denominator: ", sigma2_LR
-  !  PRINT *, "numerator is Q_LR^2:", Q_LR**2
-  !END IF
 
   ! jan 10, 2025: updated to make test statistic 0 when numerator^2 is very small (essentially 0) and denominator is 0
   ! jan 12, 2025: update numerator to be less than or equal to 1e-3 instead of 1e-10
@@ -3304,16 +3292,16 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
 
   !1/12/25: changing to a larger number instead of 1.0E-10
   IF (sigma2_LR .EQ. 0.0 .AND. Q_LR**2 > 1.0E-3) THEN 
-    PRINT *, "BIG ISSUE: DENOMINATOR IS 0 BUT NUMERATOR IS NOT -!!!!!!!!"
+    PRINT *, "BIG ISSUE: DENOMINATOR IS 0 BUT NUMERATOR IS NOT!!!!!!!!"
     PRINT *, "SUM(K_LR * dmu1)"
     PRINT *, SUM(K_LR * dmu1)
     PRINT *, "SUM(K_LR * dmu2)"
     PRINT *, SUM(K_LR * dmu2)
     PRINT *, "test stat:", test_statistic
-    PRINT *, "numerator:", Q_LR**2
-    PRINT *, "denominator:", sigma2_LR
-    PRINT *, "outer_sum1:", outer_sum1
-    PRINT *, "outer_sum2:", outer_sum2
+    PRINT *, "numerator is Q_LR^2:", Q_LR**2
+    PRINT *, "denominator is sigma_LR^2:", sigma2_LR
+    PRINT *, "denom outer_sum1:", outer_sum1
+    PRINT *, "denom outer_sum2:", outer_sum2
     PRINT *, "stopping to debug"
     STOP
   END IF 
