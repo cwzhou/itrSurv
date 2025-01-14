@@ -3082,7 +3082,8 @@ END SUBROUTINE weightKLR
 
 
 ! ==================================================
-SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, outer_sum)
+SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, &
+  & people_loop, outer_sum, print_check)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n_people, n_records
     REAL(dp), DIMENSION(:), INTENT(IN) :: K_LR
@@ -3096,8 +3097,6 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     INTEGER :: person_ind, record_ind, i, j, n_tp, chunk_size
     LOGICAL :: print_check
     INTEGER, DIMENSION(n_records) :: new_people_loop
-
-    print_check = .FALSE.
 
     ! Compute the inner integral for each record
     inner_integral = SUM(SPREAD(K_LR, 1, n_records) * dPsi, 2)
@@ -3144,7 +3143,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
     outer_sum = SUM(inner_sum)
 
     if (print_check) then
-    IF (outer_sum .EQ. 0) THEN
+    !IF (outer_sum .EQ. 0) THEN
       PRINT *, "Starting CalculateREDenominator Subroutine"
       PRINT *, "n_people:", n_people
       PRINT *, "n_records:", n_records
@@ -3178,7 +3177,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, people_loop, 
       PRINT *
       PRINT *, "End of CalculateREDenominator"
     END IF
-    end if
+    !end if
 
 
 END SUBROUTINE CalculateREDenominator
@@ -3221,6 +3220,9 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   INTEGER :: n1_ind, n2_ind, ns_ind, i, j, k
   REAL(dp) :: denom_sum, outer_sum1, outer_sum2
 
+  LOGICAL :: print_check
+
+  print_check = .FALSE.
   nrecords1 = size(leftCases_loop)
   nrecords2 = size(rightCases_loop)
 
@@ -3267,10 +3269,10 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   ! together, they make up the variance sigma2_LR
   ! Call CalculateDenominator for group 1
   CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
-                              outer_sum1)
+                              outer_sum1, print_check)
   ! Call CalculateDenominator for group 2
   CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
-                              outer_sum2)    
+                              outer_sum2, print_check)    
 
   sigma2_LR = REAL(n2, dp) / (REAL(n, dp) * REAL(n1, dp)) * outer_sum1 + REAL(n1, dp) / (REAL(n, dp) * REAL(n2, dp)) * outer_sum2
 
@@ -3303,6 +3305,14 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     PRINT *, "denom outer_sum1:", outer_sum1
     PRINT *, "denom outer_sum2:", outer_sum2
     PRINT *, "stopping to debug"
+    print_check = .TRUE.
+    ! Call CalculateDenominator for group 1
+    CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
+                              outer_sum1, print_check)
+    ! Call CalculateDenominator for group 2
+    CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
+                              outer_sum2, print_check) 
+    PRINT *, "stopped."
     STOP
   END IF 
 
