@@ -3154,7 +3154,7 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, &
       PRINT *, "people_loop:", people_loop
       PRINT *, "new_people_loop:", new_people_loop
       n_tp = SIZE(dPsi, 2) !MIN(SIZE(dPsi, 2), 10)  ! Limit to the first 10 timepoints
-      chunk_size = 15                ! Number of timepoints per row for better alignment
+      chunk_size = 10                ! Number of timepoints per row for better alignment
       DO i = 1, n_tp, chunk_size
         PRINT *
         WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i + chunk_size - 1, n_tp))
