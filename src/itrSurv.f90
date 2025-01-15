@@ -2077,13 +2077,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
           !     PRINT *, "end of call dPsi_indiv"
           ! END IF
 
-          !PRINT *, "calling re_info for LEFT!!!"
-          !PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
-          !PRINT *, leftCases_loop
-          !PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
-          !PRINT *, leftPeople_loop_og
-          !PRINT *, "leftPeople_loop with size", nleftPeople_loop
-          !PRINT *, leftPeople_loop
+          IF (isPhase2RE) PRINT *, "calling re_info for LEFT!!!"
+          PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
+          PRINT *, leftCases_loop
+          PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
+          PRINT *, leftPeople_loop_og
+          PRINT *, "leftPeople_loop with size", nleftPeople_loop
+          PRINT *, leftPeople_loop
           !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
           !& atRiskLeft_loop, eventsLeft_loop)
           !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
@@ -2097,13 +2097,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & dmu_left, dPsi_left)
 
 
-          !PRINT *, "calling re_info for RIGHT!!!"
-          !PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
-          !PRINT *, rightCases_loop
-          !PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
-          !PRINT *, rightPeople_loop_og
-          !PRINT *, "rightPeople_loop with size", nrightPeople_loop
-          !PRINT *, rightPeople_loop
+          IF (isPhase2RE) PRINT *, "calling re_info for RIGHT!!!"
+          PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
+          PRINT *, rightCases_loop
+          PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
+          PRINT *, rightPeople_loop_og
+          PRINT *, "rightPeople_loop with size", nrightPeople_loop
+          PRINT *, rightPeople_loop
           !CALL PrintSurvival("Survival (Right):", nt_death, surv_tp, &
           !& atRiskRight_loop, eventsRight_loop)
           !CALL PrintSurvival("Endpoint (Right):", nt, end_tp, &
@@ -2734,6 +2734,8 @@ dMi = dNi - YidR
 !!& spread(dSorted_loop, 2, nt_endpoint) ! we want survival dSorted
 dNiD = prgroup_loop * &
 & spread(dSorted_loop, 2, nt_survival) ! we want survival dSorted
+PRINT *, "dNiD has shape:", shape(dNiD)
+PRINT *, dNiD
 
 !!dLambdahat^D(t)
 tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
@@ -2743,20 +2745,21 @@ tmp_events1 = sum(prgroup_loop * & ! using prgroup_loop for survival timepoints
     & spread(dSorted_loop, 2, nt_survival), DIM=1) ! we want survival dSorted
 ! Loop to calculate dlam with a check for zero in Nj_endpoint
 DO tmp_i = 1, nt_survival
-    IF (Nj_survival(tmp_i) /= 0.0_dp) THEN ! QUESTION: DO WE WANT NJ_SURVIVAL OR NJ_ENDPOINT?
+    IF (Nj_survival(tmp_i) /= 0.0_dp) THEN 
         dlam(tmp_i) = tmp_events1(tmp_i) / Nj_survival(tmp_i) ! # observed events for death / # at risk
     ELSE
         dlam(tmp_i) = 0.0_dp 
     END IF
 END DO
+
+PRINT *, "dLam with size:", shape(dlam)
+PRINT *, dlam
+
 !! Calculate tmp_events1 as sum over the first dimension (summing across rows)
 !tmp_events1 = sum(prgroup_m_loop * &
 !    & spread(dSorted_loop, 2, nt_endpoint), DIM=1) ! we want survival dSorted
 !! Loop to calculate dlam with a check for zero in Nj_endpoint
 !DO tmp_i = 1, nt_endpoint
-!    !PRINT *, "timepoint:", tmp_i
-!    !PRINT *, "at risk at this timepoint:"
-!    !PRINT *, Nj_endpoint(tmp_i)
 !    IF (Nj_endpoint(tmp_i) /= 0.0_dp) THEN
 !        dlam(tmp_i) = tmp_events1(tmp_i) / Nj_endpoint(tmp_i)
 !    ELSE
@@ -2770,7 +2773,12 @@ YidLam = pr2survgroup_loop * spread(dlam, 1, nrecords) ! updated to change pr2gr
 ! dMiD
 dMiD = dNiD - YidLam
 
-IF (print_check) THEN
+PRINT *, "Yi*dLam with shape:", shape(YidLam)
+PRINT *, YidLam
+PRINT *, "dMiD with shape:", shape(dMiD)
+PRINT *, dMiD
+
+!IF (print_check) THEN
 PRINT *, "nrecords:", nrecords
 PRINT *, "# people in this group:", ngroupPeople_loop
 PRINT *, "***"
@@ -2783,7 +2791,7 @@ PRINT *, "Total Number of RE TimePoints:", nt_endpoint
 PRINT *, "dMi has size:", shape(dMi)
 PRINT *, "***"
 PRINT *, "now obtaining dPsi_group"
-END IF
+!END IF
 
 CALL dPsi_indiv(nrecords, ngroupPeople_loop, nt_endpoint, nt_survival, &
         tp_survival, tp_endpoint, &
@@ -3409,14 +3417,13 @@ use, intrinsic :: ieee_arithmetic
             IF (Ybar(j) > 1d-8) THEN
               !PRINT *, "    WE ADD TO ADD_TERM"
               add_term = add_term + dMiD(:,j) / (spread(Ybar(j), 1, nrecords) / n)
-            END IF 
-            !PRINT *, "    add_term has size:", shape(add_term)
+            END IF !otherwise, add_term is just 0
             !IF (i .EQ. ns .AND. j .EQ. ns_death) THEN 
               !PRINT *, "    LAST add_term where j = ", j, " is:"
               !PRINT *, add_term
               !PRINT *
             !END IF     
-          ELSE
+          ELSE ! if time_surv > time_re
             j_index = j
             !PRINT *, "    The new j_index is:", j_index, " and exiting do-loop now."
             EXIT ! get out of j-loop for terminal event timepoints
