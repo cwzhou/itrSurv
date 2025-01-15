@@ -2736,15 +2736,15 @@ dMi = dNi - YidR
 dNiD = prgroup_loop * &
 & spread(dSorted_loop, 2, nt_survival) ! we want survival dSorted
 
-nrows = size(dNiD, 1)
-ncols = size(dNiD, 2)
+!nrows = size(dNiD, 1)
+!ncols = size(dNiD, 2)
 ! Print the contents of dNiD
-print *, "Shape of dNiD: Rows =", nrows, ", Columns =", ncols
-print *, "Contents of dNiD:"
-do i = 1, nrows
-    write(*, '(1X, *(F12.4))') (dNiD(i, j), j = 1, ncols)
-    PRINT *
-end do
+!print *, "Shape of dNiD: Rows =", nrows, ", Columns =", ncols
+!print *, "Contents of dNiD:"
+!do i = 1, nrows
+!    write(*, '(1X, *(F12.4))') (dNiD(i, j), j = 1, ncols)
+!    PRINT *
+!end do
 
 !!dLambdahat^D(t)
 tmp_events1 = 0.0_dp                          ! Set all elements of tmp_events1 to zero
@@ -2761,10 +2761,10 @@ DO tmp_i = 1, nt_survival
     END IF
 END DO
 
-nrows = size(dlam)
-print *, "Shape of dlam: Rows =", nrows
-print *, "Contents of dlam:"
-write(*, '(1X, *(F12.4))') dlam
+!nrows = size(dlam)
+!print *, "Shape of dlam: Rows =", nrows
+!print *, "Contents of dlam:"
+!write(*, '(1X, *(F12.4))') dlam
 
 !! Calculate tmp_events1 as sum over the first dimension (summing across rows)
 !tmp_events1 = sum(prgroup_m_loop * &
@@ -2784,27 +2784,27 @@ YidLam = pr2survgroup_loop * spread(dlam, 1, nrecords) ! updated to change pr2gr
 ! dMiD
 dMiD = dNiD - YidLam
 
-PRINT *, "Yi*dLam with shape:", shape(YidLam)
-nrows = size(YidLam, 1)
-ncols = size(YidLam, 2)
+!PRINT *, "Yi*dLam with shape:", shape(YidLam)
+!nrows = size(YidLam, 1)
+!ncols = size(YidLam, 2)
 ! Print the contents of dNiD
-print *, "Shape of Yi*dLam: Rows =", nrows, ", Columns =", ncols
-print *, "Contents of Yi*dLam:"
-do i = 1, nrows
-    write(*, '(1X, *(F12.4))') (YidLam(i, j), j = 1, ncols)
-    PRINT *
-end do
-nrows = size(dMiD, 1)
-ncols = size(dMiD, 2)
+!print *, "Shape of Yi*dLam: Rows =", nrows, ", Columns =", ncols
+!print *, "Contents of Yi*dLam:"
+!do i = 1, nrows
+!    write(*, '(1X, *(F12.4))') (YidLam(i, j), j = 1, ncols)
+!    PRINT *
+!end do
+!nrows = size(dMiD, 1)
+!ncols = size(dMiD, 2)
 ! Print the contents of dNiD
-print *, "Shape of dMiD: Rows =", nrows, ", Columns =", ncols
-print *, "Contents of dMiD:"
-do i = 1, nrows
-    write(*, '(1X, *(F12.4))') (dMiD(i, j), j = 1, ncols)
-    PRINT *
-end do
+!print *, "Shape of dMiD: Rows =", nrows, ", Columns =", ncols
+!print *, "Contents of dMiD:"
+!do i = 1, nrows
+!    write(*, '(1X, *(F12.4))') (dMiD(i, j), j = 1, ncols)
+!    PRINT *
+!end do
 
-!IF (print_check) THEN
+IF (print_check) THEN
 PRINT *, "nrecords:", nrecords
 PRINT *, "# people in this group:", ngroupPeople_loop
 PRINT *, "***"
@@ -2817,7 +2817,7 @@ PRINT *, "Total Number of RE TimePoints:", nt_endpoint
 PRINT *, "dMi has size:", shape(dMi)
 PRINT *, "***"
 PRINT *, "now obtaining dPsi_group"
-!END IF
+END IF
 
 CALL dPsi_indiv(nrecords, ngroupPeople_loop, nt_endpoint, nt_survival, &
         tp_survival, tp_endpoint, &
