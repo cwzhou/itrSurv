@@ -2135,18 +2135,19 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
               PRINT *
             END IF
 
-          !PRINT *, "starting generalized weighted logrank (RE test)"
+          PRINT *, "starting generalized weighted logrank (RE test)"
           CALL GeneralizedWeightedLR_RE(nt, nleftPeople_loop, nrightPeople_loop, &
               & atRiskLeft_m_loop, atRiskRight_m_loop, &
               & leftCases_loop, leftPeople_loop, &
               & rightCases_loop, rightPeople_loop, &
               & dmu_left, dmu_right, dPsi_left, dPsi_right, &
               & valuej_num, valuej_denom, valuej)
-          !PRINT *, "end of generalized weighted logrank test: RE"
-          !PRINT *, "test stat:", valuej
+          PRINT *, "end of generalized weighted logrank test: RE"
+            PRINT *, "valuej_num:", valuej_num**2
+            PRINT *, "valuej_denom:", valuej_denom
           
           IF (valuej_denom .EQ. 0.0 .AND. valuej_num > 1.0E-3) THEN 
-            PRINT *, "valuej_num:", valuej_num
+            PRINT *, "valuej_num:", valuej_num**2
             PRINT *, "valuej_denom:", valuej_denom
             PRINT *, "valuej:", valuej
             PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
@@ -3324,7 +3325,8 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     ! Do something if numerator is very small and denominator is 0
     test_statistic = 0.0
   ELSE 
-    test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR )
+    ! compare to chisquare distribution
+    test_statistic = (REAL(n1, dp) * REAL(n2, dp) / REAL(n, dp)) * (Q_LR**2)/(sigma2_LR)
   END IF
   !PRINT *, "test statistic z^2 = ", test_statistic
 
