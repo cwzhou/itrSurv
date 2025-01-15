@@ -3440,16 +3440,15 @@ use, intrinsic :: ieee_arithmetic
   !PRINT *, "termA has shape:", shape(termA)
   !PRINT *, "dPsi_mat has shape:", shape(dPsi_mat)
 
-do i = 1, nrecords
-    ! Calculate the sum of the current row (along the timepoints)
-    row_sum = sum(dPsi_mat(i, :))
-    
-    ! Check if the sum is zero
-    if (row_sum == 0.0) then
-        ! Print the values of dPsi_mat for this record
-        print *, "Record:", i, "dPsi_mat values:", dPsi_mat(i, :)
-    end if
-end do
+!do i = 1, nrecords
+!    ! Calculate the sum of the current row (along the timepoints)
+!    row_sum = sum(dPsi_mat(i, :))    
+!    ! Check if the sum is zero
+!    if (row_sum == 0.0) then
+!        ! Print the values of dPsi_mat for this record
+!        print *, "Record:", i, "dPsi_mat values:", dPsi_mat(i, :)
+!    end if
+!end do
   
 ! Loop to check for NaN
 do i = 1, size(termA, 1)      ! Loop over rows
