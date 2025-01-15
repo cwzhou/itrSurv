@@ -3352,16 +3352,14 @@ use, intrinsic :: ieee_arithmetic
   REAL(dp), DIMENSION(:,:), INTENT(IN) :: dMiD
   REAL(dp), DIMENSION(1:ns_death), INTENT(IN) :: Ybar
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: YbarRE 
-  
-  
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(OUT) :: dPsi_mat  ! Output matrix
   ! Variable Declarations
   INTEGER :: i, j, index_record, idx, k, j_index
   REAL(dp) :: time_re, time_surv
   REAL(dp), DIMENSION(1:nrecords, 1:ns) :: termA, termB, int_termB1, termB1, new_dMiD
   REAL(dp), DIMENSION(1:nrecords) :: add_term
-
-  REAL(dp), DIMENSION(:,:), ALLOCATABLE, INTENT(OUT) :: dPsi_mat  ! Output matrix
   LOGICAL :: print_check
+  real :: row_sum
 
   ! Allocate the output matrix
   ALLOCATE(dPsi_mat(1:nrecords, 1:ns))
@@ -3441,6 +3439,17 @@ use, intrinsic :: ieee_arithmetic
   !PRINT *, "termB has shape:", shape(termB)
   !PRINT *, "termA has shape:", shape(termA)
   !PRINT *, "dPsi_mat has shape:", shape(dPsi_mat)
+
+do i = 1, nrecords
+    ! Calculate the sum of the current row (along the timepoints)
+    row_sum = sum(dPsi_mat(i, :))
+    
+    ! Check if the sum is zero
+    if (row_sum == 0.0) then
+        ! Print the values of dPsi_mat for this record
+        print *, "Record:", i, "dPsi_mat values:", dPsi_mat(i, :)
+    end if
+end do
   
 ! Loop to check for NaN
 do i = 1, size(termA, 1)      ! Loop over rows
