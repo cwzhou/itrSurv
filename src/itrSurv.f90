@@ -2135,16 +2135,16 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
               PRINT *
             END IF
 
-          PRINT *, "starting generalized weighted logrank (RE test)"
+          !PRINT *, "starting generalized weighted logrank (RE test)"
           CALL GeneralizedWeightedLR_RE(nt, nleftPeople_loop, nrightPeople_loop, &
               & atRiskLeft_m_loop, atRiskRight_m_loop, &
               & leftCases_loop, leftPeople_loop, &
               & rightCases_loop, rightPeople_loop, &
               & dmu_left, dmu_right, dPsi_left, dPsi_right, &
               & valuej_num, valuej_denom, valuej)
-          PRINT *, "end of generalized weighted logrank test: RE"
-            PRINT *, "valuej_num:", valuej_num**2
-            PRINT *, "valuej_denom:", valuej_denom
+          !PRINT *, "end of generalized weighted logrank test: RE"
+          !PRINT *, "valuej_num:", valuej_num**2
+          !PRINT *, "valuej_denom:", valuej_denom
           
           IF (valuej_denom .EQ. 0.0 .AND. valuej_num > 1.0E-3) THEN 
             PRINT *, "valuej_num:", valuej_num**2
