@@ -3187,15 +3187,15 @@ SUBROUTINE CalculateREDenominator(K_LR, dPsi, n_people, n_records, &
       PRINT *, inner_integral
       PRINT *, "people_loop:", people_loop
       PRINT *, "new_people_loop:", new_people_loop
-      n_tp = SIZE(dPsi, 2) !MIN(SIZE(dPsi, 2), 10)  ! Limit to the first 10 timepoints
-      chunk_size = 10                ! Number of timepoints per row for better alignment
-      DO i = 1, n_tp, chunk_size
-        PRINT *
-        WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i + chunk_size - 1, n_tp))
-        WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i + chunk_size - 1, n_tp))
-        WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i + chunk_size - 1, n_tp))
-        WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i + chunk_size - 1, n_tp)) * dPsi(1, i:MIN(i + chunk_size - 1, n_tp)))
-      END DO
+      !n_tp = SIZE(dPsi, 2) !MIN(SIZE(dPsi, 2), 10)  ! Limit to the first 10 timepoints
+      !chunk_size = 10                ! Number of timepoints per row for better alignment
+      !DO i = 1, n_tp, chunk_size
+      !  PRINT *
+      !  WRITE(*, "(A5, 10I8)") "TP:", (j, j = i, MIN(i + chunk_size - 1, n_tp))
+      !  WRITE(*, "(A5, 10F8.5)") "dPSI:", dPsi(1, i:MIN(i + chunk_size - 1, n_tp))
+      !  WRITE(*, "(A5, 10F8.5)") "K_LR:", K_LR(i:MIN(i + chunk_size - 1, n_tp))
+      !  WRITE(*, "(A5, 10F8.5)") "K*dP:", (K_LR(i:MIN(i + chunk_size - 1, n_tp)) * dPsi(1, i:MIN(i + chunk_size - 1, n_tp)))
+      !END DO
       PRINT * 
       PRINT *, "inner_integral with size:", SIZE(inner_integral)
       PRINT *, inner_integral
