@@ -2077,13 +2077,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
           !     PRINT *, "end of call dPsi_indiv"
           ! END IF
 
-          IF (isPhase2RE) PRINT *, "calling re_info for LEFT!!!"
-          PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
-          PRINT *, leftCases_loop
-          PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
-          PRINT *, leftPeople_loop_og
-          PRINT *, "leftPeople_loop with size", nleftPeople_loop
-          PRINT *, leftPeople_loop
+          !IF (isPhase2RE) PRINT *, "calling re_info for LEFT!!!"
+          !PRINT *, "leftCases_loop with ", size(leftCases_loop), " total records"
+          !PRINT *, leftCases_loop
+          !PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
+          !PRINT *, leftPeople_loop_og
+          !PRINT *, "leftPeople_loop with size", nleftPeople_loop
+          !PRINT *, leftPeople_loop
           !CALL PrintSurvival("Survival (Left):", nt_death, surv_tp, &
           !& atRiskLeft_loop, eventsLeft_loop)
           !CALL PrintSurvival("Endpoint (Left):", nt, end_tp, &
@@ -2097,13 +2097,13 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
             & dmu_left, dPsi_left)
 
 
-          IF (isPhase2RE) PRINT *, "calling re_info for RIGHT!!!"
-          PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
-          PRINT *, rightCases_loop
-          PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
-          PRINT *, rightPeople_loop_og
-          PRINT *, "rightPeople_loop with size", nrightPeople_loop
-          PRINT *, rightPeople_loop
+          !IF (isPhase2RE) PRINT *, "calling re_info for RIGHT!!!"
+          !PRINT *, "rightCases_loop has ", size(rightCases_loop), " total records."
+          !PRINT *, rightCases_loop
+          !PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
+          !PRINT *, rightPeople_loop_og
+          !PRINT *, "rightPeople_loop with size", nrightPeople_loop
+          !PRINT *, rightPeople_loop
           !CALL PrintSurvival("Survival (Right):", nt_death, surv_tp, &
           !& atRiskRight_loop, eventsRight_loop)
           !CALL PrintSurvival("Endpoint (Right):", nt, end_tp, &
@@ -2144,6 +2144,18 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
               & valuej_num, valuej_denom, valuej)
           !PRINT *, "end of generalized weighted logrank test: RE"
           !PRINT *, "test stat:", valuej
+          
+          IF (valuej_denom .EQ. 0.0 .AND. valuej_num > 1.0E-3) THEN 
+            PRINT *, "valuej_num:", valuej_num
+            PRINT *, "valuej_denom:", valuej_denom
+            PRINT *, "valuej:", valuej
+            PRINT *, "leftPeople_loop_og with size", size(leftPeople_loop_og)
+            PRINT *, leftPeople_loop_og
+            PRINT *, "rightPeople_loop_og with size", size(rightPeople_loop_og)
+            PRINT *, rightPeople_loop_og
+            PRINT *, "this is big issue!!! so STOPPING!!!!"
+            STOP
+          END IF
 
           IF (ieee_is_nan(valuej)) then
             ! Make sure there are no NaN test statistics
@@ -3334,7 +3346,6 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     PRINT *, "denominator is sigma_LR^2:", sigma2_LR
     PRINT *, "denom outer_sum1:", outer_sum1
     PRINT *, "denom outer_sum2:", outer_sum2
-    PRINT *, "stopping to debug"
     print_check = .TRUE.
     ! Call CalculateDenominator for group 1
     CALL CalculateREDenominator(K_LR, dPsi1, n1, nrecords1, leftPeople_loop, &
@@ -3342,8 +3353,8 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     ! Call CalculateDenominator for group 2
     CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2, print_check) 
-    PRINT *, "stopped."
-    STOP
+    PRINT *, "Stopping to debug OUTSIDE of weightedgenLR subroutine."
+    !STOP
   END IF 
 
   IF (ieee_is_nan(test_statistic)) then
