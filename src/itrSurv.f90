@@ -2138,8 +2138,8 @@ SUBROUTINE tfindSplit(node1, nCases, casesIn, casesInRE, &
           !PRINT *, "starting generalized weighted logrank (RE test)"
           CALL GeneralizedWeightedLR_RE(nt, nleftPeople_loop, nrightPeople_loop, &
               & atRiskLeft_m_loop, atRiskRight_m_loop, &
-              & leftCases_loop, leftPeople_loop, &
-              & rightCases_loop, rightPeople_loop, &
+              & leftCases_loop, leftPeople_loop, leftPeople_loop_og, &
+              & rightCases_loop, rightPeople_loop, rightPeople_loop_og, &
               & dmu_left, dmu_right, dPsi_left, dPsi_right, &
               & valuej_num, valuej_denom, valuej)
           !PRINT *, "end of generalized weighted logrank test: RE"
@@ -3228,8 +3228,8 @@ END SUBROUTINE CalculateREDenominator
 
 
 SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
-                                    leftCases_loop, leftPeople_loop, &
-                                    rightCases_loop, rightPeople_loop, &
+                                    leftCases_loop, leftPeople_loop, leftPeople_loop_og1, &
+                                    rightCases_loop, rightPeople_loop, rightPeople_loop_og1, &
                                     dmu1, dmu2, dPsi1, dPsi2, Q_LR, sigma2_LR, test_statistic)
   use, intrinsic :: ieee_arithmetic
   IMPLICIT NONE
@@ -3241,8 +3241,10 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: atrisk2 ! # subj in group 2 at risk at time t
   INTEGER, DIMENSION(:) :: leftCases_loop
   INTEGER, DIMENSION(:) :: leftPeople_loop
+  INTEGER, DIMENSION(:) :: leftPeople_loop_og1
   INTEGER, DIMENSION(:) :: rightCases_loop
   INTEGER, DIMENSION(:) :: rightPeople_loop 
+  INTEGER, DIMENSION(:) :: rightPeople_loop_og1
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu1 ! # dmu in group 1 
   REAL(dp), DIMENSION(1:ns), INTENT(IN) :: dmu2 ! # dmu in group 2
   REAL(dp), DIMENSION(1:size(leftCases_loop),1:ns), INTENT(IN) :: dPsi1
@@ -3355,8 +3357,12 @@ SUBROUTINE GeneralizedWeightedLR_RE(ns, n1, n2, atrisk1, atrisk2, &
     ! Call CalculateDenominator for group 2
     CALL CalculateREDenominator(K_LR, dPsi2, n2, nrecords2, rightPeople_loop, &
                               outer_sum2, print_check) 
+    PRINT *, "leftPeople_loop_og1"
+    PRINT *, leftPeople_loop_og1
+    PRINT *, "rightPeople_loop_og1"
+    PRINT *, rightPeople_loop_og1
     PRINT *, "Stopping to debug OUTSIDE of weightedgenLR subroutine."
-    !STOP
+    STOP
   END IF 
 
   IF (ieee_is_nan(test_statistic)) then
