@@ -4928,7 +4928,7 @@ SUBROUTINE getCovariate(nCases, casesIn, kv, array)
 
   LOGICAL, DIMENSION(1:nCases) :: inSubset
 
-  PRINT *, "******************** getCovariate ********************"
+  !PRINT *, "******************** getCovariate ********************"
   array = 0.d0
 
   ! convert covariate to integers to ensure correct equality tests
@@ -4946,7 +4946,7 @@ SUBROUTINE getCovariate(nCases, casesIn, kv, array)
     ind = pack(casesIn, inSubset)
 
     ! calculate the mean survival/cif time for each individual in this subset
-    PRINT *, "getCovariate LINE 4170: CALL calcValueSingle"
+    !PRINT *, "getCovariate LINE 4170: CALL calcValueSingle"
     CALL calcValueSingle(size(ind), ind, Func, mean)
 
     WHERE (inSubset) array = mean

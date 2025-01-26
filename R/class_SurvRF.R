@@ -20,7 +20,7 @@ setMethod(f = ".Predict", # method cannot be used on object of class "SurvRFObje
           definition = function(object, newdata, ...) {
             View(object)
             View(newdata)
-            stop("class_SurvRF Line 18: not allowed")
+            stop("class_SurvRF Line 24: not allowed")
             })
 
 #-------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ setGeneric(name = ".PredictAll", #Define a generic function named ".PredictAll" 
 setMethod(f = ".PredictAll", # method is defined as "not allowed" for objects of class "SurvRFObject." Specific subclasses should provide their own implementations for this method.
           signature = c(object = "ANY"),
           definition = function(object, ...) {
-            stop("not allowed")
+            stop("class_SurvRF Line 37: not allowed")
             })
 
 # Class for storing survRF results for pooled analysis
@@ -212,8 +212,8 @@ setMethod(f = ".PredictAll",
             if (endPoint == "RE"){
               stop("warning: this is not updated as of Dec 14, 2024 for RE endpoint so stopping for pooled.")
             }
-            # message("method .PredictAll for SurvRF: LINE 211")
-            # message("comes from class_ITRSurv.R line 355")
+            message("method .PredictAll for SurvRF: LINE 211")
+            message("comes from class_ITRSurv.R line 355")
 
             # set all cases to receive first treatment
             newdata[[ txName ]] <- txLevels[1L]
@@ -233,7 +233,7 @@ setMethod(f = ".PredictAll",
                             newdata = x,
                             params = params, ...)
             # CZ adding in AUS
-            # message('class_SurvRF.R: Pooled Line 230: calculating AUS')
+            message('class_SurvRF.R: Pooled Line 230: calculating AUS')
             Func_res = as.matrix(res$Func)
             new_tp0 = list()
             # id_test = 1
@@ -316,7 +316,7 @@ setMethod(f = ".PredictAll",
               i <- i + 1L
             }
 
-            # message("%%%%%%%%%% AUS start")
+            message("%%%%%%%%%% AUS start")
             # Calculate AUS using all timepoints from params@timepoints
 
             # Initialize a list to store the areas under the curve for each treatment
@@ -600,7 +600,7 @@ setMethod(f = ".PredictAll",
               x <- stats::model.frame(formula = model, data = newdata)
             }
 
-            message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s and Endpoint: %s\n", Phase, endPoint))
+            # message(sprintf("method .PredictAll for SurvRFStratified for Phase: %s and Endpoint: %s\n", Phase, endPoint))
             # remove response from x
             if (attr(x = terms(x = model), which = "response") == 1L) {
               x <- x[,-1L,drop=FALSE]
