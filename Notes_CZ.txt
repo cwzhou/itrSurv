@@ -16,7 +16,7 @@ First, build source .tar.gz file from .RProj on local machine, then copy to clus
 2) open R by typing R (make sure you module load r/X.X.X the right version)
 3) type: install.packages('[location of .tar.gz file]/itrSurv_0.1.0.tar.gz', repos = NULL, type='source')
 4) library(itrSurv)
-5) exit and run bash CR_S2run.sh
+5) exit and run bash CR_S2value.sh
 
 ! If package is ONLY binary and not source, then go to DESCRIPTION and delete the line with "BUILT" and "PACKAGED"
 
