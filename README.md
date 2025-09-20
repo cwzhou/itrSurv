@@ -63,31 +63,7 @@ Check the installed GCC version: ```bash brew list gcc```
 #### 3. Confirm Command Line Tools for Xcode
 Ensure Xcode command line tools are installed: ```bash xcode-select --install```
 
-#### 4. Configure R to use Homebrew GCC
-
-Create or edit the R Makevars file:
-```bash
-mkdir -p ~/.R
-nano ~/.R/Makevars
-```
-
-Add the following lines (adjust paths if your GCC version is different):
-```make 
-CC=/usr/local/Cellar/gcc/15.1.0/bin/gcc-15
-CXX=/usr/local/Cellar/gcc/15.1.0/bin/g++-15
-FC=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
-F77=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
-```
-
-Save and exit (Ctrl+O, Enter, Ctrl+X).
-
-Check your exact path with: ```which gcc-15```
-
-#### 5. Verify Build Tools in R
-
-Restart R or RStudio and run: `r pkgbuild::check_build_tools(debug = TRUE)`. If everything is configured correctly, it should compile a simple C file without errors.
-
-#### 6. Install itrSurv from GitHub
+#### 4. Install itrSurv from GitHub
 Finally, open R and install the package:
 ```r install.packages("remotes")  # if not already installed
 remotes::install_github("cwzhou/itrSurv")
@@ -96,6 +72,27 @@ library(itrSurv)
 
 #### 7. Troubleshooting
 
+#### Configure R to use Homebrew GCC
+Create or edit the R Makevars file:
+```bash
+mkdir -p ~/.R
+nano ~/.R/Makevars
+```
+Add the following lines (adjust paths if your GCC version is different):
+```make 
+CC=/usr/local/Cellar/gcc/15.1.0/bin/gcc-15
+CXX=/usr/local/Cellar/gcc/15.1.0/bin/g++-15
+FC=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
+F77=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
+```
+Save and exit (Ctrl+O, Enter, Ctrl+X). Check your exact path with: ```which gcc-15```
+
+#### Verify Build Tools in R
+Restart R or RStudio and run: `r pkgbuild::check_build_tools(debug = TRUE)`. If everything is configured correctly, it should compile a simple C file without errors.
+
+#### Other troubleshooting
 Error: gcc-13: command not found → Make sure ~/.R/Makevars points to your installed GCC version.
+
 Permission issues → Use R as a user, not sudo.
+
 Failed to compile C/C++ files → Verify Xcode command line tools are installed and up to date.
