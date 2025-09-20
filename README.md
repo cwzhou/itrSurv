@@ -60,6 +60,15 @@ itrSurv requires compilation, so you need GCC: ```bash brew install gcc```
 
 Check the installed GCC version: ```bash brew list gcc```
 
+You should see something like:
+```bash 
+/usr/local/Cellar/gcc/15.1.0/bin/gcc-15
+/usr/local/Cellar/gcc/15.1.0/bin/g++-15
+/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
+...
+```
+
+
 #### 3. Confirm Command Line Tools for Xcode
 Ensure Xcode command line tools are installed: ```bash xcode-select --install```
 
@@ -70,7 +79,9 @@ remotes::install_github("cwzhou/itrSurv")
 library(itrSurv)
 ```
 
-#### 7. Troubleshooting
+#### 5. Troubleshooting
+
+If you encounter errors while installing the package, try the tips below (as needed) and then re-run Step 4.
 
 #### Configure R to use Homebrew GCC
 Create or edit the R Makevars file:
