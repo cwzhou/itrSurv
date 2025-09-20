@@ -1,6 +1,6 @@
 ## itrSurv
 
-**itrSurv** is an R package designed to **estimate optimal individualized treatment regimes for various survival endpoints**. This package provides tools for **survival data involving competing risks or recurrent events**. Please use as appropriate for your data. The authors introduce an multi-utility value function that determine the optimal rule via prioritizing survival while also accounting for a secondary endpoint. itrSurv works for multiple treatment options, but is only applicable to the single stage disease setting. Please refer to our papers for technical details.
+**itrSurv** is an R package designed to **estimate optimal individualized treatment regimes for various survival endpoints**. This package provides tools for **survival data involving competing risks or recurrent events**. Please use as appropriate for your data. The authors introduce a joint value function that determine the optimal rule via prioritizing survival while also accounting for a secondary endpoint. itrSurv works for multiple treatment options, but is only applicable to the single stage disease setting. Please refer to our papers for technical details.
 
 This is the doctoral dissertation thesis work of Christina W Zhou under the mentorship of Michael R Kosorok at UNC-CH Department of Biostatistics.
 
@@ -12,18 +12,18 @@ You can install the package directly from GitHub:
 devtools::install_github("cwzhou/itrSurv")
 ```
 
-Currently, itrSurv is only applicable to settings with either 1) competing risks with a priority cause of interest (as of April 2024), or 2) recurrent events with terminal events (on-going, as of June 2024).
+Currently, itrSurv is only applicable to settings with either 1) competing risks with a priority cause of interest (as of April 2024), or 2) recurrent events with terminal events (as of January 2025).
 
 ### Useful Code
 
-- **Simulation Studies**: R code for simulation studies is located at `https://github.com/cwzhou/Analyses/tree/main/Simulations/Paper1_CR`.
-- **University Cohort Application**: R code for applying the methodology to the university cohort can be found at `https://github.com/cwzhou/Analyses/tree/main/RDA/Paper1_CR`.
+- **Simulation Studies**: R code for simulation studies is located at `https://github.com/cwzhou/Analyses/tree/main/Simulations`. See Paper1_CR for Competing Risk simulation studies and Paper3_RE for Recurrent Event simulation studies.
+- **University Cohort Application**: R code for applying the methodology to the university cohort (not available for public use) can be found at `https://github.com/cwzhou/Analyses/tree/main/RDA/Paper1_CR`. There is a sensitivity simulation analysis that can be used instead, set revision = 1 for Paper1_CR.
   
 ***
 
 ### Updates
 
-- **CURRENTLY**: On-going updates for developing RCIF and the itrSurv estimator for RE setting.
+- **January 2025**: Finished updates for developing RCIF and the itrSurv estimator for RE setting.
 - **June 2024**: Now incorporating a second endpoint, recurrent events in the recurrent with terminal events setting. NOTE: data must be properly inputted before running itrSurv function!! Please read the documentation!!
 - **1/17/24**:
 
