@@ -12,13 +12,17 @@ You can install the package directly from GitHub:
 devtools::install_github("cwzhou/itrSurv")
 ```
 
-Currently, itrSurv is only applicable to settings with either 1) competing risks with a priority cause of interest (as of April 2024), or 2) recurrent events with terminal events (as of January 2025).
+If you encounter any issues, please refer to the Installation Guide at the end of this README. Because the package contains C, C++, and Fortran code, appropriate compiler tools are required to successfully build and install it.
+
+---
 
 ### Useful Code
 
 - **Simulation Studies**: R code for simulation studies is located at `https://github.com/cwzhou/Analyses/tree/main/Simulations`. See Paper1_CR for Competing Risk simulation studies and Paper3_RE for Recurrent Event simulation studies.
 - **University Cohort Application**: R code for applying the methodology to the university cohort (not available for public use) can be found at `https://github.com/cwzhou/Analyses/tree/main/RDA/Paper1_CR`. There is a sensitivity simulation analysis that can be used instead, set revision = 1 for Paper1_CR.
-  
+
+Currently, itrSurv is applicable to settings with either 1) competing risks with a priority cause of interest (as of April 2024), or 2) recurrent events with terminal events (as of January 2025).
+
 ***
 
 ### Updates
@@ -37,14 +41,13 @@ First, build source .tar.gz file from .RProj on local machine, then copy to clus
 
 ! If package is ONLY binary and not source, then go to DESCRIPTION and delete the line with "BUILT" and "PACKAGED"
 
+---
 
 ### INSTALLATION GUIDE
 
 #### Installing `itrSurv` on macOS
 This guide walks you through installing the `itrSurv` R package from GitHub on macOS.  
 It includes installing Homebrew, GCC, configuring R to use the correct compiler, and installing the package.
-
----
 
 #### 1. Install Homebrew (if not already installed)
 
