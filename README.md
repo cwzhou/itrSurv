@@ -89,6 +89,7 @@ FC=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
 F77=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
 ```
 Save and exit (Ctrl+O, Enter, Ctrl+X). Check your exact path with: ```which gcc-15```
+NOTE: make sure this path is the same as found in ```brew list gcc```!
 
 #### Verify Build Tools in R
 Restart R or RStudio and run: `pkgbuild::check_build_tools(debug = TRUE)`. If everything is configured correctly, it should compile a simple C file without errors.
