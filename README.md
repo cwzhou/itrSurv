@@ -40,18 +40,16 @@ This guide walks you through installing the `itrSurv` R package from GitHub on m
 It includes installing Homebrew, GCC, configuring R to use the correct compiler, and installing the package.
 
 #### 1. Install Homebrew (if not already installed)
-
 Homebrew is the package manager for macOS. Open Terminal and run:
-
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
-Verify installation: ```bash brew --version```
+Verify installation: ```brew --version```
 
 #### 2. Install GCC via Homebrew
-itrSurv requires compilation, so you need GCC: ```bash brew install gcc```
+itrSurv requires compilation, so you need GCC: ```brew install gcc```
 
-Check the installed GCC version: ```bash brew list gcc```
+Check the installed GCC version: ```brew list gcc```
 
 You should see something like:
 ```bash 
@@ -61,13 +59,14 @@ You should see something like:
 ...
 ```
 
-
 #### 3. Confirm Command Line Tools for Xcode
-Ensure Xcode command line tools are installed: ```bash xcode-select --install```
+Ensure Xcode command line tools are installed: ```xcode-select --install```
 
 #### 4. Install itrSurv from GitHub
 Finally, open R and install the package:
-```r install.packages("remotes")  # if not already installed
+```r 
+# install.packages("remotes")
+library(remotes)
 remotes::install_github("cwzhou/itrSurv")
 library(itrSurv)
 ```
@@ -92,7 +91,7 @@ F77=/usr/local/Cellar/gcc/15.1.0/bin/gfortran-15
 Save and exit (Ctrl+O, Enter, Ctrl+X). Check your exact path with: ```which gcc-15```
 
 #### Verify Build Tools in R
-Restart R or RStudio and run: `r pkgbuild::check_build_tools(debug = TRUE)`. If everything is configured correctly, it should compile a simple C file without errors.
+Restart R or RStudio and run: `pkgbuild::check_build_tools(debug = TRUE)`. If everything is configured correctly, it should compile a simple C file without errors.
 
 #### Other troubleshooting
 Error: gcc-13: command not found → Make sure ~/.R/Makevars points to your installed GCC version.
