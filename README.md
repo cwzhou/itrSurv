@@ -1,5 +1,3 @@
-### ** IMPORTANT NOTE: THIS PACKAGE IS COMPLETE FOR "CR" ENDPOINT, BUT THE REPO IS BEING UPDATED WITH ON-GOING DEVELOPMENT FOR "RE" ENDPOINT, and will continue to update until this note is removed (estimated completion: end of January 2025). ** 
-
 ## itrSurv
 
 **itrSurv** is an R package designed to **estimate optimal individualized treatment regimes for various survival endpoints**. This package provides tools for **survival data involving competing risks or recurrent events**. Please use as appropriate for your data. The authors introduce an multi-utility value function that determine the optimal rule via prioritizing survival while also accounting for a secondary endpoint. itrSurv works for multiple treatment options, but is only applicable to the single stage disease setting. Please refer to our papers for technical details.
