@@ -773,7 +773,7 @@ setMethod(f = ".Predict",
       # matches the current treatment level.
 
       # This is used to subset the dataset for the current treatment level.
-      use <<- elig & {dataset[,txName] == txLevels[i]}
+      use <- elig & {dataset[,txName] == txLevels[i]}
       # print(sprintf("starting .SurvRF for treatment level: %s", txLevels[i]))
 
       result[[ nms ]] <- .survRF(endPoint = endPoint,
