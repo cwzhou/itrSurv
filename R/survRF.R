@@ -89,7 +89,7 @@
   }
 
   # number of time points
-  nTimes <<- nrow(x = pr)
+  nTimes <- nrow(x = pr)
   if (is.null(nTimes)){
     nTimes = length(x = pr)
   }
@@ -180,7 +180,7 @@
                        forestMean = as.double(numeric(nr)),#mean survival time averaged over forest
                        forestProb = as.double(numeric(nr)),#survival probability at t0 (evalTime/survivalTime) averaged over forest
                        PACKAGE = "itrSurv")
-    Tree_Surv <<- Tree
+    Tree_Surv <- Tree
     matrix_output_surv <<- matrix(Tree_Surv[["forestFunc"]], nrow = nTimes)
     # print("end of .survTreefortran for survival")
   } else{ #if (grepl("CR", Phase, ignore.case = TRUE)){
@@ -233,7 +233,7 @@
                      Prob = as.double(x = numeric(length = treeDims$nr)),
                      PACKAGE = "itrSurv")
 
-    gettree <<-temp
+    gettree <-temp
     trees[[ i ]]$nodes <- matrix(data = temp$nodes,
                                  nrow = treeDims$nr,
                                  ncol = treeDims$nc)

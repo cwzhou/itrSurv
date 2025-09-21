@@ -513,7 +513,7 @@ itrSurv <- function(data,
     }
   }
 
-  params <<- .parameters(endPoint = endPoint,
+  params <- .parameters(endPoint = endPoint,
                         timePointsSurvival = timePointsSurvival,
                         timePointsEndpoint = timePointsEndpoint,
                         timePoints = timePoints,
